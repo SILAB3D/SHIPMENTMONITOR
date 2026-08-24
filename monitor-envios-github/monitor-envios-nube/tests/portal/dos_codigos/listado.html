@@ -1,0 +1,25 @@
+<!doctype html><meta charset="utf-8"><title>Consulta de envíos</title>
+<body>
+<h1>Consulta de envíos</h1>
+<div id="salida">cargando…</div>
+<script>
+// Portal de mentira: solo muestra la tabla si las credenciales llegaron bien.
+const p = new URLSearchParams(location.search);
+const ok = p.get('clave') === 'secreta' && (
+      p.get('usuario') === 'USR-1' ||
+      p.get('usuario') === '02112345' ||
+      (p.get('agencia') === '021' && p.get('cliente') === '12345'));
+
+document.getElementById('salida').innerHTML = ok ? `
+  <table>
+    <tr><th>Nº Albarán</th><th>Fecha</th><th>Destinatario</th><th>Población</th>
+        <th>Bultos</th><th>Kilos</th><th>Situación</th></tr>
+    <tr><td>0012345678</td><td>20/08/2026</td><td>FARMACIA SOL</td><td>VALENCIA</td>
+        <td>2</td><td>3,4</td><td>EN REPARTO</td></tr>
+    <tr><td>0012345679</td><td>21/08/2026</td><td>LAB VIDAL</td><td>MADRID</td>
+        <td>1</td><td>0,8</td><td>ENTREGADO</td></tr>
+  </table>`
+  : `<p>Acceso denegado</p>
+     <form><input type="text" name="usuario"><input type="password" name="clave"></form>`;
+</script>
+</body>

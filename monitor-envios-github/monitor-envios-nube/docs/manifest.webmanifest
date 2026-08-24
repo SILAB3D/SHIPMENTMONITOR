@@ -1,0 +1,19 @@
+{
+  "name": "Monitor de envíos TIPSA",
+  "short_name": "Envíos",
+  "description": "Vigila el portal DinaPaqWeb y avisa de envíos nuevos y cambios de estado",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#15100d",
+  "theme_color": "#ea580c",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "icono.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

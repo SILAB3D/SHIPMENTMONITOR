@@ -1,0 +1,88 @@
+name: Monitor de envíos
+
+on:
+  schedule:
+    # Cada 30 minutos. GitHub ejecuta los cron "cuando puede": puede retrasarse
+    # unos minutos en horas punta, que para vigilar envíos da igual.
+    - cron: '*/30 * * * *'
+  workflow_dispatch:        # botón "Run workflow" para forzar una comprobación
+
+permissions:
+  contents: write           # necesario para guardar docs/datos.json en el repo
+
+concurrency:
+  group: monitor-envios     # nunca dos comprobaciones a la vez
+  cancel-in-progress: false
+
+jobs:
+  comprobar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Instalar dependencias
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Consultar el portal
+        id: consulta
+        continue-on-error: true      # aunque falle, queremos guardar el estado y los avisos
+        env:
+          DINAPAQ_USUARIO:       ${{ secrets.DINAPAQ_USUARIO }}
+          DINAPAQ_AGENCIA:       ${{ secrets.DINAPAQ_AGENCIA }}
+          DINAPAQ_CLIENTE:       ${{ secrets.DINAPAQ_CLIENTE }}
+          DINAPAQ_PASSWORD:      ${{ secrets.DINAPAQ_PASSWORD }}
+          DINAPAQ_URL_LOGIN:     ${{ vars.DINAPAQ_URL_LOGIN }}
+          DINAPAQ_URL_LISTADO:   ${{ vars.DINAPAQ_URL_LISTADO }}
+          DINAPAQ_DIAS_ATRAS:    ${{ vars.DINAPAQ_DIAS_ATRAS }}
+          DINAPAQ_SEL_USUARIO:   ${{ vars.DINAPAQ_SEL_USUARIO }}
+          DINAPAQ_SEL_CLIENTE:   ${{ vars.DINAPAQ_SEL_CLIENTE }}
+          DINAPAQ_SEL_PASSWORD:  ${{ vars.DINAPAQ_SEL_PASSWORD }}
+          CLAVE_PANEL:           ${{ secrets.CLAVE_PANEL }}
+          TELEGRAM_TOKEN:        ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID:      ${{ secrets.TELEGRAM_CHAT_ID }}
+          SMTP_HOST:             ${{ secrets.SMTP_HOST }}
+          SMTP_PUERTO:           ${{ secrets.SMTP_PUERTO }}
+          SMTP_USUARIO:          ${{ secrets.SMTP_USUARIO }}
+          SMTP_PASSWORD:         ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_DESTINO:         ${{ secrets.EMAIL_DESTINO }}
+        run: python -m monitor.ejecutar
+
+      - name: Guardar los datos en el repositorio
+        run: |
+          git config user.name  "monitor-envios"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ ! -f docs/datos.json ]; then
+            echo "No se generó docs/datos.json; mira el paso anterior."
+            exit 0
+          fi
+          git add docs/datos.json
+          if git diff --staged --quiet; then
+            echo "Sin cambios que guardar."
+          else
+            git commit -m "datos: $(date -u +%Y-%m-%dT%H:%MZ)"
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
+            git push
+          fi
+
+      - name: Guardar capturas si el portal no se reconoció
+        if: always() && hashFiles('capturas/**') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: capturas-${{ github.run_id }}
+          path: capturas/
+          retention-days: 7
+
+      - name: Marcar la ejecución como fallida si no se pudo consultar
+        if: steps.consulta.outcome == 'failure'
+        run: |
+          echo "::error::La comprobación falló; revisa el log del paso «Consultar el portal»."
+          exit 1

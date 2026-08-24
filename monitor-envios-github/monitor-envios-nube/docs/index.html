@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Monitor de envíos</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icono.svg" type="image/svg+xml">
+<meta name="theme-color" content="#ea580c">
+<!-- Librerías servidas en local: la PWA funciona sin internet y sin depender de un CDN -->
+<script src="vendor/react.js"></script>
+<script src="vendor/react-dom.js"></script>
+<script src="vendor/babel.js"></script>
+<style>
+/* ───────────────────────── tipografía ─────────────────────────
+   Inter variable, servida en local (sin CDN ni Google Fonts). */
+@font-face{
+  font-family:'Inter var';
+  src:url('vendor/fuentes/inter-latin-wght-normal.woff2') format('woff2-variations');
+  font-weight:100 900; font-style:normal; font-display:swap;
+}
+/* ───────────────────────── tokens ───────────────────────── */
+:root{
+  --naranja:#ea580c; --naranja-claro:#fb923c; --naranja-suave:#fff1e6; --naranja-borde:#fdba74;
+  --bg:#faf7f4; --panel:#ffffff; --panel-2:#fbf6f2; --borde:#ece0d6;
+  --texto:#1c1917; --suave:#7a6a60; --tenue:#a8968a;
+  --ok:#15803d; --ok-bg:#e7f6ec; --error:#c2410c; --error-bg:#fdece3; --info:#0369a1;
+  --sombra:0 1px 2px rgba(28,25,23,.05), 0 8px 24px -16px rgba(28,25,23,.25);
+
+  --fuente:'Inter var',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --sp-1:.25rem; --sp-2:.5rem; --sp-3:.75rem; --sp-4:1rem; --sp-5:1.5rem; --sp-6:2rem;
+  --r-sm:8px; --r:12px; --r-lg:18px;
+  --ancho:1180px;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --naranja:#fb923c; --naranja-claro:#fdba74; --naranja-suave:#2b1a10; --naranja-borde:#7c3a12;
+    --bg:#15100d; --panel:#1f1815; --panel-2:#261e19; --borde:#372c25;
+    --texto:#f6efe9; --suave:#b6a79c; --tenue:#8b7c71;
+    --ok:#4ade80; --ok-bg:#14301f; --error:#fb7185; --error-bg:#361a1a; --info:#7dd3fc;
+    --sombra:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -20px rgba(0,0,0,.9);
+  }
+}
+/* ───────────────────────── base ───────────────────────── */
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--texto);
+  font:400 15px/1.55 var(--fuente);
+  font-feature-settings:'cv05' 1,'ss01' 1;   /* formas más limpias de la l y la a */
+  letter-spacing:-.006em;
+  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+  overflow-x:hidden;
+}
+h1,h2,h3,p{margin:0}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--naranja);outline-offset:2px;border-radius:var(--r-sm)}
+
+/* ───────────────────────── piezas ───────────────────────── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-2);
+  border:1px solid var(--borde);background:var(--panel);border-radius:var(--r-sm);
+  padding:.5rem .9rem;cursor:pointer;font-weight:550;white-space:nowrap;
+  transition:border-color .15s,background .15s,transform .05s;
+}
+.btn:hover{border-color:var(--naranja);color:var(--naranja)}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.55;cursor:default;transform:none}
+.btn.primario{background:var(--naranja);border-color:var(--naranja);color:#fff}
+.btn.primario:hover{background:var(--naranja-claro);border-color:var(--naranja-claro);color:#1c1917}
+.btn.icono{padding:.5rem .6rem}
+.btn.bloque{width:100%;padding:.7rem 1rem}
+
+.campo{display:flex;flex-direction:column;gap:var(--sp-2)}
+.campo label{font-size:.8rem;font-weight:600;color:var(--suave)}
+.campo input{
+  width:100%;padding:.65rem .8rem;border:1px solid var(--borde);border-radius:var(--r-sm);
+  background:var(--panel-2);
+}
+.campo input:focus{outline:none;border-color:var(--naranja);box-shadow:0 0 0 3px var(--naranja-suave)}
+.campo .pista{font-size:.75rem;color:var(--tenue)}
+
+.chip{
+  display:inline-flex;align-items:center;gap:.35rem;font-size:.75rem;font-weight:600;
+  padding:.2rem .6rem;border-radius:999px;border:1px solid var(--borde);color:var(--suave);
+  background:var(--panel);white-space:nowrap;
+}
+.chip.on{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent);background:var(--ok-bg)}
+.chip.alerta{color:var(--error);border-color:color-mix(in srgb,var(--error) 40%,transparent);background:var(--error-bg)}
+.chip.marca{color:var(--naranja);border-color:var(--naranja-borde);background:var(--naranja-suave)}
+
+.tarjeta{background:var(--panel);border:1px solid var(--borde);border-radius:var(--r-lg);box-shadow:var(--sombra)}
+.pad{padding:var(--sp-4)}
+.titulo-seccion{
+  font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--tenue);
+  font-weight:700;margin-bottom:var(--sp-3);
+}
+
+/* ───────────────────────── acceso ───────────────────────── */
+.acceso{min-height:100dvh;display:grid;place-items:center;padding:var(--sp-5) var(--sp-4)}
+.acceso-caja{width:min(100%,26rem);display:grid;gap:var(--sp-5);padding:var(--sp-6) var(--sp-5)}
+.acceso-cabecera{display:grid;gap:var(--sp-2);justify-items:center;text-align:center}
+.acceso-cabecera img{width:56px;height:56px}
+.acceso-cabecera h1{font-size:1.4rem;letter-spacing:-.03em;font-weight:650}
+.acceso-cabecera p{font-size:.9rem;color:var(--suave)}
+.acceso form{display:grid;gap:var(--sp-4)}
+.recordar{display:flex;gap:var(--sp-3);align-items:flex-start;cursor:pointer;
+          background:var(--panel-2);border:1px solid var(--borde);border-radius:var(--r);padding:var(--sp-3)}
+.recordar input{margin:.2rem 0 0;accent-color:var(--naranja);width:1.05rem;height:1.05rem;flex:none}
+.recordar b{display:block;font-size:.9rem}
+.recordar span{font-size:.78rem;color:var(--suave)}
+.aviso{border-radius:var(--r);padding:var(--sp-3);font-size:.87rem;border:1px solid}
+.aviso.mal{background:var(--error-bg);border-color:color-mix(in srgb,var(--error) 35%,transparent);color:var(--error)}
+.aviso.info{background:var(--naranja-suave);border-color:var(--naranja-borde);color:var(--naranja)}
+
+/* ───────────────────────── estructura ───────────────────────── */
+.barra{
+  position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--panel) 92%,transparent);
+  backdrop-filter:blur(10px);border-bottom:1px solid var(--borde);
+}
+.barra-int{
+  max-width:var(--ancho);margin:0 auto;padding:var(--sp-3) var(--sp-4);
+  display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap;
+}
+.marca-app{display:flex;align-items:center;gap:var(--sp-2);min-width:0}
+.marca-app img{width:28px;height:28px;flex:none}
+.marca-app h1{font-size:1.05rem;font-weight:650;letter-spacing:-.03em;white-space:nowrap}
+.crece{flex:1 1 auto;min-width:0}
+.acciones{display:flex;gap:var(--sp-2);align-items:center;flex-wrap:wrap}
+
+.contenido{max-width:var(--ancho);margin:0 auto;padding:var(--sp-4);display:grid;gap:var(--sp-4)}
+.columnas{display:grid;gap:var(--sp-4);grid-template-columns:1fr}
+@media (min-width:1024px){
+  .columnas{grid-template-columns:minmax(0,2.4fr) minmax(17rem,1fr);align-items:start}
+  .lateral{position:sticky;top:5rem}
+}
+.columnas>*{min-width:0}
+
+.metricas{display:grid;gap:var(--sp-3);grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr))}
+.metrica{display:grid;gap:.1rem;padding:var(--sp-3);background:var(--panel-2);border-radius:var(--r);border:1px solid var(--borde)}
+.metrica span{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--tenue);font-weight:700}
+.metrica b{font-size:1.45rem;font-weight:700;letter-spacing:-.03em;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.metrica small{font-size:.75rem;color:var(--suave)}
+
+.filtros{display:flex;gap:var(--sp-2);align-items:center;flex-wrap:wrap}
+.filtros .buscador{flex:1 1 12rem;min-width:0;position:relative}
+.filtros .buscador input{width:100%;padding:.5rem .8rem;border:1px solid var(--borde);
+  border-radius:999px;background:var(--panel);}
+.filtros .buscador input:focus{outline:none;border-color:var(--naranja)}
+.filtro-btn{
+  border:1px solid var(--borde);background:var(--panel);border-radius:999px;
+  padding:.35rem .8rem;font-size:.83rem;font-weight:600;cursor:pointer;color:var(--suave);white-space:nowrap;
+}
+.filtro-btn.activo{background:var(--naranja);border-color:var(--naranja);color:#fff}
+
+/* ───────────────────────── envíos ───────────────────────── */
+.rejilla{display:grid;gap:var(--sp-4);grid-template-columns:repeat(auto-fill,minmax(min(100%,19rem),1fr))}
+.envio{display:flex;flex-direction:column;gap:var(--sp-3);padding:var(--sp-4);min-width:0}
+.envio-cab{display:flex;gap:var(--sp-2);align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.envio-ref{font-size:1.05rem;font-weight:650;letter-spacing:-.02em;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.envio-sub{font-size:.82rem;color:var(--suave);overflow-wrap:anywhere}
+.datos{display:grid;grid-template-columns:repeat(auto-fit,minmax(5.4rem,1fr));gap:var(--sp-2) var(--sp-3)}
+.dato span{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--tenue);font-weight:700}
+.dato b{font-weight:550;font-size:.88rem;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+
+/* diagrama de pasos: flex puro, sin posicionamiento absoluto → nunca se solapa */
+.pasos{display:flex;align-items:flex-start;gap:.15rem;padding-top:var(--sp-1)}
+.paso{flex:1 1 0;min-width:2.6rem;max-width:5rem;display:grid;justify-items:center;gap:.3rem;text-align:center}
+.paso .bola{
+  width:1.65rem;height:1.65rem;border-radius:50%;display:grid;place-items:center;
+  border:2px solid var(--borde);background:var(--panel);font-size:.8rem;color:var(--tenue);flex:none;
+}
+.paso .etq{font-size:.62rem;line-height:1.2;color:var(--tenue);font-weight:600;overflow-wrap:anywhere}
+.paso.hecho .bola{background:var(--naranja);border-color:var(--naranja);color:#fff}
+.paso.hecho .etq{color:var(--suave)}
+.paso.actual .bola{background:var(--panel);border-color:var(--naranja);color:var(--naranja);
+                   box-shadow:0 0 0 4px var(--naranja-suave)}
+.paso.actual .etq{color:var(--naranja)}
+.paso.final .bola{background:var(--ok);border-color:var(--ok);color:#fff;box-shadow:0 0 0 4px var(--ok-bg)}
+.paso.final .etq{color:var(--ok)}
+.paso.incidencia .bola{border-color:var(--error);color:var(--error);box-shadow:0 0 0 4px var(--error-bg)}
+.paso.incidencia .etq{color:var(--error)}
+.linea{flex:1 1 auto;height:2px;min-width:.25rem;margin-top:.8rem;background:var(--borde);border-radius:2px}
+.linea.hecha{background:var(--naranja)}
+
+.detalle{border-top:1px solid var(--borde);padding-top:var(--sp-3);display:grid;gap:var(--sp-3)}
+.hist{display:grid;gap:var(--sp-2)}
+.hist-item{display:flex;gap:var(--sp-2);font-size:.82rem}
+.hist-item time{color:var(--tenue);flex:none;font-variant-numeric:tabular-nums}
+.pie{display:flex;justify-content:space-between;align-items:center;gap:var(--sp-2);flex-wrap:wrap}
+.enlace{background:none;border:0;padding:0;color:var(--naranja);font-size:.82rem;font-weight:600;cursor:pointer}
+
+/* ───────────────────────── novedades ───────────────────────── */
+.novedad{display:flex;gap:var(--sp-3);padding:var(--sp-3) 0;border-bottom:1px solid var(--borde);min-width:0}
+.novedad:last-child{border-bottom:0;padding-bottom:0}
+.novedad .marca{width:1.9rem;height:1.9rem;border-radius:50%;display:grid;place-items:center;flex:none;
+  background:var(--naranja-suave);color:var(--naranja);font-size:.85rem;border:1px solid var(--naranja-borde)}
+.novedad .txt{min-width:0}
+.novedad b{font-size:.88rem;display:block;overflow-wrap:anywhere}
+.novedad p{font-size:.82rem;color:var(--suave);overflow-wrap:anywhere}
+.novedad time{font-size:.72rem;color:var(--tenue)}
+.vacio{color:var(--tenue);font-size:.87rem;padding:var(--sp-3) 0;text-align:center}
+
+.pie-app{max-width:var(--ancho);margin:0 auto;padding:0 var(--sp-4) var(--sp-6);
+         font-size:.75rem;color:var(--tenue);display:flex;gap:var(--sp-3);flex-wrap:wrap}
+@media (max-width:520px){
+  .barra-int{padding:var(--sp-3)}
+  .contenido{padding:var(--sp-3)}
+  .acciones{width:100%}
+  .acciones .btn{flex:1 1 auto}
+  .marca-app h1{font-size:.95rem}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script type="text/babel">
+const {useState, useEffect, useCallback, useRef, Fragment} = React;
+
+/* ─────────────────── datos ───────────────────
+   No hay servidor: el panel descarga docs/datos.json (que publica el workflow
+   de GitHub Actions) y lo descifra aquí mismo con WebCrypto. */
+
+const CLAVE_GUARDADA = 'monitor-envios:clave';
+const ULTIMO_VISTO   = 'monitor-envios:ultimo-evento';
+
+const guardar = (k, v) => { try { localStorage.setItem(k, v); } catch (_) {} };
+const leer    = k      => { try { return localStorage.getItem(k); } catch (_) { return null; } };
+const olvidar = k      => { try { localStorage.removeItem(k); } catch (_) {} };
+
+const deB64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+
+async function descifrar(sobre, password){
+  const material = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
+  const clave = await crypto.subtle.deriveKey(
+    {name:'PBKDF2', salt: deB64(sobre.salt), iterations: sobre.iter || 200000, hash:'SHA-256'},
+    material, {name:'AES-GCM', length:256}, false, ['decrypt']);
+  const claro = await crypto.subtle.decrypt(
+    {name:'AES-GCM', iv: deB64(sobre.iv)}, clave, deB64(sobre.datos));
+  return JSON.parse(new TextDecoder().decode(claro));
+}
+
+async function cargarDatos(password){
+  const r = await fetch('datos.json?t=' + Date.now(), {cache:'no-store'});
+  if (!r.ok) throw new Error('todavía no hay datos publicados (¿ha corrido ya el workflow?)');
+  const sobre = await r.json();
+  if (!sobre.datos) return sobre;                 // fichero en claro (modo demo)
+  try { return await descifrar(sobre, password); }
+  catch (_) { const e = new Error('contraseña incorrecta'); e.clave = true; throw e; }
+}
+
+/* ─────────────────── utilidades ─────────────────── */
+const fmtFecha = iso => iso
+  ? new Date(iso).toLocaleString('es-ES', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})
+  : '—';
+
+function haceCuanto(iso){
+  if (!iso) return 'nunca';
+  const min = Math.round((Date.now() - new Date(iso)) / 60000);
+  if (min < 1) return 'hace un momento';
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `hace ${h} h`;
+  return `hace ${Math.round(h / 24)} d`;
+}
+
+const sinAcentos = t => (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+const PASOS = [
+  {etq:'Grabado',   icono:'1'},
+  {etq:'Tránsito',  icono:'2'},
+  {etq:'Reparto',   icono:'3'},
+  {etq:'Entrega',   icono:'✓'},
+];
+
+/** Traduce el texto de estado del portal a una posición del diagrama. */
+function analizarEstado(texto){
+  const t = sinAcentos(texto);
+  const incidencia = /incid|ausen|rehus|devuel|falt|error|retenid|aduan|direccion erronea|no localiz/.test(t);
+  let paso = 0;
+  if (/entreg/.test(t)) paso = 3;
+  else if (/reparto|en entrega|salida a reparto|ultima milla/.test(t)) paso = 2;
+  else if (/transit|en ruta|almacen|recogid|salida|llegada|expedid|plataforma/.test(t)) paso = 1;
+  else if (/grabad|registrad|admitid|pendiente|alta|documentad/.test(t)) paso = 0;
+  else if (incidencia) paso = 2;
+  return {paso, incidencia, texto: texto || 'sin estado'};
+}
+
+/* ─────────────────── acceso ─────────────────── */
+function Acceso({onEntrar}){
+  const [password, setPassword] = useState('');
+  const [recordar, setRecordar] = useState(true);
+  const [error, setError] = useState('');
+  const [cargando, setCargando] = useState(false);
+
+  const enviar = async e => {
+    e.preventDefault();
+    setError(''); setCargando(true);
+    try{
+      const datos = await cargarDatos(password);
+      if (recordar) guardar(CLAVE_GUARDADA, password); else olvidar(CLAVE_GUARDADA);
+      onEntrar(password, datos);
+    }catch(err){
+      setError(err.clave ? 'Esa no es la contraseña del panel.' : err.message);
+    }finally{ setCargando(false); }
+  };
+
+  return (
+    <div className="acceso">
+      <div className="tarjeta acceso-caja">
+        <div className="acceso-cabecera">
+          <img src="icono.svg" alt="" />
+          <h1>Monitor de envíos</h1>
+          <p>Introduce la contraseña del panel para ver tus envíos</p>
+        </div>
+        <form onSubmit={enviar}>
+          <div className="campo">
+            <label htmlFor="pw">Contraseña del panel</label>
+            <input id="pw" type="password" value={password} onChange={e=>setPassword(e.target.value)}
+                   autoComplete="current-password" autoFocus required />
+            <span className="pista">
+              Es el valor del Secret <code>CLAVE_PANEL</code> del repositorio. Los datos viajan
+              cifrados y se descifran aquí, en tu navegador.
+            </span>
+          </div>
+          <label className="recordar">
+            <input type="checkbox" checked={recordar} onChange={e=>setRecordar(e.target.checked)} />
+            <span>
+              <b>Recordar en este dispositivo</b>
+              <span>No tendrás que volver a escribirla en este navegador. Las credenciales del
+                    portal viven en GitHub, nunca aquí.</span>
+            </span>
+          </label>
+          {error && <div className="aviso mal">{error}</div>}
+          <button className="btn primario bloque" type="submit" disabled={cargando}>
+            {cargando ? 'Abriendo…' : 'Entrar'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────── diagrama ─────────────────── */
+function Diagrama({estado}){
+  const {paso, incidencia} = analizarEstado(estado);
+  return (
+    <div className="pasos" role="img" aria-label={`Estado: ${estado || 'desconocido'}`}>
+      {PASOS.map((p, i) => {
+        const entregado = paso === PASOS.length - 1 && !incidencia;
+        const hecho = i < paso || (i === paso && entregado);
+        const clases = ['paso'];
+        if (hecho) clases.push('hecho');
+        if (i === paso) clases.push('actual');
+        if (i === paso && entregado) clases.push('final');
+        if (i === paso && incidencia) clases.push('incidencia');
+        return (
+          <Fragment key={p.etq}>
+            {i > 0 && <div className={'linea' + (i <= paso ? ' hecha' : '')} />}
+            <div className={clases.join(' ')}>
+              <div className="bola">{i === paso && incidencia ? '!' : (hecho ? '✓' : p.icono)}</div>
+              <div className="etq">{p.etq}</div>
+            </div>
+          </Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─────────────────── tarjeta de envío ─────────────────── */
+function TarjetaEnvio({envio, historial}){
+  const [abierto, setAbierto] = useState(false);
+  const c = envio.campos || {};
+  const {incidencia} = analizarEstado(c.estado);
+  const extras = Object.entries(c).filter(([k]) => k.startsWith('extra:'));
+
+  return (
+    <article className="tarjeta envio">
+      <header className="envio-cab">
+        <div style={{minWidth:0}}>
+          <div className="envio-ref">{envio.id}</div>
+          <div className="envio-sub">{c.destinatario || 'Sin destinatario'}{c.localidad ? ` · ${c.localidad}` : ''}</div>
+        </div>
+        <span className={'chip ' + (incidencia ? 'alerta' : 'marca')}>{c.estado || 'sin estado'}</span>
+      </header>
+
+      <Diagrama estado={c.estado} />
+
+      <div className="datos">
+        {c.fecha && <div className="dato"><span>Fecha</span><b>{c.fecha}</b></div>}
+        {c.bultos && <div className="dato"><span>Bultos</span><b>{c.bultos}</b></div>}
+        {c.kilos && <div className="dato"><span>Kilos</span><b>{c.kilos}</b></div>}
+        {c.entrega && <div className="dato"><span>Entrega</span><b>{c.entrega}</b></div>}
+      </div>
+
+      {c.observaciones && <div className="envio-sub">📝 {c.observaciones}</div>}
+
+      <div className="pie">
+        <span className="envio-sub">Visto {haceCuanto(envio.visto_ultima)}</span>
+        <button className="enlace" onClick={()=>setAbierto(a=>!a)} aria-expanded={abierto}>
+          {abierto ? 'Ocultar detalle' : 'Ver detalle'}
+        </button>
+      </div>
+
+      {abierto && (
+        <div className="detalle">
+          <div>
+            <div className="titulo-seccion">Todos los datos</div>
+            <div className="datos">
+              {Object.entries(c).filter(([k]) => !k.startsWith('extra:')).map(([k,v]) => (
+                <div className="dato" key={k}><span>{k}</span><b>{v || '—'}</b></div>
+              ))}
+              {extras.map(([k,v]) => (
+                <div className="dato" key={k}><span>{k.slice(6)}</span><b>{v || '—'}</b></div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="titulo-seccion">Historial</div>
+            <div className="hist">
+              {historial.length === 0 && <div className="envio-sub">Sin cambios registrados todavía.</div>}
+              {historial.map(h => (
+                <div className="hist-item" key={h.id}>
+                  <time>{fmtFecha(h.ts)}</time><span>{h.detalle}</span>
+                </div>
+              ))}
+              <div className="hist-item">
+                <time>{fmtFecha(envio.visto_primera)}</time><span>detectado por primera vez</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </article>
+  );
+}
+
+/* ─────────────────── paneles ─────────────────── */
+function Metricas({meta, envios}){
+  const analizados = envios.map(e => analizarEstado(e.campos.estado));
+  const entregados = analizados.filter(a => a.paso === 3 && !a.incidencia).length;
+  const incidencias = analizados.filter(a => a.incidencia).length;
+  const enCurso = envios.length - entregados - incidencias;
+  return (
+    <section className="metricas">
+      <div className="metrica"><span>Vigilados</span><b>{envios.length}</b></div>
+      <div className="metrica"><span>En curso</span><b style={{color:'var(--naranja)'}}>{enCurso}</b></div>
+      <div className="metrica"><span>Entregados</span><b style={{color:'var(--ok)'}}>{entregados}</b></div>
+      <div className="metrica"><span>Incidencias</span><b style={{color: incidencias ? 'var(--error)' : 'inherit'}}>{incidencias}</b></div>
+      <div className="metrica">
+        <span>Última comprobación</span>
+        <b style={{fontSize:'1rem'}}>{haceCuanto(meta?.ultima_comprobacion)}</b>
+        <small>{fmtFecha(meta?.ultima_comprobacion)}</small>
+      </div>
+    </section>
+  );
+}
+
+function Novedades({eventos}){
+  return (
+    <section className="tarjeta pad">
+      <div className="titulo-seccion">Novedades</div>
+      {eventos.length === 0 && <div className="vacio">Todo tranquilo por aquí.</div>}
+      {eventos.slice(0, 25).map(ev => (
+        <div className="novedad" key={ev.id}>
+          <div className="marca">{ev.tipo === 'nuevo' ? '+' : '↻'}</div>
+          <div className="txt">
+            <b>{ev.titulo}</b>
+            <p>{ev.detalle}</p>
+            <time>{fmtFecha(ev.ts)}</time>
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+/* ─────────────────── panel ─────────────────── */
+function Panel({datos, onRecargar, onSalir, recargando}){
+  const [filtro, setFiltro] = useState('todos');
+  const [busqueda, setBusqueda] = useState('');
+  const [permiso, setPermiso] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'denied');
+
+  const meta = datos.meta || {};
+  const eventos = datos.eventos || [];
+  const envios = Object.entries(datos.envios || {})
+    .map(([id, e]) => ({id, ...e}))
+    .sort((a, b) => (b.visto_primera || '').localeCompare(a.visto_primera || ''));
+
+  // Avisos en el propio dispositivo para lo que haya llegado desde la última visita
+  useEffect(() => {
+    if (permiso !== 'granted' || !eventos.length) return;
+    const visto = Number(leer(ULTIMO_VISTO) || 0);
+    const nuevos = eventos.filter(e => e.id > visto);
+    guardar(ULTIMO_VISTO, String(Math.max(...eventos.map(e => e.id))));
+    if (!visto) return;                       // primera visita: no bombardeamos
+    (async () => {
+      const reg = await navigator.serviceWorker?.getRegistration();
+      nuevos.slice(0, 5).forEach(n => {
+        const o = {body:n.detalle, icon:'icono.svg', tag:'envio-'+n.envio_id};
+        reg ? reg.showNotification(n.titulo, o) : new Notification(n.titulo, o);
+      });
+    })();
+  }, [eventos, permiso]);
+
+  const activarAvisos = async () => setPermiso(await Notification.requestPermission());
+
+  const q = busqueda.trim().toLowerCase();
+  const visibles = envios.filter(e => {
+    const a = analizarEstado(e.campos.estado);
+    if (filtro === 'curso' && (a.paso === 3 || a.incidencia)) return false;
+    if (filtro === 'entregados' && (a.paso !== 3 || a.incidencia)) return false;
+    if (filtro === 'incidencias' && !a.incidencia) return false;
+    if (!q) return true;
+    return (e.id + ' ' + JSON.stringify(e.campos)).toLowerCase().includes(q);
+  });
+  const historialDe = id => eventos.filter(ev => ev.envio_id === id);
+  const frescura = meta.ultima_comprobacion &&
+    (Date.now() - new Date(meta.ultima_comprobacion)) < 3 * 3600 * 1000;
+
+  return (
+    <Fragment>
+      <header className="barra">
+        <div className="barra-int">
+          <div className="marca-app">
+            <img src="icono.svg" alt="" />
+            <h1>Monitor de envíos</h1>
+          </div>
+          <div className="crece" />
+          <div className="acciones">
+            <span className={'chip ' + (frescura ? 'on' : 'alerta')}>
+              {haceCuanto(meta.ultima_comprobacion)}
+            </span>
+            {permiso !== 'granted' && <button className="btn" onClick={activarAvisos}>Activar avisos</button>}
+            <button className="btn primario" onClick={onRecargar} disabled={recargando}>
+              {recargando ? 'Actualizando…' : 'Actualizar'}
+            </button>
+            <button className="btn" onClick={onSalir} title="Olvidar la contraseña en este dispositivo">Salir</button>
+          </div>
+        </div>
+      </header>
+
+      <main className="contenido">
+        {meta.error && <div className="aviso mal">⚠ La última comprobación falló: {meta.error}</div>}
+
+        <Metricas meta={meta} envios={envios} />
+
+        <div className="filtros">
+          {[['todos','Todos'],['curso','En curso'],['entregados','Entregados'],['incidencias','Incidencias']].map(([k,l]) => (
+            <button key={k} className={'filtro-btn' + (filtro === k ? ' activo' : '')} onClick={()=>setFiltro(k)}>{l}</button>
+          ))}
+          <div className="buscador">
+            <input type="search" value={busqueda} onChange={e=>setBusqueda(e.target.value)}
+                   placeholder="Buscar referencia, destinatario, localidad…" aria-label="Buscar" />
+          </div>
+        </div>
+
+        <div className="columnas">
+          <div>
+            {visibles.length === 0
+              ? <div className="tarjeta pad vacio">No hay envíos que coincidan.</div>
+              : <div className="rejilla">
+                  {visibles.map(e => <TarjetaEnvio key={e.id} envio={e} historial={historialDe(e.id)} />)}
+                </div>}
+          </div>
+          <aside className="lateral"><Novedades eventos={eventos} /></aside>
+        </div>
+      </main>
+
+      <footer className="pie-app">
+        <span>Comprueba el portal cada 30 min desde GitHub Actions</span>
+        {meta.repo && <a className="enlace" href={`https://github.com/${meta.repo}/actions`} target="_blank" rel="noopener">Ver ejecuciones</a>}
+        <span>Avisos: {Object.entries(meta.canales || {}).filter(([,v])=>v).map(([k])=>k).join(', ') || 'solo en pantalla'}</span>
+      </footer>
+    </Fragment>
+  );
+}
+
+/* ─────────────────── app ─────────────────── */
+function App(){
+  const [clave, setClave] = useState(() => leer(CLAVE_GUARDADA) || '');
+  const [datos, setDatos] = useState(null);
+  const [error, setError] = useState('');
+  const [recargando, setRecargando] = useState(false);
+  const primeraCarga = useRef(true);
+
+  const recargar = useCallback(async (password) => {
+    const pw = password ?? clave;
+    if (!pw && !primeraCarga.current) return;
+    setRecargando(true);
+    try{
+      setDatos(await cargarDatos(pw));
+      setError('');
+    }catch(err){
+      if (err.clave){ olvidar(CLAVE_GUARDADA); setClave(''); setDatos(null); }
+      else setError(err.message);
+    }finally{ setRecargando(false); primeraCarga.current = false; }
+  }, [clave]);
+
+  useEffect(() => {
+    if (!clave) return;
+    recargar(clave);
+    const t = setInterval(() => recargar(clave), 5 * 60 * 1000);   // el workflow va cada 30 min
+    return () => clearInterval(t);
+  }, [clave, recargar]);
+
+  const entrar = (password, datosIniciales) => { setClave(password); setDatos(datosIniciales); };
+  const salir  = () => { olvidar(CLAVE_GUARDADA); setClave(''); setDatos(null); };
+
+  if (!clave || !datos) {
+    return (
+      <Fragment>
+        <Acceso onEntrar={entrar} />
+        {error && <div className="contenido"><div className="aviso mal">{error}</div></div>}
+      </Fragment>
+    );
+  }
+  return <Panel datos={datos} onRecargar={() => recargar()} onSalir={salir} recargando={recargando} />;
+}
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+ReactDOM.createRoot(document.getElementById('app')).render(<App />);
+</script>
+</body>
+</html>
