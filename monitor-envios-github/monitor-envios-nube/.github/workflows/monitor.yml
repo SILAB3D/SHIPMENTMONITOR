@@ -26,6 +26,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Por defecto, checkout se queda en el commit que disparó la ejecución.
+          # Aquí eso no vale: si dos comprobaciones se disparan seguidas, la
+          # segunda se traería una foto anterior a los datos que guardó la
+          # primera, volvería a dar por nuevos envíos ya avisados y chocaría al
+          # subir. Queremos siempre la punta de la rama.
+          ref: ${{ github.ref_name }}
 
       - uses: actions/setup-python@v5
         with:
@@ -74,14 +81,37 @@ jobs:
             echo "No se generó docs/datos.json; mira el paso anterior."
             exit 0
           fi
-          git add docs/datos.json
-          if git diff --staged --quiet; then
-            echo "Sin cambios que guardar."
-          else
-            git commit -m "datos: $(date -u +%Y-%m-%dT%H:%MZ)"
-            git pull --rebase --autostash origin "${GITHUB_REF_NAME}"
-            git push
-          fi
+          # datos.json es un volcado generado, no código: fusionarlo línea a
+          # línea no tiene sentido y acaba en un conflicto add/add en cuanto dos
+          # ejecuciones se solapan. En vez de rebasar, nos colocamos sobre la
+          # punta remota y escribimos nuestra versión encima, que es la lectura
+          # más reciente del portal. El bucle cubre que alguien nos adelante
+          # entre el fetch y el push.
+          for intento in 1 2 3; do
+            git fetch --quiet origin \
+              "+refs/heads/${GITHUB_REF_NAME}:refs/remotes/origin/${GITHUB_REF_NAME}"
+
+            # --mixed mueve HEAD y el índice a la punta remota SIN tocar el
+            # directorio de trabajo, así que nuestro datos.json sigue intacto.
+            # Y como después solo añadimos ese fichero, no revertimos nada de
+            # lo que hayan subido los demás.
+            git reset --quiet --mixed "origin/${GITHUB_REF_NAME}"
+
+            git add -f docs/datos.json
+            if git diff --staged --quiet; then
+              echo "Sin cambios que guardar."
+              exit 0
+            fi
+
+            git commit --quiet -m "datos: $(date -u +%Y-%m-%dT%H:%MZ)"
+            if git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              echo "Datos guardados."
+              exit 0
+            fi
+            echo "Otra ejecución se adelantó; reintento ${intento} de 3."
+          done
+          echo "::error::No se pudieron guardar los datos tras 3 intentos."
+          exit 1
 
       - name: Guardar capturas si el portal no se reconoció
         if: always() && hashFiles('capturas/**') != ''
