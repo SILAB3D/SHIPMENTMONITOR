@@ -6,7 +6,16 @@
 <title>Monitor de envíos</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icono.svg" type="image/svg+xml">
+<link rel="icon" href="icono-192.png" sizes="192x192" type="image/png">
+<!-- iOS no lee el manifest para el icono de la pantalla de inicio -->
+<link rel="apple-touch-icon" href="icono-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Envíos">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#ea580c">
+<!-- Clave pública VAPID: la necesita el navegador para suscribirse a los avisos -->
+<script src="push-config.js"></script>
 <!-- Librerías servidas en local: la PWA funciona sin internet y sin depender de un CDN -->
 <script src="vendor/react.js"></script>
 <script src="vendor/react-dom.js"></script>
@@ -201,6 +210,23 @@ button,input,select{font:inherit;color:inherit}
 .novedad time{font-size:.72rem;color:var(--tenue)}
 .vacio{color:var(--tenue);font-size:.87rem;padding:var(--sp-3) 0;text-align:center}
 
+/* ─────────── tarjeta de avisos push ─────────── */
+.push{margin-bottom:var(--sp-4)}
+.push h2{font-size:1rem;margin:0 0 var(--sp-2);display:flex;align-items:center;gap:var(--sp-2)}
+.push p{margin:0 0 var(--sp-3);font-size:.87rem;color:var(--suave);line-height:1.55}
+.push ol{margin:0 0 var(--sp-3);padding-left:1.15rem;font-size:.87rem;color:var(--suave);line-height:1.7}
+.push ol code{background:var(--panel-2);border:1px solid var(--borde);border-radius:6px;
+  padding:.05rem .35rem;font-size:.85em;color:var(--texto)}
+.push .acciones-push{display:flex;flex-wrap:wrap;gap:var(--sp-2);align-items:center}
+.push.hecho{display:flex;align-items:center;gap:var(--sp-2);font-size:.87rem;color:var(--suave)}
+.push.hecho .punto{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}
+.suscripcion{
+  width:100%;box-sizing:border-box;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:.72rem;line-height:1.5;background:var(--panel-2);color:var(--texto);
+  border:1px solid var(--borde);border-radius:var(--r);padding:var(--sp-3);
+  min-height:5.5rem;resize:vertical;margin-bottom:var(--sp-3);word-break:break-all;
+}
+
 .pie-app{max-width:var(--ancho);margin:0 auto;padding:0 var(--sp-4) var(--sp-6);
          font-size:.75rem;color:var(--tenue);display:flex;gap:var(--sp-3);flex-wrap:wrap}
 @media (max-width:520px){
@@ -229,6 +255,69 @@ const leer    = k      => { try { return localStorage.getItem(k); } catch (_) { 
 const olvidar = k      => { try { localStorage.removeItem(k); } catch (_) {} };
 
 const deB64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+
+/* ─────────────────── avisos push ───────────────────
+   El aviso llega desde GitHub Actions al servicio de push del propio navegador
+   y de ahí al móvil, con la app cerrada. Sin Telegram, sin correo y sin
+   servidor: lo único que hay que hacer una vez por dispositivo es pegar la
+   suscripción que sale aquí en el Secret PUSH_SUSCRIPCIONES del repositorio. */
+
+const PUSH_PEGADA = 'monitor-envios:push-pegada';   // endpoint que ya está en el Secret
+
+const b64uAbytes = b64 => {
+  const base = (b64 + '='.repeat((4 - b64.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/');
+  return Uint8Array.from(atob(base), c => c.charCodeAt(0));
+};
+
+const esIOS = () => /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+const instalada = () => window.matchMedia('(display-mode: standalone)').matches ||
+  window.navigator.standalone === true;
+
+const pushSoportado = () =>
+  'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+
+/** Deja solo lo que necesita el workflow; el resto (expirationTime) sobra. */
+const comoTexto = sus => {
+  const j = sus.toJSON();
+  return JSON.stringify({endpoint: j.endpoint, keys: {p256dh: j.keys.p256dh, auth: j.keys.auth}});
+};
+
+async function suscripcionActual(){
+  if (!pushSoportado()) return null;
+  const reg = await navigator.serviceWorker.ready;
+  return reg.pushManager.getSubscription();
+}
+
+async function suscribir(){
+  if (!window.VAPID_PUBLICA) {
+    throw new Error('Falta la clave pública en push-config.js. Genera el par VAPID con ' +
+                    '«python -m monitor.webpush --generar-claves».');
+  }
+  const permiso = await Notification.requestPermission();
+  if (permiso !== 'granted') {
+    throw new Error(permiso === 'denied'
+      ? 'Has bloqueado las notificaciones para esta página. Habilítalas en los ajustes del navegador y vuelve a intentarlo.'
+      : 'Hace falta permiso para poder avisarte.');
+  }
+  const reg = await navigator.serviceWorker.ready;
+  const opciones = {userVisibleOnly: true, applicationServerKey: b64uAbytes(window.VAPID_PUBLICA)};
+  try {
+    return await reg.pushManager.subscribe(opciones);
+  } catch (err) {
+    // Suele pasar al regenerar las claves VAPID: la suscripción vieja estorba.
+    const vieja = await reg.pushManager.getSubscription();
+    if (!vieja) throw err;
+    await vieja.unsubscribe();
+    return reg.pushManager.subscribe(opciones);
+  }
+}
+
+async function copiar(texto){
+  try { await navigator.clipboard.writeText(texto); return true; }
+  catch (_) { return false; }
+}
 
 async function descifrar(sobre, password){
   const material = await crypto.subtle.importKey(
@@ -438,6 +527,134 @@ function TarjetaEnvio({envio, historial}){
 }
 
 /* ─────────────────── paneles ─────────────────── */
+/* ─────────────────── tarjeta de avisos push ─────────────────── */
+function AvisosPush({repo}){
+  const [sus, setSus]       = useState(null);      // suscripción viva en este navegador
+  const [pegada, setPegada] = useState(() => leer(PUSH_PEGADA) || '');
+  const [error, setError]   = useState('');
+  const [ocupado, setOcupado] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+  const [oculta, setOculta]   = useState(false);
+
+  useEffect(() => {
+    suscripcionActual().then(setSus).catch(() => {});
+    // El service worker avisa si el navegador rota la suscripción por su cuenta.
+    const alMensaje = ev => {
+      if (ev.data && ev.data.tipo === 'suscripcion-renovada') suscripcionActual().then(setSus);
+    };
+    navigator.serviceWorker?.addEventListener('message', alMensaje);
+    return () => navigator.serviceWorker?.removeEventListener('message', alMensaje);
+  }, []);
+
+  const activar = async () => {
+    setOcupado(true); setError('');
+    try { setSus(await suscribir()); }
+    catch (e) { setError(e.message); }
+    finally { setOcupado(false); }
+  };
+
+  const texto = sus ? comoTexto(sus) : '';
+  const alDia = sus && pegada === sus.endpoint;
+  const urlSecrets = repo ? `https://github.com/${repo}/settings/secrets/actions` : null;
+
+  /* iOS solo deja suscribirse si la app está instalada en la pantalla de inicio. */
+  if (esIOS() && !instalada()) {
+    return (
+      <div className="tarjeta pad push">
+        <h2>📲 Instala la app para recibir avisos</h2>
+        <p>
+          En iPhone y iPad las notificaciones solo funcionan con la aplicación instalada
+          (iOS&nbsp;16.4 o superior). En Safari, toca <strong>Compartir</strong> y luego
+          <strong> Añadir a pantalla de inicio</strong>. Abre después el icono que aparecerá
+          y vuelve aquí para activar los avisos.
+        </p>
+      </div>
+    );
+  }
+
+  if (!pushSoportado()) {
+    return (
+      <div className="tarjeta pad push">
+        <h2>Avisos no disponibles en este navegador</h2>
+        <p>
+          Este navegador no admite notificaciones push. Abre el panel en Chrome, Edge, Firefox
+          o Safari, o instálalo como aplicación. Los envíos y las novedades se ven igual aquí.
+        </p>
+      </div>
+    );
+  }
+
+  if (alDia && !oculta) {
+    return (
+      <div className="tarjeta pad push hecho">
+        <span className="punto" />
+        <span>Avisos activos en este dispositivo.</span>
+        <div className="crece" />
+        <button className="btn" onClick={() => setOculta(true)}>Ocultar</button>
+        <button className="btn" onClick={() => { olvidar(PUSH_PEGADA); setPegada(''); }}>
+          Ver la suscripción
+        </button>
+      </div>
+    );
+  }
+  if (alDia) return null;
+
+  return (
+    <div className="tarjeta pad push">
+      {!sus ? (
+        <Fragment>
+          <h2>🔔 Recibe los avisos en este dispositivo</h2>
+          <p>
+            El monitor te avisará aquí mismo cuando aparezca un envío nuevo o cambie un estado,
+            con la aplicación cerrada. No hace falta Telegram ni correo.
+          </p>
+          {error && <div className="aviso mal" style={{marginBottom:'.75rem'}}>{error}</div>}
+          <div className="acciones-push">
+            <button className="btn primario" onClick={activar} disabled={ocupado}>
+              {ocupado ? 'Activando…' : 'Activar avisos'}
+            </button>
+            {!instalada() && (
+              <span style={{fontSize:'.82rem',color:'var(--tenue)'}}>
+                Consejo: instálalo como app para que los avisos sean más fiables.
+              </span>
+            )}
+          </div>
+        </Fragment>
+      ) : (
+        <Fragment>
+          <h2>🔑 Un último paso, solo esta vez</h2>
+          <p>
+            Este dispositivo ya está suscrito. Para que GitHub Actions pueda empujarte los avisos,
+            copia este texto y guárdalo en el Secret <code>PUSH_SUSCRIPCIONES</code> del repositorio.
+            Si ya hay otro dispositivo dentro, pega el nuevo <strong>debajo</strong> del anterior.
+          </p>
+          <textarea className="suscripcion" readOnly value={texto}
+                    onFocus={e => e.target.select()} aria-label="Suscripción para el Secret" />
+          <ol>
+            <li>Copia el texto de arriba.</li>
+            <li>
+              Abre {urlSecrets
+                ? <a className="enlace" href={urlSecrets} target="_blank" rel="noopener">Settings → Secrets → Actions</a>
+                : <span>Settings → Secrets and variables → Actions</span>} en tu repositorio.
+            </li>
+            <li>Crea o edita el secret <code>PUSH_SUSCRIPCIONES</code> y pégalo.</li>
+            <li>Vuelve aquí y pulsa «Ya lo he pegado».</li>
+          </ol>
+          <div className="acciones-push">
+            <button className="btn primario" onClick={async () => {
+              setCopiado(await copiar(texto));
+              setTimeout(() => setCopiado(false), 2500);
+            }}>{copiado ? '¡Copiado!' : 'Copiar'}</button>
+            <button className="btn" onClick={() => { guardar(PUSH_PEGADA, sus.endpoint); setPegada(sus.endpoint); }}>
+              Ya lo he pegado
+            </button>
+          </div>
+        </Fragment>
+      )}
+    </div>
+  );
+}
+
 function Metricas({meta, envios}){
   const analizados = envios.map(e => analizarEstado(e.campos.estado));
   const entregados = analizados.filter(a => a.paso === 3 && !a.incidencia).length;
@@ -489,7 +706,8 @@ function Panel({datos, onRecargar, onSalir, recargando}){
     .map(([id, e]) => ({id, ...e}))
     .sort((a, b) => (b.visto_primera || '').localeCompare(a.visto_primera || ''));
 
-  // Avisos en el propio dispositivo para lo que haya llegado desde la última visita
+  // Red de seguridad: si el panel está abierto y ve novedades que el push no
+  // llegó a entregar, las enseña igualmente. El «tag» evita duplicados.
   useEffect(() => {
     if (permiso !== 'granted' || !eventos.length) return;
     const visto = Number(leer(ULTIMO_VISTO) || 0);
@@ -499,13 +717,11 @@ function Panel({datos, onRecargar, onSalir, recargando}){
     (async () => {
       const reg = await navigator.serviceWorker?.getRegistration();
       nuevos.slice(0, 5).forEach(n => {
-        const o = {body:n.detalle, icon:'icono.svg', tag:'envio-'+n.envio_id};
+        const o = {body:n.detalle, icon:'icono-192.png', badge:'icono-192.png', tag:'envio-'+n.envio_id};
         reg ? reg.showNotification(n.titulo, o) : new Notification(n.titulo, o);
       });
     })();
   }, [eventos, permiso]);
-
-  const activarAvisos = async () => setPermiso(await Notification.requestPermission());
 
   const q = busqueda.trim().toLowerCase();
   const visibles = envios.filter(e => {
@@ -533,7 +749,6 @@ function Panel({datos, onRecargar, onSalir, recargando}){
             <span className={'chip ' + (frescura ? 'on' : 'alerta')}>
               {haceCuanto(meta.ultima_comprobacion)}
             </span>
-            {permiso !== 'granted' && <button className="btn" onClick={activarAvisos}>Activar avisos</button>}
             <button className="btn primario" onClick={onRecargar} disabled={recargando}>
               {recargando ? 'Actualizando…' : 'Actualizar'}
             </button>
@@ -544,6 +759,8 @@ function Panel({datos, onRecargar, onSalir, recargando}){
 
       <main className="contenido">
         {meta.error && <div className="aviso mal">⚠ La última comprobación falló: {meta.error}</div>}
+
+        <AvisosPush repo={meta.repo} />
 
         <Metricas meta={meta} envios={envios} />
 
@@ -572,7 +789,9 @@ function Panel({datos, onRecargar, onSalir, recargando}){
       <footer className="pie-app">
         <span>Comprueba el portal cada 30 min desde GitHub Actions</span>
         {meta.repo && <a className="enlace" href={`https://github.com/${meta.repo}/actions`} target="_blank" rel="noopener">Ver ejecuciones</a>}
-        <span>Avisos: {Object.entries(meta.canales || {}).filter(([,v])=>v).map(([k])=>k).join(', ') || 'solo en pantalla'}</span>
+        <span>Avisos: {Object.entries(meta.canales || {}).filter(([,v])=>v)
+          .map(([k]) => ({push:'push al dispositivo', telegram:'Telegram', email:'email'}[k] || k))
+          .join(', ') || 'solo en pantalla'}</span>
       </footer>
     </Fragment>
   );

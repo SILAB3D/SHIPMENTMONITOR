@@ -3,3 +3,7 @@
 # monitor-envios-nube: en el repositorio que se despliegue en GitHub el workflow
 # sí tiene que poder versionar docs/datos.json, que es la memoria del monitor.
 monitor-envios-github/monitor-envios-nube/docs/datos.json
+
+# Clave privada VAPID generada para los avisos push. NUNCA debe subirse:
+# quien la tenga puede mandar notificaciones a tus dispositivos.
+CLAVES-VAPID.txt

@@ -7,8 +7,9 @@ Unos 15 minutos, sin instalar nada en tu ordenador. **Coste: 0 €.**
 | GitHub Actions | ejecuta la comprobación cada 30 min | gratis e **ilimitado en repositorios públicos** |
 | GitHub Pages | sirve el panel por HTTPS | gratis en repositorios públicos |
 | Playwright + Chromium | entra al portal como lo harías tú | gratis (Apache 2.0), se instala en el runner |
-| Bot de Telegram | avisos al móvil | gratis |
-| Tu correo (SMTP) | avisos por email | gratis con la cuenta que ya tienes |
+| Web Push del navegador | avisos directos a tu móvil | gratis, sin registro |
+| Bot de Telegram | refuerzo opcional | gratis |
+| Tu correo (SMTP) | refuerzo opcional | gratis con la cuenta que ya tienes |
 | React + Inter | panel y tipografía, servidos desde tu propio repo | gratis (MIT / SIL OFL) |
 
 > **¿Público? ¿Y mis datos?** El repositorio es público para que Actions y Pages
@@ -71,9 +72,36 @@ inputs de la página, y funciona igual si el login está dentro de un `frame`.
 Apunta bien `CLAVE_PANEL`: si la cambias más adelante, hay que borrar
 `docs/datos.json` del repositorio para empezar de cero.
 
-### Avisos (opcional, pero es la gracia)
+### Avisos push al móvil (el canal principal)
 
-**Telegram** — lo más cómodo para el móvil:
+El aviso sale de GitHub Actions y llega a tu teléfono directamente, con la app
+cerrada. No hace falta ninguna cuenta de terceros.
+
+1. **Genera el par de claves VAPID**, una sola vez en la vida del proyecto:
+
+   ```bash
+   python -m monitor.webpush --generar-claves
+   ```
+
+2. Guarda la **privada** en el secret `VAPID_PRIVADA`, y pega la **pública** en
+   `docs/push-config.js` (sustituye el valor de `window.VAPID_PUBLICA`).
+3. Crea el secret `VAPID_CONTACTO` con `mailto:tu@correo.com`. Es lo que exige
+   la norma para que el servicio de push sepa a quién quejarse; no recibirás
+   correo por ahí.
+4. Abre el panel **en el móvil**, instálalo en la pantalla de inicio y pulsa
+   **Activar avisos**. Te dará un texto: pégalo en el secret
+   `PUSH_SUSCRIPCIONES`. Un dispositivo más = otra línea debajo.
+5. Compruébalo: **Actions → Monitor de envíos → Run workflow**, marcando
+   «Enviar solo un aviso de prueba al móvil».
+
+> En iPhone y iPad hace falta iOS 16.4 o superior **y** tener la app añadida a
+> la pantalla de inicio: Safari no admite push desde una pestaña normal.
+
+### Refuerzos opcionales (Telegram / email)
+
+Solo si quieres un segundo canal. Si no creas estos secrets, ni se intentan.
+
+**Telegram**:
 
 1. Habla con [@BotFather](https://t.me/BotFather) → `/newbot` → te da un token.
 2. Escríbele algo a tu bot recién creado.
@@ -134,9 +162,9 @@ pedírtela en ese navegador.
 direcciones; en el móvil, «Añadir a pantalla de inicio». Queda con su icono y a
 pantalla completa.
 
-**Avisos en el propio dispositivo**: pulsa «Activar avisos» dentro del panel; te
-notificará las novedades que hayan llegado desde tu última visita. Para enterarte
-estés donde estés, con la app cerrada, el canal bueno es Telegram.
+**Avisos**: pulsa «Activar avisos» dentro del panel y pega en el secret
+`PUSH_SUSCRIPCIONES` el texto que te dé. A partir de ahí el móvil te avisa de
+cada novedad aunque la app esté cerrada.
 
 ## 6. Cambiar la frecuencia
 

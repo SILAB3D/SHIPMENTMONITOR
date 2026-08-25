@@ -1,6 +1,7 @@
 """Configuración: todo llega por variables de entorno (los Secrets del repositorio)."""
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -42,7 +43,19 @@ HEADLESS = _bool("HEADLESS", True)
 # --- Cifrado de los datos publicados ---
 CLAVE_PANEL = os.environ.get("CLAVE_PANEL", "")
 
-# --- Avisos ---
+# --- Avisos push al propio dispositivo (canal principal) ---
+# Par de claves VAPID: la pública vive en docs/push-config.js (la lee la PWA) y
+# la privada es un Secret. Se generan una sola vez con:
+#     python -m monitor.webpush --generar-claves
+VAPID_PRIVADA = os.environ.get("VAPID_PRIVADA", "")
+VAPID_CONTACTO = os.environ.get("VAPID_CONTACTO", "mailto:monitor-envios@example.invalid")
+
+# Suscripciones de los dispositivos. El panel te da el texto JSON al activar los
+# avisos; se pega en el Secret PUSH_SUSCRIPCIONES. Admite una sola suscripción,
+# una lista de varias, o varias separadas por líneas en blanco.
+PUSH_SUSCRIPCIONES_CRUDO = os.environ.get("PUSH_SUSCRIPCIONES", "")
+
+# --- Avisos por intermediarios (opcionales; si no pones los Secrets, no se usan) ---
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 SMTP_HOST = os.environ.get("SMTP_HOST", "")
@@ -65,8 +78,70 @@ def credenciales_ok() -> bool:
     return bool(PASSWORD and (USUARIO or CLIENTE))
 
 
+def suscripciones() -> list[dict]:
+    """Lee PUSH_SUSCRIPCIONES sea cual sea la forma en que se haya pegado.
+
+    Se aceptan tres formatos porque el Secret lo rellena una persona a mano:
+    un objeto suelto, una lista JSON, o varios objetos pegados uno detrás de
+    otro (uno por dispositivo). Lo que no sea una suscripción válida se ignora
+    en silencio: nunca debe tumbar la comprobación del portal.
+    """
+    crudo = PUSH_SUSCRIPCIONES_CRUDO.strip()
+    if not crudo:
+        return []
+
+    def validas(candidatos) -> list[dict]:
+        salida = []
+        for c in candidatos if isinstance(candidatos, list) else [candidatos]:
+            if not isinstance(c, dict):
+                continue
+            claves = c.get("keys")
+            if not isinstance(claves, dict):
+                continue
+            if c.get("endpoint") and claves.get("p256dh") and claves.get("auth"):
+                salida.append(c)
+        return salida
+
+    try:
+        return validas(json.loads(crudo))
+    except json.JSONDecodeError:
+        pass
+
+    # Varios objetos pegados en bruto: los troceamos contando llaves.
+    trozos, profundidad, inicio, en_texto, escapado = [], 0, None, False, False
+    for i, ch in enumerate(crudo):
+        if en_texto:
+            en_texto = not (ch == '"' and not escapado)
+            escapado = ch == "\\" and not escapado
+            continue
+        if ch == '"':
+            en_texto, escapado = True, False
+        elif ch == "{":
+            if profundidad == 0:
+                inicio = i
+            profundidad += 1
+        elif ch == "}":
+            profundidad -= 1
+            if profundidad == 0 and inicio is not None:
+                trozos.append(crudo[inicio : i + 1])
+                inicio = None
+
+    encontradas = []
+    for t in trozos:
+        try:
+            encontradas += validas(json.loads(t))
+        except json.JSONDecodeError:
+            continue
+    return encontradas
+
+
+def push_ok() -> bool:
+    return bool(VAPID_PRIVADA and suscripciones())
+
+
 def canales() -> dict[str, bool]:
     return {
+        "push": push_ok(),
         "telegram": bool(TELEGRAM_TOKEN and TELEGRAM_CHAT_ID),
         "email": bool(SMTP_HOST and EMAIL_DESTINO),
     }

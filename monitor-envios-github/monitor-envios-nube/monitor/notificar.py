@@ -1,4 +1,10 @@
-"""Avisos desde el workflow: Telegram y email. Ninguno de los dos cuesta nada."""
+"""Avisos del monitor.
+
+El canal principal es Web Push: el aviso sale de GitHub Actions y aterriza
+directamente en el móvil, en la propia PWA, sin pasar por Telegram ni por el
+correo. Telegram y email siguen aquí como refuerzo opcional: si no defines sus
+Secrets, ni se intentan.
+"""
 from __future__ import annotations
 
 import logging
@@ -7,7 +13,7 @@ import urllib.parse
 import urllib.request
 from email.message import EmailMessage
 
-from monitor import config
+from monitor import config, webpush
 
 log = logging.getLogger("avisos")
 
@@ -20,6 +26,58 @@ def texto(eventos: list[dict]) -> str:
     return "\n".join(lineas)
 
 
+# ─────────────────────────── push (canal principal) ───────────────────────────
+def _mensaje_push(eventos: list[dict]) -> dict:
+    """Lo que verá la notificación en la pantalla del móvil."""
+    if len(eventos) == 1:
+        e = eventos[0]
+        return {
+            "titulo": e["titulo"],
+            "cuerpo": e["detalle"],
+            "etiqueta": f"envio-{e['envio_id']}",
+            "envio_id": e["envio_id"],
+        }
+    nuevos = sum(1 for e in eventos if e["tipo"] == "nuevo")
+    cambios = len(eventos) - nuevos
+    partes = []
+    if nuevos:
+        partes.append(f"{nuevos} envío{'s' if nuevos > 1 else ''} nuevo{'s' if nuevos > 1 else ''}")
+    if cambios:
+        partes.append(f"{cambios} cambio{'s' if cambios > 1 else ''} de estado")
+    return {
+        "titulo": f"{len(eventos)} novedades en tus envíos",
+        "cuerpo": " y ".join(partes) + ":\n" + "\n".join(f"· {e['titulo']}" for e in eventos[:4]),
+        "etiqueta": "resumen",
+    }
+
+
+def _push(mensaje: dict) -> None:
+    subs = config.suscripciones()
+    if not (config.VAPID_PRIVADA and subs):
+        return
+    caducadas, fallos, entregados = 0, [], 0
+    for sub in subs:
+        try:
+            webpush.enviar(sub, mensaje, config.VAPID_PRIVADA, config.VAPID_CONTACTO)
+            entregados += 1
+        except webpush.CaducadaError as e:
+            caducadas += 1
+            log.warning(
+                "una suscripción push ya no vale (%s). Vuelve a activar los avisos en el panel "
+                "de ese dispositivo y pega el texto nuevo en el Secret PUSH_SUSCRIPCIONES.", e
+            )
+        except Exception as e:  # noqa: BLE001
+            fallos.append(str(e))
+            log.warning("fallo enviando push a %s…: %s", sub["endpoint"][:60], e)
+
+    log.info("push: %d entregado(s), %d caducada(s), %d fallo(s)", entregados, caducadas, len(fallos))
+    if not entregados and fallos:
+        raise RuntimeError(fallos[0])
+    if not entregados and caducadas:
+        raise RuntimeError("todas las suscripciones push están caducadas")
+
+
+# ─────────────────────────── refuerzos opcionales ───────────────────────────
 def _telegram(mensaje: str) -> None:
     if not (config.TELEGRAM_TOKEN and config.TELEGRAM_CHAT_ID):
         return
@@ -51,26 +109,42 @@ def _email(asunto: str, mensaje: str) -> None:
         servidor.send_message(msg)
 
 
+# ─────────────────────────── fachada ───────────────────────────
+def _intentar(nombre: str, fn, resultado: dict) -> None:
+    try:
+        fn()
+        resultado[nombre] = "ok"
+    except Exception as e:  # noqa: BLE001
+        log.warning("fallo enviando por %s: %s", nombre, e)
+        resultado[nombre] = f"error: {e}"
+
+
 def avisar(eventos: list[dict]) -> dict[str, str]:
     if not eventos:
         return {}
     cuerpo = texto(eventos)
     asunto = eventos[0]["titulo"] if len(eventos) == 1 else f"{len(eventos)} novedades en tus envíos"
-    resultado = {}
-    for nombre, fn in (("telegram", lambda: _telegram(cuerpo)), ("email", lambda: _email(asunto, cuerpo))):
-        try:
-            fn()
-            resultado[nombre] = "ok"
-        except Exception as e:  # noqa: BLE001
-            log.warning("fallo enviando por %s: %s", nombre, e)
-            resultado[nombre] = f"error: {e}"
+    resultado: dict[str, str] = {}
+    if config.push_ok():
+        _intentar("push", lambda: _push(_mensaje_push(eventos)), resultado)
+    if config.TELEGRAM_TOKEN and config.TELEGRAM_CHAT_ID:
+        _intentar("telegram", lambda: _telegram(cuerpo), resultado)
+    if config.SMTP_HOST and config.EMAIL_DESTINO:
+        _intentar("email", lambda: _email(asunto, cuerpo), resultado)
+    if not resultado:
+        log.warning("no hay ningún canal de avisos configurado: la novedad solo se verá en el panel")
     return resultado
 
 
 def avisar_error(mensaje: str) -> None:
     """Avisa de que el monitor no ha podido leer el portal."""
-    for fn in (lambda: _telegram(f"⚠️ El monitor de envíos no pudo consultar el portal:\n{mensaje}"),
-               lambda: _email("⚠️ Monitor de envíos: fallo al consultar", mensaje)):
+    corto = mensaje.strip().splitlines()[0][:200] if mensaje.strip() else "motivo desconocido"
+    for fn in (
+        lambda: _push({"titulo": "⚠️ El monitor no pudo consultar el portal",
+                       "cuerpo": corto, "etiqueta": "error", "urgencia": "normal"}),
+        lambda: _telegram(f"⚠️ El monitor de envíos no pudo consultar el portal:\n{mensaje}"),
+        lambda: _email("⚠️ Monitor de envíos: fallo al consultar", mensaje),
+    ):
         try:
             fn()
         except Exception:  # noqa: BLE001

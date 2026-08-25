@@ -1,7 +1,12 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# OJO: este fichero SOLO se ejecuta si esta carpeta (monitor-envios-nube) es la
-# raíz del repositorio. Dentro de SHIPMENTMONITOR está anidada, y GitHub ignora
-# los workflows que no cuelgan de la raíz: allí manda /.github/workflows/monitor.yml.
+# Monitor de envíos — workflow del repositorio SHIPMENTMONITOR
+#
+# IMPORTANTE: GitHub SOLO lee los workflows que están en .github/workflows/ EN LA
+# RAÍZ del repositorio. La copia que hay en
+# monitor-envios-github/monitor-envios-nube/.github/workflows/ nunca se ejecuta:
+# está ahí para quien prefiera sacar ese subdirectorio a un repositorio propio.
+# Este fichero es el que manda aquí, y por eso entra en la carpeta del proyecto
+# con `working-directory`.
 # ─────────────────────────────────────────────────────────────────────────────
 name: Monitor de envíos
 
@@ -11,18 +16,33 @@ on:
     # unos minutos en horas punta, que para vigilar envíos da igual.
     - cron: '*/30 * * * *'
   workflow_dispatch:        # botón "Run workflow" para forzar una comprobación
+    inputs:
+      probar_push:
+        description: 'Enviar solo un aviso de prueba al móvil (no consulta el portal)'
+        type: boolean
+        default: false
 
 permissions:
-  contents: write           # necesario para guardar docs/datos.json en el repo
+  contents: write           # guardar docs/datos.json en el repositorio
+  pages: write              # publicar el panel en GitHub Pages
+  id-token: write           # lo exige actions/deploy-pages
 
 concurrency:
   group: monitor-envios     # nunca dos comprobaciones a la vez
   cancel-in-progress: false
 
+
+defaults:
+  run:
+    working-directory: monitor-envios-github/monitor-envios-nube
+
 jobs:
   comprobar:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
 
     steps:
       - uses: actions/checkout@v4
@@ -31,14 +51,26 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
+          cache-dependency-path: monitor-envios-github/monitor-envios-nube/requirements.txt
 
       - name: Instalar dependencias
         run: |
           pip install -r requirements.txt
           python -m playwright install --with-deps chromium
 
+      # ── Modo prueba: solo comprueba que el aviso llega al móvil ──
+      - name: Enviar un aviso de prueba
+        if: inputs.probar_push
+        env:
+          VAPID_PRIVADA:      ${{ secrets.VAPID_PRIVADA }}
+          VAPID_CONTACTO:     ${{ secrets.VAPID_CONTACTO }}
+          PUSH_SUSCRIPCIONES: ${{ secrets.PUSH_SUSCRIPCIONES }}
+        run: python -m monitor.ejecutar --probar-push
+
+      # ── Modo normal ──
       - name: Consultar el portal
         id: consulta
+        if: '!inputs.probar_push'
         continue-on-error: true      # aunque falle, queremos guardar el estado y los avisos
         env:
           DINAPAQ_USUARIO:       ${{ secrets.DINAPAQ_USUARIO }}
@@ -67,6 +99,7 @@ jobs:
         run: python -m monitor.ejecutar
 
       - name: Guardar los datos en el repositorio
+        if: '!inputs.probar_push'
         run: |
           git config user.name  "monitor-envios"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -74,7 +107,11 @@ jobs:
             echo "No se generó docs/datos.json; mira el paso anterior."
             exit 0
           fi
-          git add docs/datos.json
+          # -f a propósito: el .gitignore de la raíz esconde este fichero para
+          # que los datos de demostración generados en local no se suban por
+          # descuido. Aquí, en cambio, es justo lo que hay que guardar: es la
+          # memoria del monitor entre una ejecución y la siguiente.
+          git add -f docs/datos.json
           if git diff --staged --quiet; then
             echo "Sin cambios que guardar."
           else
@@ -83,12 +120,34 @@ jobs:
             git push
           fi
 
+      # ── Publicar el panel en GitHub Pages ──
+      # Requiere Settings → Pages → Source = "GitHub Actions". Si no lo has
+      # puesto todavía, estos pasos avisan pero no tumban la comprobación.
+      - name: Preparar Pages
+        if: '!inputs.probar_push'
+        id: configurar-pages
+        continue-on-error: true
+        uses: actions/configure-pages@v5
+
+      - name: Empaquetar el panel
+        if: "!inputs.probar_push && steps.configurar-pages.outcome == 'success'"
+        continue-on-error: true
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: monitor-envios-github/monitor-envios-nube/docs
+
+      - name: Publicar el panel
+        if: "!inputs.probar_push && steps.configurar-pages.outcome == 'success'"
+        id: pages
+        continue-on-error: true
+        uses: actions/deploy-pages@v4
+
       - name: Guardar capturas si el portal no se reconoció
-        if: always() && hashFiles('capturas/**') != ''
+        if: always() && hashFiles('monitor-envios-github/monitor-envios-nube/capturas/**') != ''
         uses: actions/upload-artifact@v4
         with:
           name: capturas-${{ github.run_id }}
-          path: capturas/
+          path: monitor-envios-github/monitor-envios-nube/capturas/
           retention-days: 7
 
       - name: Marcar la ejecución como fallida si no se pudo consultar

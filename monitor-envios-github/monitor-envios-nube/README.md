@@ -1,8 +1,9 @@
 # Monitor de envíos TIPSA / DinaPaqWeb
 
 Vigila el portal DinaPaqWeb, detecta **envíos nuevos** y **cambios en los que ya
-seguías**, y avisa por **Telegram** y **email**. El panel es una PWA instalable
-en móvil y escritorio.
+seguías**, y te avisa **directamente en el móvil**. El panel es una PWA que se instala
+en el teléfono y recibe notificaciones push: sin Telegram, sin correo y sin
+servidor de por medio.
 
 No se ejecuta en tu ordenador: **vive entero en GitHub**. Un workflow de GitHub
 Actions entra al portal cada 30 minutos y publica los datos; GitHub Pages sirve
@@ -19,7 +20,7 @@ el panel. No hay nada que instalar ni que dejar encendido.
 │  (Ubuntu)        │ ◄────────────── │   (portal)   │
 └────────┬─────────┘   listado HTML  └──────────────┘
          │ compara con lo que ya sabía
-         ├─────────────► Telegram / email  (novedades)
+         ├─────────────► 🔔 aviso push → tu móvil  (novedades)
          │
          ▼ docs/datos.json  (cifrado con TU contraseña)
 ┌──────────────────┐
@@ -33,7 +34,8 @@ el panel. No hay nada que instalar ni que dejar encendido.
   puede estar apagado. La sesión del portal se inicia sola en cada pasada usando
   los Secrets, así que no hay que volver a introducir credenciales nunca.
 - **Gratis de verdad.** GitHub Actions es ilimitado en repositorios públicos y
-  Pages también; Telegram y tu correo de siempre no cuestan nada.
+  Pages también; el servicio de push del navegador (Google, Mozilla, Apple)
+  tampoco cuesta nada y no hay que darse de alta en ningún sitio.
 - **Privado aunque el repositorio sea público.** Los datos de tus envíos se
   publican cifrados con AES-GCM y una contraseña que solo conoces tú
   (`CLAVE_PANEL`). El panel los descifra en el navegador con WebCrypto. Las
@@ -73,7 +75,8 @@ monitor/
   parser.py      HTML → lista de envíos (columnas por palabras clave)
   estado.py      memoria entre ejecuciones y cálculo de novedades
   cifrado.py     AES-GCM + PBKDF2 (compatible con WebCrypto)
-  notificar.py   Telegram y email
+  notificar.py   avisos: push al dispositivo (y, si quieres, Telegram/email)
+  webpush.py     Web Push a mano: cifrado RFC 8291 y VAPID RFC 8292
   demo.py        datos ficticios para probar
 docs/            la PWA que publica GitHub Pages (+ datos.json cifrado)
 tests/           pruebas:  python -m pytest tests -q
