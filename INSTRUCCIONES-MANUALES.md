@@ -256,6 +256,19 @@ ejecutándolo.
 | En el iPhone no aparece el botón «Activar avisos» | No has abierto la app **desde su icono**, o no llegaste a instalarla. Safari no da push desde una pestaña. |
 | El log dice «ok» pero no ves nada | Mira el ahorro de batería y el «No molestar» del teléfono. En Android, ajustes de la app instalada → Notificaciones. |
 
+### Falla un paso que ya habías arreglado
+
+**Actions ejecuta el workflow tal como estaba en el commit que disparó la
+ejecución, no como está ahora en `main`.** Si arreglas el fichero y subes el
+cambio, las ejecuciones que ya estaban disparadas siguen usando la versión
+vieja, y verás fallar algo que ya no existe en tu código.
+
+Para saber si te está pasando: abre el log del paso y mira las órdenes que
+aparecen. Si no coinciden con lo que pone tu `monitor.yml` actual, es esto.
+
+La solución es simplemente **lanzar una ejecución nueva** desde
+Actions → Monitor de envíos → Run workflow. Esa sí usará el fichero al día.
+
 ### Los pasos siguen sin salir
 
 El workflow no aparece → confirma que el fichero `.github/workflows/monitor.yml`
