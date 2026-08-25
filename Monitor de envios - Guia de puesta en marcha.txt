@@ -1,0 +1,238 @@
+===============================================================================
+MONITOR DE ENVIOS TIPSA / DINAPAQWEB
+Guia de puesta en marcha: lo que falta por hacer y como ver la aplicacion
+Generada el 25 de agosto de 2026
+===============================================================================
+
+ESTADO DEL PROYECTO: CODIGO LISTO Y VERIFICADO
+Las 13 pruebas pasan, el panel se abrio en un navegador real y descifra y pinta
+los datos sin un solo error. Se corrigio ademas un fallo que habria impedido
+cualquier ejecucion real: el HTML de los frames del portal se concatenaba en una
+sola cadena y el analizador solo veia el primero, que nunca es el que trae el
+listado. Lo unico que queda es desplegarlo en tu cuenta de GitHub, y eso solo
+puedes hacerlo tu porque hacen falta tus credenciales.
+
+
+===============================================================================
+PARTE 1 - VER LA INTERFAZ AHORA MISMO, SIN GITHUB
+===============================================================================
+
+Puedes abrir el panel en tu ordenador con datos ficticios en menos de un minuto.
+No hace falta ninguna credencial ni contacto con el portal real. El entorno de
+Python ya esta montado en la carpeta .venv del proyecto.
+
+Abre PowerShell y pega esto. Las tres primeras ordenes generan datos de
+demostracion; la ultima levanta el servidor.
+
+    cd "d:\Documentos - SSD\SCRIPTS\SHIPMENTMONITOR\monitor-envios-github\monitor-envios-nube"
+
+    $env:CLAVE_PANEL = "prueba"
+    .\.venv\Scripts\python.exe -m monitor.ejecutar --demo --sin-avisos
+    .\.venv\Scripts\python.exe -m monitor.ejecutar --demo --semilla 1 --sin-avisos
+
+    .\.venv\Scripts\python.exe -m http.server 8899 --directory docs
+
+Abre http://localhost:8899 en el navegador y escribe la contrasena: prueba
+Para parar el servidor, Ctrl+C en esa ventana.
+
+La segunda pasada (--semilla 1) existe para que veas el panel con vida: la
+primera solo toma la foto inicial y no genera novedades; la segunda cambia
+estados, bultos y pesos, asi que se llena la columna de novedades de la derecha.
+
+  !!! IMPORTANTE ANTES DE SUBIR NADA A GITHUB !!!
+  Ese docs\datos.json de demostracion queda cifrado con la contrasena "prueba".
+  Si lo subes al repositorio, la primera ejecucion real fallara al no poder
+  descifrarlo con tu CLAVE_PANEL. Borralo antes de subir:
+
+      Remove-Item docs\datos.json
+
+
+===============================================================================
+PARTE 2 - LOS PASOS QUE FALTAN EN GITHUB
+===============================================================================
+Unos 15 minutos en total. Coste: 0 EUR.
+
+-------------------------------------------------------------------------------
+PASO 1 - CREAR EL REPOSITORIO
+-------------------------------------------------------------------------------
+1. Entra en https://github.com/new
+2. Nombre: por ejemplo  monitor-envios
+3. Marca PUBLIC. Es lo que hace que Actions y Pages salgan gratis e ilimitados.
+   Tus datos siguen siendo privados: se publican cifrados con AES-256-GCM y una
+   clave derivada de tu contrasena, y las credenciales del portal viven en los
+   Secrets, que no son visibles para nadie.
+4. Crea el repositorio y sube el CONTENIDO de la carpeta monitor-envios-nube
+   (el contenido, no la carpeta en si). Sin usar git:
+   Add file -> Upload files, arrastra todo, Commit changes.
+
+   OJO: si al arrastrar no aparece .github/workflows/monitor.yml, el navegador
+   se ha saltado la carpeta oculta. Crealo a mano con Add file -> Create new
+   file, escribe  .github/workflows/monitor.yml  como nombre y pega dentro el
+   contenido del fichero.
+
+Si prefieres hacerlo con git desde PowerShell:
+
+    cd "d:\Documentos - SSD\SCRIPTS\SHIPMENTMONITOR\monitor-envios-github\monitor-envios-nube"
+    git init
+    git add .
+    git commit -m "monitor de envios"
+    git branch -M main
+    git remote add origin https://github.com/TU-USUARIO/monitor-envios.git
+    git push -u origin main
+
+-------------------------------------------------------------------------------
+PASO 2 - GUARDAR LAS CREDENCIALES COMO SECRETS
+-------------------------------------------------------------------------------
+Settings -> Secrets and variables -> Actions -> New repository secret.
+Uno por uno:
+
+  DINAPAQ_USUARIO    El usuario con el que entras al portal, tal cual lo
+                     escribes tu.
+
+  DINAPAQ_PASSWORD   Tu contrasena del portal.
+
+  CLAVE_PANEL        INVENTATE UNA CONTRASENA LARGA. Es la que abrira el panel
+                     y la que cifra los datos. Que sea distinta de la del
+                     portal. Apuntala bien.
+
+  DINAPAQ_CLIENTE    SOLO si el portal te pide dos codigos en casillas
+                     separadas (agencia y cliente): el segundo va aqui.
+
+UN USUARIO O DOS CODIGOS
+El acceso esta preparado para las dos formas sin que configures nada. Si tu
+usuario es la union de agencia y cliente (por ejemplo 02112345), va entero en
+DINAPAQ_USUARIO y no crees DINAPAQ_CLIENTE. Si el portal muestra dos casillas,
+pon la agencia en DINAPAQ_USUARIO y el cliente en DINAPAQ_CLIENTE.
+
+-------------------------------------------------------------------------------
+PASO 3 - AJUSTES OPCIONALES (pestana VARIABLES, no Secrets)
+-------------------------------------------------------------------------------
+  DINAPAQ_URL_LISTADO   MUY RECOMENDABLE. Entra al portal a mano, navega hasta
+                        la pantalla de consulta de envios, copia la URL de la
+                        barra de direcciones y pegala aqui. Le ahorra al
+                        monitor tener que adivinar la navegacion por el menu.
+
+  DINAPAQ_DIAS_ATRAS    Cuantos dias de envios pedir. Por defecto 7.
+
+  DINAPAQ_URL_LOGIN     Solo si tu portal usa otra direccion de acceso.
+
+-------------------------------------------------------------------------------
+PASO 4 - DAR PERMISO DE ESCRITURA A ACTIONS
+-------------------------------------------------------------------------------
+Settings -> Actions -> General -> Workflow permissions:
+marca READ AND WRITE PERMISSIONS y guarda.
+
+Sin esto el monitor no puede guardar docs/datos.json en el repositorio y el
+panel se quedara vacio.
+
+-------------------------------------------------------------------------------
+PASO 5 - ENCENDER GITHUB PAGES
+-------------------------------------------------------------------------------
+Settings -> Pages -> Build and deployment:
+en Source elige DEPLOY FROM A BRANCH, rama  main  y carpeta  /docs . Guarda.
+
+Tu panel quedara en  https://TU-USUARIO.github.io/monitor-envios/
+
+-------------------------------------------------------------------------------
+PASO 6 - LANZAR LA PRIMERA COMPROBACION
+-------------------------------------------------------------------------------
+Actions -> Monitor de envios -> Run workflow.
+Tarda un par de minutos porque instala Chromium. Cuando termine en verde:
+
+  - Se habra creado docs/datos.json en el repositorio.
+  - Esa primera pasada NO AVISA DE NADA: solo toma la foto inicial. A partir de
+    la segunda solo suenan las novedades.
+
+A partir de ahi el cron corre solo cada 30 minutos, con tu ordenador apagado.
+
+-------------------------------------------------------------------------------
+PASO 7 - ABRIR EL PANEL
+-------------------------------------------------------------------------------
+Entra en  https://TU-USUARIO.github.io/monitor-envios/  y escribe tu
+CLAVE_PANEL. Deja marcado "Recordar en este dispositivo" y no volvera a
+pedirtela en ese navegador.
+
+INSTALARLO COMO APP: en Chrome o Edge, el icono de instalar en la barra de
+direcciones; en el movil, "Anadir a pantalla de inicio". Queda con su icono y a
+pantalla completa, como una aplicacion normal.
+
+-------------------------------------------------------------------------------
+PASO 8 - AVISOS AL MOVIL (opcional, pero es la gracia)
+-------------------------------------------------------------------------------
+TELEGRAM, lo mas comodo:
+  1. Habla con @BotFather en Telegram y envia  /newbot . Te da un token.
+  2. Escribele cualquier cosa a tu bot recien creado.
+  3. Abre  https://api.telegram.org/bot<TOKEN>/getUpdates  y copia el numero
+     de  chat.id .
+  4. Crea los Secrets TELEGRAM_TOKEN y TELEGRAM_CHAT_ID.
+
+EMAIL: crea los Secrets SMTP_HOST, SMTP_PUERTO, SMTP_USUARIO, SMTP_PASSWORD y
+EMAIL_DESTINO. Con Gmail son smtp.gmail.com y puerto 587, y como contrasena una
+CONTRASENA DE APLICACION de Google, no la de tu cuenta.
+
+
+===============================================================================
+PARTE 3 - SI LA PRIMERA EJECUCION SALE EN ROJO
+===============================================================================
+
+Es el unico punto con incertidumbre real. Todas las pruebas corren contra un
+portal de mentira incluido en el proyecto; que el monitor entre bien en el
+DinaPaqWeb REAL y reconozca sus columnas solo se comprueba ejecutandolo. Abre la
+ejecucion fallida y mira el paso "Consultar el portal":
+
+  "sigue mostrando el formulario de acceso"
+      Las credenciales no le valieron al portal. Revisa DINAPAQ_USUARIO y
+      DINAPAQ_PASSWORD, y borra DINAPAQ_CLIENTE si tu portal solo pide un
+      usuario.
+
+  "no se reconocio ninguna tabla de envios"
+      Entro bien pero se quedo en otra pantalla, o los titulos de las columnas
+      no coinciden con los que conoce. Define DINAPAQ_URL_LISTADO. La ejecucion
+      adjunta un artefacto llamado CAPTURAS con el HTML y una imagen de lo que
+      vio: con eso se ajustan los sinonimos de columna de monitor/parser.py en
+      cinco minutos. El artefacto se descarga desde la propia pagina de la
+      ejecucion, al final del todo.
+
+  "Faltan Secrets"
+      Faltan DINAPAQ_USUARIO o DINAPAQ_PASSWORD.
+
+-------------------------------------------------------------------------------
+MANTENIMIENTO
+-------------------------------------------------------------------------------
+- Nada que actualizar: cada ejecucion instala lo que necesita.
+- GitHub desactiva los cron de un repositorio que pasa 60 dias sin actividad.
+  Como el monitor va guardando docs/datos.json, es raro que ocurra; si pasa,
+  recibes un aviso por correo y se reactiva con un clic desde Actions.
+- Para dejar de vigilar temporalmente:
+  Actions -> Monitor de envios -> ... -> Disable workflow.
+- Para empezar de cero: borra docs/datos.json del repositorio.
+- Si cambias CLAVE_PANEL, hay que borrar docs/datos.json tambien: lo anterior ya
+  no se puede descifrar.
+- Para cambiar la frecuencia, la linea del cron en
+  .github/workflows/monitor.yml :
+      0 * * * *          cada hora
+      */15 8-20 * * 1-5  cada 15 minutos en horario laboral
+  La hora del cron es UTC: en Espana resta 1 h en invierno y 2 en verano.
+
+
+===============================================================================
+PARTE 4 - LA INTERFAZ
+===============================================================================
+Capturas reales del panel funcionando (en el PDF, y sueltas en la carpeta
+guia\img\):
+
+  1-acceso.png   Acceso. Se pide la CLAVE_PANEL; con "Recordar en este
+                 dispositivo" no vuelve a pedirla en ese navegador. Las
+                 credenciales del portal nunca llegan aqui.
+
+  2-panel.png    Panel principal. Arriba los contadores y la hora de la ultima
+                 comprobacion; una tarjeta por envio con su diagrama de cuatro
+                 pasos (Grabado -> Transito -> Reparto -> Entrega); a la
+                 derecha, las novedades. Filtros y buscador sobre las tarjetas.
+
+  3-detalle.png  "Ver detalle" despliega todos los campos leidos del portal y
+                 el historial de cambios de ese envio, con la fecha de cada uno.
+
+  4-movil.png    En movil, instalado como app.
+
+  5-oscuro.png   Modo oscuro automatico, segun el tema del sistema.

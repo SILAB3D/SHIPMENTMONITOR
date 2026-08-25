@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Monitor de envíos — Guía de puesta en marcha</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Segoe UI", Inter, system-ui, sans-serif; font-size: 10.5pt;
+         line-height: 1.55; color: #23201d; margin: 0; }
+  h1 { font-size: 23pt; margin: 0 0 4px; letter-spacing: -.4px; }
+  h2 { font-size: 14pt; margin: 26px 0 8px; padding-bottom: 5px;
+       border-bottom: 2px solid #e8632a; color: #b8420f; break-after: avoid; }
+  h3 { font-size: 11.5pt; margin: 16px 0 5px; break-after: avoid; }
+  p, li { margin: 5px 0; }
+  ul, ol { padding-left: 20px; margin: 6px 0; }
+  code { font-family: Consolas, "Cascadia Mono", monospace; font-size: 9.3pt;
+         background: #f3efec; padding: 1px 4px; border-radius: 3px; }
+  pre { font-family: Consolas, "Cascadia Mono", monospace; font-size: 9pt;
+        background: #262220; color: #f0ece8; padding: 10px 12px; border-radius: 6px;
+        white-space: pre-wrap; overflow-wrap: break-word; margin: 8px 0; }
+  pre code { background: none; color: inherit; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; font-size: 9.5pt;
+          break-inside: avoid; }
+  th, td { border: 1px solid #ddd4cd; padding: 5px 7px; text-align: left; vertical-align: top; }
+  th { background: #f7f2ee; font-weight: 600; }
+  .aviso { border-left: 4px solid #e8632a; background: #fdf3ec; padding: 9px 13px;
+           margin: 12px 0; border-radius: 0 5px 5px 0; break-inside: avoid; }
+  .ojo { border-left: 4px solid #c62828; background: #fdeeee; padding: 9px 13px;
+         margin: 12px 0; border-radius: 0 5px 5px 0; break-inside: avoid; }
+  .ok { border-left: 4px solid #2e7d32; background: #eef6ef; padding: 9px 13px;
+        margin: 12px 0; border-radius: 0 5px 5px 0; break-inside: avoid; }
+  .sub { color: #6d635c; font-size: 10.5pt; margin: 0 0 18px; }
+  figure { margin: 12px 0 18px; break-inside: avoid; }
+  figure img { width: 100%; border: 1px solid #ddd4cd; border-radius: 6px; display: block; }
+  figcaption { font-size: 8.8pt; color: #6d635c; margin-top: 5px; text-align: center; }
+  .duo { display: flex; gap: 14px; align-items: flex-start; }
+  .duo figure { flex: 1; margin-top: 0; }
+  .salto { break-before: page; }
+  .paso { background:#e8632a; color:#fff; border-radius:50%; display:inline-block;
+          width:19px; height:19px; text-align:center; font-size:9.5pt; line-height:19px;
+          margin-right:5px; font-weight:700; }
+</style>
+</head>
+<body>
+
+<h1>Monitor de envíos TIPSA / DinaPaqWeb</h1>
+<p class="sub">Guía de puesta en marcha: lo que falta por hacer y cómo ver la aplicación.<br>
+Generada el 25 de agosto de 2026.</p>
+
+<div class="ok">
+<b>Estado del proyecto: código listo y verificado.</b> Las 13 pruebas pasan, el panel se abrió en
+un navegador real y descifra y pinta los datos sin un solo error. Se corrigió además un fallo que
+habría impedido cualquier ejecución real: el HTML de los <code>frames</code> del portal se
+concatenaba en una sola cadena y el analizador solo veía el primero, que nunca es el que trae el
+listado. Lo único que queda es <b>desplegarlo en tu cuenta de GitHub</b>, y eso solo puedes
+hacerlo tú porque hacen falta tus credenciales.
+</div>
+
+<h2>Parte 1 · Ver la interfaz ahora mismo, sin GitHub</h2>
+
+<p>Puedes abrir el panel en tu ordenador con datos ficticios en menos de un minuto. No hace falta
+ninguna credencial ni contacto con el portal real. El entorno de Python ya está montado en la
+carpeta <code>.venv</code> del proyecto.</p>
+
+<p>Abre PowerShell y pega esto. Las tres primeras órdenes generan datos de demostración; la
+última levanta el servidor.</p>
+
+<pre><code>cd "d:\Documentos - SSD\SCRIPTS\SHIPMENTMONITOR\monitor-envios-github\monitor-envios-nube"
+
+$env:CLAVE_PANEL = "prueba"
+.\.venv\Scripts\python.exe -m monitor.ejecutar --demo --sin-avisos
+.\.venv\Scripts\python.exe -m monitor.ejecutar --demo --semilla 1 --sin-avisos
+
+.\.venv\Scripts\python.exe -m http.server 8899 --directory docs</code></pre>
+
+<p>Abre <code>http://localhost:8899</code> en el navegador y escribe la contraseña
+<code>prueba</code>. Para parar el servidor, <code>Ctrl+C</code> en esa ventana.</p>
+
+<p>La segunda pasada (<code>--semilla 1</code>) existe para que veas el panel con vida: la primera
+solo toma la foto inicial y no genera novedades; la segunda cambia estados, bultos y pesos, así
+que se llena la columna de novedades de la derecha.</p>
+
+<div class="ojo">
+<b>Importante antes de subir nada a GitHub.</b> Ese <code>docs\datos.json</code> de demostración
+queda cifrado con la contraseña <code>prueba</code>. Si lo subes al repositorio, la primera
+ejecución real fallará al no poder descifrarlo con tu <code>CLAVE_PANEL</code>. Bórralo antes de
+subir:<br>
+<code>Remove-Item docs\datos.json</code>
+</div>
+
+<h2 class="salto">Parte 2 · Los pasos que faltan en GitHub</h2>
+
+<p>Unos 15 minutos en total. Coste: 0 €.</p>
+
+<h3><span class="paso">1</span> Crear el repositorio</h3>
+<ol>
+  <li>Entra en <code>https://github.com/new</code>.</li>
+  <li>Nombre: por ejemplo <code>monitor-envios</code>.</li>
+  <li>Marca <b>Public</b>. Es lo que hace que Actions y Pages salgan gratis e ilimitados. Tus
+      datos siguen siendo privados: se publican cifrados con AES-256-GCM y una clave derivada de
+      tu contraseña, y las credenciales del portal viven en los <i>Secrets</i>, que no son
+      visibles para nadie.</li>
+  <li>Crea el repositorio y sube el <b>contenido</b> de la carpeta <code>monitor-envios-nube</code>
+      (el contenido, no la carpeta en sí). Sin usar git: <b>Add file → Upload files</b>, arrastra
+      todo y confirma con <b>Commit changes</b>.</li>
+</ol>
+
+<div class="aviso">
+Si al arrastrar no aparece <code>.github/workflows/monitor.yml</code>, el navegador se ha saltado
+la carpeta oculta. Créalo a mano con <b>Add file → Create new file</b>, escribe
+<code>.github/workflows/monitor.yml</code> como nombre y pega dentro el contenido del fichero.
+</div>
+
+<p>Si prefieres hacerlo con git desde PowerShell:</p>
+<pre><code>cd "d:\Documentos - SSD\SCRIPTS\SHIPMENTMONITOR\monitor-envios-github\monitor-envios-nube"
+git init
+git add .
+git commit -m "monitor de envios"
+git branch -M main
+git remote add origin https://github.com/TU-USUARIO/monitor-envios.git
+git push -u origin main</code></pre>
+
+<h3><span class="paso">2</span> Guardar las credenciales como Secrets</h3>
+<p><b>Settings → Secrets and variables → Actions → New repository secret.</b> Uno por uno:</p>
+<table>
+  <tr><th style="width:32%">Secret</th><th>Valor</th></tr>
+  <tr><td><code>DINAPAQ_USUARIO</code></td>
+      <td>El usuario con el que entras al portal, tal cual lo escribes tú.</td></tr>
+  <tr><td><code>DINAPAQ_PASSWORD</code></td>
+      <td>Tu contraseña del portal.</td></tr>
+  <tr><td><code>CLAVE_PANEL</code></td>
+      <td><b>Invéntate una contraseña larga.</b> Es la que abrirá el panel y la que cifra los
+          datos. Que sea distinta de la del portal. Apúntala bien.</td></tr>
+  <tr><td><code>DINAPAQ_CLIENTE</code></td>
+      <td><i>Solo</i> si el portal te pide dos códigos en casillas separadas (agencia y cliente):
+          el segundo va aquí.</td></tr>
+</table>
+
+<p><b>¿Un usuario o dos códigos?</b> El acceso está preparado para las dos formas sin que
+configures nada. Si tu usuario es la unión de agencia y cliente (por ejemplo
+<code>02112345</code>), va entero en <code>DINAPAQ_USUARIO</code> y no crees
+<code>DINAPAQ_CLIENTE</code>. Si el portal muestra dos casillas, pon la agencia en
+<code>DINAPAQ_USUARIO</code> y el cliente en <code>DINAPAQ_CLIENTE</code>.</p>
+
+<h3><span class="paso">3</span> Ajustes opcionales (pestaña Variables, no Secrets)</h3>
+<table>
+  <tr><th style="width:32%">Variable</th><th>Para qué</th></tr>
+  <tr><td><code>DINAPAQ_URL_LISTADO</code></td>
+      <td><b>Muy recomendable.</b> Entra al portal a mano, navega hasta la pantalla de consulta de
+          envíos, copia la URL de la barra de direcciones y pégala aquí. Le ahorra al monitor
+          tener que adivinar la navegación por el menú.</td></tr>
+  <tr><td><code>DINAPAQ_DIAS_ATRAS</code></td>
+      <td>Cuántos días de envíos pedir. Por defecto 7.</td></tr>
+  <tr><td><code>DINAPAQ_URL_LOGIN</code></td>
+      <td>Solo si tu portal usa otra dirección de acceso.</td></tr>
+</table>
+
+<h3><span class="paso">4</span> Dar permiso de escritura a Actions</h3>
+<p><b>Settings → Actions → General → Workflow permissions</b>: marca <b>Read and write
+permissions</b> y guarda. Sin esto el monitor no puede guardar <code>docs/datos.json</code> en el
+repositorio y el panel se quedará vacío.</p>
+
+<h3><span class="paso">5</span> Encender GitHub Pages</h3>
+<p><b>Settings → Pages → Build and deployment</b>: en <i>Source</i> elige <b>Deploy from a
+branch</b>, rama <code>main</code> y carpeta <b><code>/docs</code></b>. Guarda.</p>
+<p>Tu panel quedará en <code>https://TU-USUARIO.github.io/monitor-envios/</code>.</p>
+
+<h3><span class="paso">6</span> Lanzar la primera comprobación</h3>
+<p><b>Actions → Monitor de envíos → Run workflow.</b> Tarda un par de minutos porque instala
+Chromium. Cuando termine en verde:</p>
+<ul>
+  <li>Se habrá creado <code>docs/datos.json</code> en el repositorio.</li>
+  <li>Esa primera pasada <b>no avisa de nada</b>: solo toma la foto inicial. A partir de la
+      segunda solo suenan las novedades.</li>
+</ul>
+<p>A partir de ahí el cron corre solo cada 30 minutos, con tu ordenador apagado.</p>
+
+<h3><span class="paso">7</span> Abrir el panel</h3>
+<p>Entra en <code>https://TU-USUARIO.github.io/monitor-envios/</code> y escribe tu
+<code>CLAVE_PANEL</code>. Deja marcado «Recordar en este dispositivo» y no volverá a pedírtela en
+ese navegador.</p>
+<p><b>Instalarlo como app:</b> en Chrome o Edge, el icono de instalar en la barra de direcciones;
+en el móvil, «Añadir a pantalla de inicio». Queda con su icono y a pantalla completa, como una
+aplicación normal.</p>
+
+<h3><span class="paso">8</span> Avisos al móvil (opcional, pero es la gracia)</h3>
+<p><b>Telegram</b>, lo más cómodo:</p>
+<ol>
+  <li>Habla con <code>@BotFather</code> en Telegram y envía <code>/newbot</code>. Te da un token.</li>
+  <li>Escríbele cualquier cosa a tu bot recién creado.</li>
+  <li>Abre <code>https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code> y copia el número de
+      <code>chat.id</code>.</li>
+  <li>Crea los Secrets <code>TELEGRAM_TOKEN</code> y <code>TELEGRAM_CHAT_ID</code>.</li>
+</ol>
+<p><b>Email</b>: crea los Secrets <code>SMTP_HOST</code>, <code>SMTP_PUERTO</code>,
+<code>SMTP_USUARIO</code>, <code>SMTP_PASSWORD</code> y <code>EMAIL_DESTINO</code>. Con Gmail son
+<code>smtp.gmail.com</code> y puerto <code>587</code>, y como contraseña una <b>contraseña de
+aplicación</b> de Google, no la de tu cuenta.</p>
+
+<h2 class="salto">Parte 3 · Si la primera ejecución sale en rojo</h2>
+
+<p>Es el único punto con incertidumbre real. Todas las pruebas corren contra un portal de mentira
+incluido en el proyecto; que el monitor entre bien en el DinaPaqWeb <i>real</i> y reconozca sus
+columnas solo se comprueba ejecutándolo. Abre la ejecución fallida y mira el paso <b>«Consultar el
+portal»</b>:</p>
+
+<table>
+  <tr><th style="width:40%">Mensaje</th><th>Qué hacer</th></tr>
+  <tr><td>«sigue mostrando el formulario de acceso»</td>
+      <td>Las credenciales no le valieron al portal. Revisa <code>DINAPAQ_USUARIO</code> y
+          <code>DINAPAQ_PASSWORD</code>, y borra <code>DINAPAQ_CLIENTE</code> si tu portal solo
+          pide un usuario.</td></tr>
+  <tr><td>«no se reconoció ninguna tabla de envíos»</td>
+      <td>Entró bien pero se quedó en otra pantalla, o los títulos de las columnas no coinciden
+          con los que conoce. Define <code>DINAPAQ_URL_LISTADO</code>. La ejecución adjunta un
+          artefacto llamado <b>capturas</b> con el HTML y una imagen de lo que vio: con eso se
+          ajustan los sinónimos de columna de <code>monitor/parser.py</code> en cinco
+          minutos.</td></tr>
+  <tr><td>«Faltan Secrets»</td>
+      <td>Faltan <code>DINAPAQ_USUARIO</code> o <code>DINAPAQ_PASSWORD</code>.</td></tr>
+</table>
+
+<div class="aviso">
+El artefacto <b>capturas</b> se descarga desde la propia página de la ejecución, al final del
+todo. Si te sale ese caso, guárdalo: es exactamente lo que hace falta para ajustar el analizador.
+</div>
+
+<h3>Mantenimiento</h3>
+<ul>
+  <li><b>Nada que actualizar:</b> cada ejecución instala lo que necesita.</li>
+  <li>GitHub desactiva los cron de un repositorio que pasa 60 días sin actividad. Como el monitor
+      va guardando <code>docs/datos.json</code>, es raro que ocurra; si pasa, recibes un aviso por
+      correo y se reactiva con un clic desde la pestaña Actions.</li>
+  <li>Para dejar de vigilar temporalmente: <b>Actions → Monitor de envíos → ··· → Disable
+      workflow</b>.</li>
+  <li>Para empezar de cero: borra <code>docs/datos.json</code> del repositorio.</li>
+  <li>Si cambias <code>CLAVE_PANEL</code>, hay que borrar <code>docs/datos.json</code> también: lo
+      anterior ya no se puede descifrar.</li>
+  <li>Para cambiar la frecuencia, la línea del cron en
+      <code>.github/workflows/monitor.yml</code>: <code>0 * * * *</code> cada hora,
+      <code>*/15 8-20 * * 1-5</code> cada 15 minutos en horario laboral. La hora del cron es UTC:
+      en España resta 1 h en invierno y 2 en verano.</li>
+</ul>
+
+<h2 class="salto">Parte 4 · La interfaz</h2>
+<p>Capturas reales del panel funcionando, tomadas durante la verificación con datos de
+demostración.</p>
+
+<figure>
+  <img src="img/1-acceso.png" alt="Pantalla de acceso al panel">
+  <figcaption>Acceso. Se pide la <code>CLAVE_PANEL</code>; con «Recordar en este dispositivo» no
+  vuelve a pedirla en ese navegador. Las credenciales del portal nunca llegan aquí.</figcaption>
+</figure>
+
+<figure>
+  <img src="img/2-panel.png" alt="Panel principal con las tarjetas de envío">
+  <figcaption>Panel principal. Arriba los contadores y la hora de la última comprobación; una
+  tarjeta por envío con su diagrama de cuatro pasos (Grabado → Tránsito → Reparto → Entrega); a la
+  derecha, las novedades. Filtros y buscador sobre las tarjetas.</figcaption>
+</figure>
+
+<figure class="salto">
+  <img src="img/3-detalle.png" alt="Tarjeta con el detalle desplegado">
+  <figcaption>«Ver detalle» despliega todos los campos leídos del portal y el historial de cambios
+  de ese envío, con la fecha de cada uno.</figcaption>
+</figure>
+
+<div class="duo">
+  <figure>
+    <img src="img/4-movil.png" alt="El panel en un móvil">
+    <figcaption>En móvil, instalado como app desde «Añadir a pantalla de inicio».</figcaption>
+  </figure>
+  <figure>
+    <img src="img/5-oscuro.png" alt="El panel en modo oscuro">
+    <figcaption>Modo oscuro automático, según el tema del sistema.</figcaption>
+  </figure>
+</div>
+
+</body>
+</html>

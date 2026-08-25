@@ -1,0 +1,5 @@
+# Datos de demostración generados en local con CLAVE_PANEL=prueba.
+# La regla vive aquí, en la raíz del espacio de trabajo, y NO dentro de
+# monitor-envios-nube: en el repositorio que se despliegue en GitHub el workflow
+# sí tiene que poder versionar docs/datos.json, que es la memoria del monitor.
+monitor-envios-github/monitor-envios-nube/docs/datos.json
