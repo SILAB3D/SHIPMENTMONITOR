@@ -11,32 +11,50 @@ CAPTURAS = RAIZ / "capturas"
 FICHERO_DATOS = DOCS / "datos.json"
 
 
+def _texto(clave: str, defecto: str = "") -> str:
+    """Lee una variable de entorno tratando «vacía» igual que «no definida».
+
+    Es imprescindible con GitHub Actions: al escribir en el workflow
+
+        DINAPAQ_URL_LOGIN: ${{ vars.DINAPAQ_URL_LOGIN }}
+
+    si esa variable no existe en el repositorio, Actions NO omite la variable de
+    entorno: la define como cadena vacía. Con `os.environ.get(clave, defecto)`
+    el valor por defecto no se aplicaría nunca, y el monitor acabaría intentando
+    navegar a "" («Cannot navigate to invalid URL»).
+
+    De paso recorta los extremos: una URL pegada con un salto de línea al final
+    también rompe la navegación.
+    """
+    return (os.environ.get(clave) or "").strip() or defecto
+
+
 def _int(clave: str, defecto: int) -> int:
     try:
-        return int(os.environ.get(clave, defecto))
+        return int(_texto(clave, str(defecto)))
     except ValueError:
         return defecto
 
 
 def _bool(clave: str, defecto: bool = False) -> bool:
-    return os.environ.get(clave, str(defecto)).strip().lower() in ("1", "true", "si", "sí", "yes", "on")
+    return _texto(clave, str(defecto)).lower() in ("1", "true", "si", "sí", "yes", "on")
 
 
 # --- Acceso al portal (Secrets) ---
-URL_LOGIN = os.environ.get("DINAPAQ_URL_LOGIN", "https://dinapaqweb.tipsa-dinapaq.com/DinaPaqWeb/login_web.php")
-URL_LISTADO = os.environ.get("DINAPAQ_URL_LISTADO", "")
-ENLACE_LISTADO = os.environ.get("DINAPAQ_ENLACE_LISTADO", r"(consulta|listado|relaci[oó]n).*env[ií]o|env[ií]os")
+URL_LOGIN = _texto("DINAPAQ_URL_LOGIN", "https://dinapaqweb.tipsa-dinapaq.com/DinaPaqWeb/login_web.php")
+URL_LISTADO = _texto("DINAPAQ_URL_LISTADO")
+ENLACE_LISTADO = _texto("DINAPAQ_ENLACE_LISTADO", r"(consulta|listado|relaci[oó]n).*env[ií]o|env[ií]os")
 # El portal puede pedir un solo usuario, o código de agencia + código de cliente.
 # DINAPAQ_USUARIO es el nombre recomendado; DINAPAQ_AGENCIA se mantiene por
 # compatibilidad. Si tu portal usa dos campos, el segundo va en DINAPAQ_CLIENTE.
-USUARIO = os.environ.get("DINAPAQ_USUARIO") or os.environ.get("DINAPAQ_AGENCIA", "")
-CLIENTE = os.environ.get("DINAPAQ_CLIENTE", "")
-PASSWORD = os.environ.get("DINAPAQ_PASSWORD", "")
+USUARIO = _texto("DINAPAQ_USUARIO") or _texto("DINAPAQ_AGENCIA")
+CLIENTE = _texto("DINAPAQ_CLIENTE")
+PASSWORD = _texto("DINAPAQ_PASSWORD")
 
 # Solo si la detección automática falla: selectores CSS de los campos.
-SEL_USUARIO = os.environ.get("DINAPAQ_SEL_USUARIO", "")
-SEL_CLIENTE = os.environ.get("DINAPAQ_SEL_CLIENTE", "")
-SEL_PASSWORD = os.environ.get("DINAPAQ_SEL_PASSWORD", "")
+SEL_USUARIO = _texto("DINAPAQ_SEL_USUARIO")
+SEL_CLIENTE = _texto("DINAPAQ_SEL_CLIENTE")
+SEL_PASSWORD = _texto("DINAPAQ_SEL_PASSWORD")
 DIAS_ATRAS = _int("DINAPAQ_DIAS_ATRAS", 7)
 HEADLESS = _bool("HEADLESS", True)
 
@@ -53,8 +71,8 @@ CLAVE_PANEL = CLAVE_PANEL_CRUDA.strip()
 # Par de claves VAPID: la pública vive en docs/push-config.js (la lee la PWA) y
 # la privada es un Secret. Se generan una sola vez con:
 #     python -m monitor.webpush --generar-claves
-VAPID_PRIVADA = os.environ.get("VAPID_PRIVADA", "")
-VAPID_CONTACTO = os.environ.get("VAPID_CONTACTO", "mailto:monitor-envios@example.invalid")
+VAPID_PRIVADA = _texto("VAPID_PRIVADA")
+VAPID_CONTACTO = _texto("VAPID_CONTACTO", "mailto:monitor-envios@example.invalid")
 
 # Suscripciones de los dispositivos. El panel te da el texto JSON al activar los
 # avisos; se pega en el Secret PUSH_SUSCRIPCIONES. Admite una sola suscripción,
@@ -62,16 +80,16 @@ VAPID_CONTACTO = os.environ.get("VAPID_CONTACTO", "mailto:monitor-envios@example
 PUSH_SUSCRIPCIONES_CRUDO = os.environ.get("PUSH_SUSCRIPCIONES", "")
 
 # --- Avisos por intermediarios (opcionales; si no pones los Secrets, no se usan) ---
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
-SMTP_HOST = os.environ.get("SMTP_HOST", "")
+TELEGRAM_TOKEN = _texto("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = _texto("TELEGRAM_CHAT_ID")
+SMTP_HOST = _texto("SMTP_HOST")
 SMTP_PUERTO = _int("SMTP_PUERTO", 587)
-SMTP_USUARIO = os.environ.get("SMTP_USUARIO", "")
-SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
-EMAIL_DESTINO = os.environ.get("EMAIL_DESTINO", "")
+SMTP_USUARIO = _texto("SMTP_USUARIO")
+SMTP_PASSWORD = _texto("SMTP_PASSWORD")
+EMAIL_DESTINO = _texto("EMAIL_DESTINO")
 
 # --- Contexto del repositorio (lo rellena Actions solo) ---
-REPO = os.environ.get("GITHUB_REPOSITORY", "")
+REPO = _texto("GITHUB_REPOSITORY")
 EJECUCION_URL = (
     f"https://github.com/{REPO}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}" if REPO else ""
 )
