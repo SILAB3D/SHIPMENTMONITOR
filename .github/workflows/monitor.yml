@@ -212,8 +212,7 @@ jobs:
           path: monitor-envios-github/monitor-envios-nube/capturas/
           retention-days: 7
 
-      - name: Marcar la ejecución como fallida si no se pudo consultar
+      - name: Avisar si no se pudo consultar el portal
         if: steps.consulta.outcome == 'failure'
         run: |
-          echo "::error::La comprobación falló; revisa el log del paso «Consultar el portal»."
-          exit 1
+          echo "::warning::La comprobación no pudo consultar el portal; revisa el log del paso «Consultar el portal»."
