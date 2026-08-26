@@ -247,6 +247,36 @@ corren contra un portal de mentira incluido en el código, así que que el monit
 entre bien en el DinaPaqWeb **real** y reconozca sus columnas solo se comprueba
 ejecutándolo.
 
+### El panel dice que la CLAVE_PANEL es incorrecta, y la estás copiando bien
+
+Casi siempre es **un salto de línea o un espacio invisible al final del Secret**.
+Al pegar la contraseña en la caja de GitHub es facilísimo colar un Intro sin
+verlo: el workflow cifra entonces con `tuclave\n` y tú tecleas `tuclave`, que es
+una clave distinta.
+
+**Ya no debería volver a pasarte**: tanto el monitor como el panel recortan ahora
+los espacios de los extremos, así que los dos lados derivan la misma clave. Y un
+fichero que se cifró antes con la contraseña «sucia» se sigue abriendo y se
+regraba limpio en la siguiente pasada, sin perder el historial.
+
+Para confirmar qué pasó exactamente, hay una herramienta que lo dice en un
+comando. La contraseña se teclea a ciegas y no sale del ordenador:
+
+```powershell
+cd "d:\Documentos - SSD\SCRIPTS\SHIPMENTMONITOR\monitor-envios-github\monitor-envios-nube"
+.\.venv\Scripts\python.exe herramientas\comprobar_clave.py --url https://silab3d.github.io/SHIPMENTMONITOR/
+```
+
+Te dirá cuál de las variantes abre el fichero y, **además, te enseñará el error
+del portal** que el monitor dejó guardado dentro — que es justo lo que necesitas
+para el apartado anterior.
+
+Si no abre con ninguna variante, entonces el Secret no es esa contraseña: o la
+cambiaste después de generar el fichero, o no es la misma que escribes. Se
+arregla poniendo en el Secret la contraseña con la que se cifró, o borrando
+`docs/datos.json` del repositorio para empezar de cero (pierdes el historial de
+novedades, nada más).
+
 ### El aviso de prueba no llega al móvil
 
 | Síntoma | Causa habitual |

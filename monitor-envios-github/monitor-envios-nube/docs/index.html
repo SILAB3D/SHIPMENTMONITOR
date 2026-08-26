@@ -319,9 +319,14 @@ async function copiar(texto){
   catch (_) { return false; }
 }
 
+/* Recortamos los extremos igual que hace monitor/config.py. Al copiar y pegar
+   la contraseña —sobre todo en el móvil— se cuela un espacio o un salto de
+   línea con muchísima facilidad, y sin esto la clave «correcta» se rechazaría. */
+const limpiar = pw => (pw || '').trim();
+
 async function descifrar(sobre, password){
   const material = await crypto.subtle.importKey(
-    'raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
+    'raw', new TextEncoder().encode(limpiar(password)), 'PBKDF2', false, ['deriveKey']);
   const clave = await crypto.subtle.deriveKey(
     {name:'PBKDF2', salt: deB64(sobre.salt), iterations: sobre.iter || 200000, hash:'SHA-256'},
     material, {name:'AES-GCM', length:256}, false, ['decrypt']);

@@ -41,7 +41,13 @@ DIAS_ATRAS = _int("DINAPAQ_DIAS_ATRAS", 7)
 HEADLESS = _bool("HEADLESS", True)
 
 # --- Cifrado de los datos publicados ---
-CLAVE_PANEL = os.environ.get("CLAVE_PANEL", "")
+# Al pegar la contraseña en la caja de Secrets de GitHub es facilísimo colar un
+# salto de línea o un espacio al final sin verlo. Eso cambia la clave derivada,
+# y el panel rechazaría la contraseña «correcta» que escribes en el móvil.
+# Recortamos siempre los espacios de los extremos, y el panel hace lo mismo, así
+# que los dos lados derivan exactamente la misma clave.
+CLAVE_PANEL_CRUDA = os.environ.get("CLAVE_PANEL", "")
+CLAVE_PANEL = CLAVE_PANEL_CRUDA.strip()
 
 # --- Avisos push al propio dispositivo (canal principal) ---
 # Par de claves VAPID: la pública vive en docs/push-config.js (la lee la PWA) y

@@ -29,13 +29,26 @@ def cargar(ruta: Path | None = None, password: str | None = None) -> dict:
     sobre = json.loads(ruta.read_text(encoding="utf-8"))
     if "datos" not in sobre:            # fichero en claro (modo demo local)
         return sobre
-    try:
-        return descifrar(sobre, password)
-    except Exception as e:  # noqa: BLE001
-        raise RuntimeError(
-            "No se pudo descifrar docs/datos.json: la CLAVE_PANEL no coincide con la que "
-            "generó el fichero. Cambia el Secret o borra el fichero para empezar de cero."
-        ) from e
+
+    # La contraseña buena es la recortada, pero un fichero escrito por una
+    # versión anterior pudo cifrarse con el valor tal cual venía del Secret,
+    # espacios y saltos de línea incluidos. Probamos las dos: si abre con la
+    # antigua, `guardar` lo reescribirá ya con la recortada y el problema se
+    # arregla solo en esta misma pasada.
+    candidatas = [password]
+    if password is not None and config.CLAVE_PANEL_CRUDA not in candidatas:
+        candidatas.append(config.CLAVE_PANEL_CRUDA)
+
+    for candidata in candidatas:
+        try:
+            return descifrar(sobre, candidata)
+        except Exception:  # noqa: BLE001
+            continue
+
+    raise RuntimeError(
+        "No se pudo descifrar docs/datos.json: la CLAVE_PANEL no coincide con la que "
+        "generó el fichero. Cambia el Secret o borra el fichero para empezar de cero."
+    )
 
 
 def guardar(estado: dict, ruta: Path | None = None, password: str | None = None) -> None:
