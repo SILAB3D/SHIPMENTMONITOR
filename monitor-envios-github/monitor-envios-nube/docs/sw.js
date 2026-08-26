@@ -7,7 +7,7 @@
  *      la pantalla del móvil, con la app cerrada. Es el motivo de que no haga
  *      falta ni Telegram ni email.
  */
-const CACHE = 'monitor-envios-v3';
+const CACHE = 'monitor-envios-v4';
 const BASICOS = [
   './', 'index.html', 'icono.svg', 'icono-192.png', 'icono-512.png',
   'manifest.webmanifest', 'push-config.js',

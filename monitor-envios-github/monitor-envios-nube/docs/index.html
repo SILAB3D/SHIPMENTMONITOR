@@ -319,14 +319,25 @@ async function copiar(texto){
   catch (_) { return false; }
 }
 
-/* Recortamos los extremos igual que hace monitor/config.py. Al copiar y pegar
-   la contraseña —sobre todo en el móvil— se cuela un espacio o un salto de
-   línea con muchísima facilidad, y sin esto la clave «correcta» se rechazaría. */
+/* Al pegar la contraseña en la caja de Secrets de GitHub es facilísimo colar un
+   Intro o un espacio sin verlo, y en el móvil el teclado añade espacios solo.
+   Si el fichero se cifró con «clave\n» y aquí escribes «clave», la clave
+   derivada es otra y el panel rechazaría la contraseña correcta.
+
+   Por eso no probamos una sola forma: probamos la recortada y las variantes
+   «sucias» habituales, igual que hace monitor/estado.py al cargar el fichero.
+   Un fichero publicado por una versión anterior sigue así abriéndose. */
 const limpiar = pw => (pw || '').trim();
+
+function variantesDeClave(pw){
+  const base = limpiar(pw);
+  const posibles = [base, pw, base + '\n', base + '\r\n', base + ' ', ' ' + base];
+  return posibles.filter((v, i) => v && posibles.indexOf(v) === i);
+}
 
 async function descifrar(sobre, password){
   const material = await crypto.subtle.importKey(
-    'raw', new TextEncoder().encode(limpiar(password)), 'PBKDF2', false, ['deriveKey']);
+    'raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
   const clave = await crypto.subtle.deriveKey(
     {name:'PBKDF2', salt: deB64(sobre.salt), iterations: sobre.iter || 200000, hash:'SHA-256'},
     material, {name:'AES-GCM', length:256}, false, ['decrypt']);
@@ -335,13 +346,22 @@ async function descifrar(sobre, password){
   return JSON.parse(new TextDecoder().decode(claro));
 }
 
+async function descifrarTolerante(sobre, password){
+  for (const candidata of variantesDeClave(password)){
+    try { return await descifrar(sobre, candidata); }
+    catch (_) { /* probamos la siguiente */ }
+  }
+  const e = new Error('contraseña incorrecta');
+  e.clave = true;
+  throw e;
+}
+
 async function cargarDatos(password){
   const r = await fetch('datos.json?t=' + Date.now(), {cache:'no-store'});
   if (!r.ok) throw new Error('todavía no hay datos publicados (¿ha corrido ya el workflow?)');
   const sobre = await r.json();
   if (!sobre.datos) return sobre;                 // fichero en claro (modo demo)
-  try { return await descifrar(sobre, password); }
-  catch (_) { const e = new Error('contraseña incorrecta'); e.clave = true; throw e; }
+  return descifrarTolerante(sobre, password);
 }
 
 /* ─────────────────── utilidades ─────────────────── */
