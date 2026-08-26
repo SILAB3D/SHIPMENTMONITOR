@@ -102,24 +102,60 @@ async def _login(page: Page, frame: Frame) -> None:
         )
 
 
+async def _hay_listado(page: Page) -> bool:
+    """¿La pantalla actual ya trae envíos reconocibles?"""
+    try:
+        return bool(parse_envios(await _html_de_todos_los_frames(page)))
+    except Exception:  # noqa: BLE001
+        return False
+
+
 async def _ir_al_listado(page: Page) -> None:
+    """Busca la pantalla de consulta de envíos por el texto del menú.
+
+    No basta con pulsar el primer enlace que encaje: en estos portales el menú
+    suele tener varias entradas parecidas («Envíos», «Consulta de envíos»,
+    «Relación de envíos»…) y solo una lleva al listado. Se prueban unas cuantas
+    y nos quedamos con la primera que dé envíos de verdad.
+    """
     if config.URL_LISTADO:
         if not page.url.startswith(config.URL_LISTADO):
             await page.goto(config.URL_LISTADO, wait_until="domcontentloaded")
         return
 
     patron = re.compile(config.ENLACE_LISTADO, re.I)
-    for frame in page.frames:
+    candidatos: list[tuple[int, str]] = []
+    for n_frame, frame in enumerate(page.frames):
         try:
             enlaces = frame.locator("a")
             for i in range(min(await enlaces.count(), 80)):
-                texto = (await enlaces.nth(i).inner_text()).strip()
+                texto = re.sub(r"\s+", " ", (await enlaces.nth(i).inner_text()).strip())
                 if texto and patron.search(texto):
-                    await enlaces.nth(i).click()
-                    await page.wait_for_load_state("networkidle")
-                    return
+                    candidatos.append((n_frame, texto))
         except Exception:
             continue
+
+    inicio = page.url
+    for n_frame, texto in candidatos[:6]:
+        try:
+            frames = page.frames
+            if n_frame >= len(frames):
+                continue
+            enlace = frames[n_frame].get_by_role("link", name=texto, exact=True).first
+            if not await enlace.count():
+                continue
+            await enlace.click()
+            await page.wait_for_load_state("networkidle")
+            await _rellenar_fechas(page)
+            if await _hay_listado(page):
+                return
+            # esa entrada del menú no era: volvemos y probamos la siguiente
+            await page.goto(inicio, wait_until="domcontentloaded")
+        except Exception:
+            try:
+                await page.goto(inicio, wait_until="domcontentloaded")
+            except Exception:
+                return
 
 
 async def _rellenar_fechas(page: Page) -> None:
@@ -154,6 +190,58 @@ async def _rellenar_fechas(page: Page) -> None:
                     return
         except Exception:
             continue
+
+
+async def _enlaces_visibles(page: Page, tope: int = 60) -> list[str]:
+    """Textos de los enlaces del menú, para saber a dónde se podía haber ido."""
+    vistos: list[str] = []
+    for frame in page.frames:
+        try:
+            enlaces = frame.locator("a")
+            for i in range(min(await enlaces.count(), tope)):
+                texto = re.sub(r"\s+", " ", (await enlaces.nth(i).inner_text()).strip())
+                if texto and texto not in vistos:
+                    vistos.append(texto)
+        except Exception:
+            continue
+    return vistos
+
+
+def _diagnostico(documentos: list[str], url_final: str, titulo: str, enlaces: list[str]) -> str:
+    """Resumen de lo que vio el monitor, para poder arreglarlo sin descargar nada.
+
+    Va dentro del mensaje de error, que acaba en docs/datos.json y por tanto se
+    lee desde el propio panel. Antes había que bajarse el artefacto con el HTML
+    para saber siquiera en qué pantalla se había quedado.
+    """
+    from monitor.parser import extraer_tablas, normalizar
+
+    lineas = [f"Se entró al portal pero no se reconoció ninguna tabla de envíos.",
+              f"Última URL: {url_final}",
+              f"Título de la página: {titulo or '(sin título)'}",
+              f"Frames: {len(documentos)}"]
+
+    tablas = extraer_tablas(documentos)
+    if not tablas:
+        lineas.append("No hay ninguna tabla en la pantalla: seguramente no se llegó al listado.")
+    else:
+        lineas.append(f"Tablas encontradas: {len(tablas)}. Sus cabeceras:")
+        # las más grandes primero: el listado suele ser la tabla con más filas
+        for t in sorted(tablas, key=len, reverse=True)[:4]:
+            cabecera = [c for c in (t[0] if t else []) if c][:12]
+            lineas.append(f"  · {len(t)} filas → {' | '.join(cabecera) or '(sin cabecera)'}")
+        lineas.append(
+            "Si alguna de esas es el listado, añade sus títulos de columna a "
+            "SINONIMOS en monitor/parser.py."
+        )
+
+    if enlaces:
+        lineas.append("Enlaces del menú: " + " · ".join(enlaces[:25]))
+        lineas.append(
+            "Si ves ahí la pantalla de consulta de envíos, entra tú al portal, ábrela "
+            "y pon su URL en la variable DINAPAQ_URL_LISTADO."
+        )
+    return "\n".join(lineas)
 
 
 async def _html_de_todos_los_frames(page: Page) -> list[str]:
@@ -191,11 +279,16 @@ async def obtener_envios() -> list[dict]:
                 (config.CAPTURAS / f"sin-tabla-{sello}.html").write_text(
                     SEPARADOR_FRAMES.join(documentos), encoding="utf-8"
                 )
-                await page.screenshot(path=str(config.CAPTURAS / f"sin-tabla-{sello}.png"), full_page=True)
-                raise PortalError(
-                    "Se accedió al portal pero no se reconoció ninguna tabla de envíos. "
-                    "El HTML y una captura quedan como artefacto de la ejecución para poder ajustar el parser."
+                try:
+                    await page.screenshot(path=str(config.CAPTURAS / f"sin-tabla-{sello}.png"), full_page=True)
+                except Exception:  # noqa: BLE001
+                    pass
+
+                informe = _diagnostico(
+                    documentos, page.url, await page.title(), await _enlaces_visibles(page)
                 )
+                (config.CAPTURAS / f"diagnostico-{sello}.txt").write_text(informe, encoding="utf-8")
+                raise PortalError(informe)
             return envios
         finally:
             await contexto.close()

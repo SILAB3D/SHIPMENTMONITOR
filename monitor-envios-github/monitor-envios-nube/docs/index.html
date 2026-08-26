@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-title" content="Envíos">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#ea580c">
+<meta name="theme-color" content="#000000">
 <!-- Clave pública VAPID: la necesita el navegador para suscribirse a los avisos -->
 <script src="push-config.js"></script>
 <!-- Librerías servidas en local: la PWA funciona sin internet y sin depender de un CDN -->
@@ -28,27 +28,23 @@
   src:url('vendor/fuentes/inter-latin-wght-normal.woff2') format('woff2-variations');
   font-weight:100 900; font-style:normal; font-display:swap;
 }
-/* ───────────────────────── tokens ───────────────────────── */
+/* ───────────────────────── tokens ─────────────────────────
+   Tema único: negro con los detalles en naranja. No depende del tema del
+   sistema a propósito —antes había una versión clara y otra oscura—, así que
+   el panel se ve igual en el móvil, en el escritorio y en la app instalada. */
 :root{
-  --naranja:#ea580c; --naranja-claro:#fb923c; --naranja-suave:#fff1e6; --naranja-borde:#fdba74;
-  --bg:#faf7f4; --panel:#ffffff; --panel-2:#fbf6f2; --borde:#ece0d6;
-  --texto:#1c1917; --suave:#7a6a60; --tenue:#a8968a;
-  --ok:#15803d; --ok-bg:#e7f6ec; --error:#c2410c; --error-bg:#fdece3; --info:#0369a1;
-  --sombra:0 1px 2px rgba(28,25,23,.05), 0 8px 24px -16px rgba(28,25,23,.25);
+  color-scheme: dark;                       /* barras de scroll y controles oscuros */
+
+  --naranja:#f97316; --naranja-claro:#fb923c; --naranja-suave:#1c0e04; --naranja-borde:#7c2d12;
+  --bg:#000000; --panel:#0c0c0c; --panel-2:#141414; --borde:#272727;
+  --texto:#f5f5f4; --suave:#a1a1a0; --tenue:#6f6f6e;
+  --ok:#4ade80; --ok-bg:#0a2415; --error:#fb7185; --error-bg:#2a1015; --info:#7dd3fc;
+  --sombra:0 1px 2px rgba(0,0,0,.6), 0 12px 32px -20px rgba(0,0,0,1);
 
   --fuente:'Inter var',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --sp-1:.25rem; --sp-2:.5rem; --sp-3:.75rem; --sp-4:1rem; --sp-5:1.5rem; --sp-6:2rem;
   --r-sm:8px; --r:12px; --r-lg:18px;
   --ancho:1180px;
-}
-@media (prefers-color-scheme: dark){
-  :root{
-    --naranja:#fb923c; --naranja-claro:#fdba74; --naranja-suave:#2b1a10; --naranja-borde:#7c3a12;
-    --bg:#15100d; --panel:#1f1815; --panel-2:#261e19; --borde:#372c25;
-    --texto:#f6efe9; --suave:#b6a79c; --tenue:#8b7c71;
-    --ok:#4ade80; --ok-bg:#14301f; --error:#fb7185; --error-bg:#361a1a; --info:#7dd3fc;
-    --sombra:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -20px rgba(0,0,0,.9);
-  }
 }
 /* ───────────────────────── base ───────────────────────── */
 *,*::before,*::after{box-sizing:border-box}
@@ -75,7 +71,7 @@ button,input,select{font:inherit;color:inherit}
 .btn:hover{border-color:var(--naranja);color:var(--naranja)}
 .btn:active{transform:translateY(1px)}
 .btn:disabled{opacity:.55;cursor:default;transform:none}
-.btn.primario{background:var(--naranja);border-color:var(--naranja);color:#fff}
+.btn.primario{background:var(--naranja);border-color:var(--naranja);color:#0a0a0a}
 .btn.primario:hover{background:var(--naranja-claro);border-color:var(--naranja-claro);color:#1c1917}
 .btn.icono{padding:.5rem .6rem}
 .btn.bloque{width:100%;padding:.7rem 1rem}
@@ -160,7 +156,7 @@ button,input,select{font:inherit;color:inherit}
   border:1px solid var(--borde);background:var(--panel);border-radius:999px;
   padding:.35rem .8rem;font-size:.83rem;font-weight:600;cursor:pointer;color:var(--suave);white-space:nowrap;
 }
-.filtro-btn.activo{background:var(--naranja);border-color:var(--naranja);color:#fff}
+.filtro-btn.activo{background:var(--naranja);border-color:var(--naranja);color:#0a0a0a}
 
 /* ───────────────────────── envíos ───────────────────────── */
 .rejilla{display:grid;gap:var(--sp-4);grid-template-columns:repeat(auto-fill,minmax(min(100%,19rem),1fr))}
@@ -180,12 +176,12 @@ button,input,select{font:inherit;color:inherit}
   border:2px solid var(--borde);background:var(--panel);font-size:.8rem;color:var(--tenue);flex:none;
 }
 .paso .etq{font-size:.62rem;line-height:1.2;color:var(--tenue);font-weight:600;overflow-wrap:anywhere}
-.paso.hecho .bola{background:var(--naranja);border-color:var(--naranja);color:#fff}
+.paso.hecho .bola{background:var(--naranja);border-color:var(--naranja);color:#0a0a0a}
 .paso.hecho .etq{color:var(--suave)}
 .paso.actual .bola{background:var(--panel);border-color:var(--naranja);color:var(--naranja);
                    box-shadow:0 0 0 4px var(--naranja-suave)}
 .paso.actual .etq{color:var(--naranja)}
-.paso.final .bola{background:var(--ok);border-color:var(--ok);color:#fff;box-shadow:0 0 0 4px var(--ok-bg)}
+.paso.final .bola{background:var(--ok);border-color:var(--ok);color:#0a0a0a;box-shadow:0 0 0 4px var(--ok-bg)}
 .paso.final .etq{color:var(--ok)}
 .paso.incidencia .bola{border-color:var(--error);color:var(--error);box-shadow:0 0 0 4px var(--error-bg)}
 .paso.incidencia .etq{color:var(--error)}
@@ -812,7 +808,7 @@ function Panel({datos, onRecargar, onSalir, recargando}){
       </main>
 
       <footer className="pie-app">
-        <span>Comprueba el portal cada 30 min desde GitHub Actions</span>
+        <span>Comprueba el portal cada hora, de 8:00 a 18:00</span>
         {meta.repo && <a className="enlace" href={`https://github.com/${meta.repo}/actions`} target="_blank" rel="noopener">Ver ejecuciones</a>}
         <span>Avisos: {Object.entries(meta.canales || {}).filter(([,v])=>v)
           .map(([k]) => ({push:'push al dispositivo', telegram:'Telegram', email:'email'}[k] || k))
@@ -846,7 +842,7 @@ function App(){
   useEffect(() => {
     if (!clave) return;
     recargar(clave);
-    const t = setInterval(() => recargar(clave), 5 * 60 * 1000);   // el workflow va cada 30 min
+    const t = setInterval(() => recargar(clave), 5 * 60 * 1000);   // el workflow va cada hora en horario laboral
     return () => clearInterval(t);
   }, [clave, recargar]);
 

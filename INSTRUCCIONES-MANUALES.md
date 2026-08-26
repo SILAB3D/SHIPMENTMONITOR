@@ -221,7 +221,7 @@ JSON entre corchetes. Lo que no entienda, lo ignora sin protestar.
 No consulta el portal: manda una notificación y punto. En unos segundos tu móvil
 debería enseñar **«✅ Los avisos funcionan»**.
 
-Si llega: ya está todo. El cron corre solo cada 30 minutos con tu ordenador
+Si llega: ya está todo. El cron corre solo cada hora, de 8:00 a 18:00, con tu ordenador
 apagado, y solo te escribirá cuando haya algo nuevo de verdad.
 
 Si no llega, mira el log de esa ejecución: el paso «Enviar un aviso de prueba»
@@ -314,7 +314,8 @@ existe **en la raíz** del repositorio en GitHub (no dentro de
 - **Borrar el PDF y la carpeta `guia/`**: describen la versión anterior, la de
   Telegram, y ahora contradicen a este documento.
 - **Cambiar la frecuencia:** en `.github/workflows/monitor.yml`, la línea
-  `- cron: '*/30 * * * *'`. Bajar de 15 minutos no compensa: GitHub retrasa los
+  `- cron: '0 6-17 * * *'` (en UTC), y el paso «¿Toca comprobar a esta hora?»
+  acota la franja en hora de España. GitHub retrasa los
   cron en horas punta de todas formas.
 - **Dejar de vigilar un rato:** Actions → Monitor de envíos → menú ⋯ →
   *Disable workflow*.

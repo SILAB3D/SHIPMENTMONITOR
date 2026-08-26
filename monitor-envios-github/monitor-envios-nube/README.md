@@ -6,13 +6,13 @@ en el teléfono y recibe notificaciones push: sin Telegram, sin correo y sin
 servidor de por medio.
 
 No se ejecuta en tu ordenador: **vive entero en GitHub**. Un workflow de GitHub
-Actions entra al portal cada 30 minutos y publica los datos; GitHub Pages sirve
+Actions entra al portal cada hora en horario laboral y publica los datos; GitHub Pages sirve
 el panel. No hay nada que instalar ni que dejar encendido.
 
 👉 **Para ponerlo en marcha: [INSTALACION.md](INSTALACION.md)** — 15 minutos, coste 0 €.
 
 ```
-   ⏱ cada 30 min (cron de GitHub Actions)
+   ⏱ cada hora, 8:00-18:00 (cron de GitHub Actions)
         │
         ▼
 ┌──────────────────┐   Playwright    ┌──────────────┐
@@ -96,7 +96,7 @@ python -m http.server 8899 --directory docs      # abre http://localhost:8899
 
 | Dónde | Qué |
 |---|---|
-| `cron` en `monitor.yml` | frecuencia (por defecto `*/30`) |
+| `cron` en `monitor.yml` | frecuencia (por defecto, cada hora de 8 a 18) |
 | Variable `DINAPAQ_URL_LISTADO` | URL directa de la pantalla de consulta |
 | Variable `DINAPAQ_DIAS_ATRAS` | cuántos días de envíos pedir |
 | `SINONIMOS` en `parser.py` | nombres de columna que sabe reconocer |
@@ -107,7 +107,7 @@ python -m http.server 8899 --directory docs      # abre http://localhost:8899
 - El monitor usa **tus credenciales** y hace lo mismo que harías tú mirando la
   pantalla. Conviene revisar las condiciones de uso del portal antes de dejarlo
   corriendo indefinidamente.
-- Cada 30 minutos es de sobra y no carga su servidor. Bajar de 15 no aporta:
+- Una vez por hora en horario laboral es de sobra y no carga su servidor:
   GitHub ejecuta los cron cuando puede y puede retrasarlos unos minutos.
 - Si TIPSA te da acceso a su **web service** de cliente, merece la pena cambiar
   `scraper.py` por llamadas a la API: el resto (novedades, avisos, panel) sigue

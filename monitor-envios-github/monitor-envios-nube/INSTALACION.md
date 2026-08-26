@@ -4,7 +4,7 @@ Unos 15 minutos, sin instalar nada en tu ordenador. **Coste: 0 €.**
 
 | Pieza | Para qué | Coste |
 |---|---|---|
-| GitHub Actions | ejecuta la comprobación cada 30 min | gratis e **ilimitado en repositorios públicos** |
+| GitHub Actions | ejecuta la comprobación cada hora, de 8 a 18 | gratis e **ilimitado en repositorios públicos** |
 | GitHub Pages | sirve el panel por HTTPS | gratis en repositorios públicos |
 | Playwright + Chromium | entra al portal como lo harías tú | gratis (Apache 2.0), se instala en el runner |
 | Web Push del navegador | avisos directos a tu móvil | gratis, sin registro |
@@ -128,7 +128,9 @@ En la pestaña **Variables** (al lado de Secrets), no en Secrets:
 - **Settings → Actions → General → Workflow permissions**: marca
   **Read and write permissions** y guarda. (Hace falta para que el monitor pueda
   guardar los datos en el repositorio.)
-- **Settings → Pages → Build and deployment**: en *Source* elige **Deploy from a
+- **Settings → Pages → Build and deployment**: en *Source* elige **GitHub Actions**
+  si el proyecto vive en un subdirectorio del repositorio; si está en la raíz vale
+  también **Deploy from a
   branch**, rama `main` y carpeta **`/docs`**. Guarda.
 
 Tu panel quedará en `https://TU-USUARIO.github.io/monitor-envios/`.
@@ -171,7 +173,7 @@ cada novedad aunque la app esté cerrada.
 En `.github/workflows/monitor.yml`, la línea del cron:
 
 ```yaml
-    - cron: '*/30 * * * *'     # cada 30 minutos
+    - cron: '  6-17 * * *'     # cada hora; el job descarta lo que caiga fuera de 8-18 en España
 ```
 
 Ejemplos: `0 * * * *` cada hora; `*/15 8-20 * * 1-5` cada 15 min en horario
@@ -202,7 +204,7 @@ accesible desde el workflow; ni siquiera aparece en los logs. No se escribe en
 ningún fichero del repositorio.
 
 **¿Puedo tener el repositorio privado?** Sí, pero entonces Actions tiene 2 000
-minutos gratis al mes (una pasada cada 30 min se los come) y Pages en privado
+minutos gratis al mes (las pasadas se los comen) y Pages en privado
 pide plan de pago. La alternativa gratuita es repositorio privado + [Cloudflare
 Pages](https://pages.cloudflare.com) apuntando a la carpeta `docs/`.
 

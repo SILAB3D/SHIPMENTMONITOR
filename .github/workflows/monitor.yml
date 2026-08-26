@@ -12,9 +12,16 @@ name: Monitor de envíos
 
 on:
   schedule:
-    # Cada 30 minutos. GitHub ejecuta los cron "cuando puede": puede retrasarse
-    # unos minutos en horas punta, que para vigilar envíos da igual.
-    - cron: '*/30 * * * *'
+    # Una vez por hora, solo en horario laboral (08:00–18:00 de España).
+    #
+    # Los cron de GitHub van en UTC y no admiten zona horaria, así que aquí se
+    # cubre un rango de más —de 06:00 a 17:00 UTC, que en verano son las 08:00 a
+    # 19:00 y en invierno las 07:00 a 18:00— y luego el primer paso del job
+    # descarta las horas que se salgan, mirando ya la hora de Madrid. De ese modo
+    # el horario es exacto tanto en verano como en invierno, sin tocar nada al
+    # cambiar la hora. GitHub además retrasa los cron en horas punta, cosa que
+    # para vigilar envíos da igual.
+    - cron: '0 6-17 * * *'
   workflow_dispatch:        # botón "Run workflow" para forzar una comprobación
     inputs:
       probar_push:
@@ -45,7 +52,30 @@ jobs:
       url: ${{ steps.pages.outputs.page_url }}
 
     steps:
+      # Los cron de GitHub son UTC y cubren un rango de más. Aquí decidimos con
+      # la hora real de Madrid, para que el horario sea el mismo en verano y en
+      # invierno. Lanzarlo a mano funciona siempre, sea la hora que sea.
+      - name: ¿Toca comprobar a esta hora?
+        id: horario
+        # Este paso corre ANTES del checkout, así que la carpeta del proyecto
+        # todavía no existe: hay que anular el working-directory por defecto.
+        working-directory: .
+        run: |
+          hora=$(TZ=Europe/Madrid date +%-H)
+          echo "Son las ${hora}:00 en España."
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "Lanzada a mano: se comprueba igualmente."
+            echo "toca=si" >> "$GITHUB_OUTPUT"
+          elif [ "$hora" -ge 8 ] && [ "$hora" -le 18 ]; then
+            echo "Dentro del horario de vigilancia (08:00–18:00)."
+            echo "toca=si" >> "$GITHUB_OUTPUT"
+          else
+            echo "Fuera del horario de vigilancia (08:00–18:00): no se comprueba nada."
+            echo "toca=no" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v4
+        if: steps.horario.outputs.toca == 'si'
         with:
           # Por defecto, checkout se queda en el commit que disparó la ejecución.
           # Aquí eso no vale: si dos comprobaciones se disparan seguidas, la
@@ -55,19 +85,21 @@ jobs:
           ref: ${{ github.ref_name }}
 
       - uses: actions/setup-python@v5
+        if: steps.horario.outputs.toca == 'si'
         with:
           python-version: '3.12'
           cache: pip
           cache-dependency-path: monitor-envios-github/monitor-envios-nube/requirements.txt
 
       - name: Instalar dependencias
+        if: steps.horario.outputs.toca == 'si'
         run: |
           pip install -r requirements.txt
           python -m playwright install --with-deps chromium
 
       # ── Modo prueba: solo comprueba que el aviso llega al móvil ──
       - name: Enviar un aviso de prueba
-        if: inputs.probar_push
+        if: steps.horario.outputs.toca == 'si' && inputs.probar_push
         env:
           VAPID_PRIVADA:      ${{ secrets.VAPID_PRIVADA }}
           VAPID_CONTACTO:     ${{ secrets.VAPID_CONTACTO }}
@@ -77,7 +109,7 @@ jobs:
       # ── Modo normal ──
       - name: Consultar el portal
         id: consulta
-        if: '!inputs.probar_push'
+        if: steps.horario.outputs.toca == 'si' && !inputs.probar_push
         continue-on-error: true      # aunque falle, queremos guardar el estado y los avisos
         env:
           DINAPAQ_USUARIO:       ${{ secrets.DINAPAQ_USUARIO }}
@@ -106,7 +138,7 @@ jobs:
         run: python -m monitor.ejecutar
 
       - name: Guardar los datos en el repositorio
-        if: '!inputs.probar_push'
+        if: steps.horario.outputs.toca == 'si' && !inputs.probar_push
         run: |
           git config user.name  "monitor-envios"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -154,20 +186,20 @@ jobs:
       # Requiere Settings → Pages → Source = "GitHub Actions". Si no lo has
       # puesto todavía, estos pasos avisan pero no tumban la comprobación.
       - name: Preparar Pages
-        if: '!inputs.probar_push'
+        if: steps.horario.outputs.toca == 'si' && !inputs.probar_push
         id: configurar-pages
         continue-on-error: true
         uses: actions/configure-pages@v5
 
       - name: Empaquetar el panel
-        if: "!inputs.probar_push && steps.configurar-pages.outcome == 'success'"
+        if: "steps.horario.outputs.toca == 'si' && !inputs.probar_push && steps.configurar-pages.outcome == 'success'"
         continue-on-error: true
         uses: actions/upload-pages-artifact@v3
         with:
           path: monitor-envios-github/monitor-envios-nube/docs
 
       - name: Publicar el panel
-        if: "!inputs.probar_push && steps.configurar-pages.outcome == 'success'"
+        if: "steps.horario.outputs.toca == 'si' && !inputs.probar_push && steps.configurar-pages.outcome == 'success'"
         id: pages
         continue-on-error: true
         uses: actions/deploy-pages@v4
