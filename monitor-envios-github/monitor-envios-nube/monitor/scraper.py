@@ -11,13 +11,17 @@ maquetación antigua, así que se recorren también los `frames`.
 """
 from __future__ import annotations
 
+import logging
 import re
+import time
 from datetime import datetime, timedelta
 
 from playwright.async_api import Frame, Page, async_playwright
 
 from monitor import config
 from monitor.parser import parse_envios
+
+log = logging.getLogger("scraper")
 
 RE_BOTON_BUSCAR = re.compile(r"buscar|consultar|aceptar|ver|listar|enviar", re.I)
 # Marca entre frames en el HTML que se guarda como artefacto cuando no hay tabla
@@ -36,6 +40,25 @@ async def _frame_con_password(page: Page) -> Frame | None:
         except Exception:
             continue
     return None
+
+
+async def _esperar_frame_con_password(page: Page, ms: int = 15_000) -> Frame | None:
+    """Igual que el anterior, pero dando tiempo a que el formulario aparezca.
+
+    DinaPaqWeb no trae el formulario en el HTML: lo pinta ExtJS desde
+    `js/login.js` después de cargar la página. Mirar una sola vez nada más
+    llegar es una carrera que se pierde casi siempre, y el monitor concluía
+    que no había que autenticarse —o, peor, que ya había entrado— cuando en
+    realidad seguía en la pantalla de acceso.
+    """
+    limite = time.monotonic() + ms / 1000
+    while True:
+        frame = await _frame_con_password(page)
+        if frame is not None:
+            return frame
+        if time.monotonic() >= limite:
+            return None
+        await page.wait_for_timeout(250)
 
 
 SELECTOR_TEXTO = (
@@ -57,6 +80,24 @@ async def _campos_de_usuario(frame: Frame):
         if await campos.count():
             return campos
     return frame.locator(SELECTOR_TEXTO)
+
+
+async def _mensaje_de_error(page: Page) -> str:
+    """El aviso que enseña el portal cuando el acceso no cuela.
+
+    DinaPaqWeb usa ExtJS, así que el error sale en una ventana flotante
+    (`.x-window`) en vez de en el HTML de la página.
+    """
+    for selector in (".x-window-body", ".x-window", ".error", "#error"):
+        try:
+            caja = page.locator(selector).first
+            if await caja.count() and await caja.is_visible():
+                texto = re.sub(r"\s+", " ", (await caja.inner_text()).strip())
+                if texto:
+                    return texto[:200]
+        except Exception:
+            continue
+    return ""
 
 
 async def _login(page: Page, frame: Frame) -> None:
@@ -86,19 +127,40 @@ async def _login(page: Page, frame: Frame) -> None:
 
     await pwd.fill(config.PASSWORD)
 
-    boton = frame.locator("input[type=submit], button[type=submit], button").first
-    try:
-        if await boton.count():
-            await boton.click()
-        else:
-            await pwd.press("Enter")
-    except Exception:
+    # ExtJS pinta varios `button` por pantalla (los de las ventanas flotantes que
+    # aún no se ven, por ejemplo), así que quedarse con el primero es una
+    # lotería. Se busca primero un submit de verdad, luego un botón cuyo texto
+    # sea de aceptar, y como último recurso se pulsa Intro.
+    for intento in (
+        lambda: frame.locator("input[type=submit], button[type=submit]").first,
+        lambda: frame.get_by_role("button", name=RE_BOTON_BUSCAR).first,
+        lambda: frame.locator("button:visible, .x-btn:visible").first,
+    ):
+        try:
+            boton = intento()
+            if await boton.count() and await boton.is_visible():
+                await boton.click()
+                break
+        except Exception:
+            continue
+    else:
         await pwd.press("Enter")
 
     await page.wait_for_load_state("networkidle")
-    if await _frame_con_password(page):
+
+    # Aquí no vale mirar una sola vez: si las credenciales no valen, el portal
+    # recarga la misma página y ExtJS tarda un momento en repintar el
+    # formulario. Comprobando al instante veríamos «no hay formulario» y
+    # daríamos el acceso por bueno, para acabar fallando mucho más adelante con
+    # un «no se reconoció ninguna tabla» que despista por completo.
+    if await _esperar_frame_con_password(page, ms=8_000):
+        motivo = await _mensaje_de_error(page)
         raise PortalError(
-            "El portal sigue mostrando el formulario de acceso: revisa los Secrets de agencia, cliente y contraseña"
+            "El portal sigue mostrando el formulario de acceso: no aceptó las credenciales.\n"
+            + (f"Lo que dice el portal: {motivo}\n" if motivo else "")
+            + "Revisa DINAPAQ_USUARIO y DINAPAQ_PASSWORD. Este portal pide «código de agencia + "
+              "código de cliente» todo junto como usuario (por ejemplo 02112345); si tienes los "
+              "dos números por separado, ponlos unidos en DINAPAQ_USUARIO."
         )
 
 
@@ -207,7 +269,8 @@ async def _enlaces_visibles(page: Page, tope: int = 60) -> list[str]:
     return vistos
 
 
-def _diagnostico(documentos: list[str], url_final: str, titulo: str, enlaces: list[str]) -> str:
+def _diagnostico(documentos: list[str], url_final: str, titulo: str, enlaces: list[str],
+                 sigue_en_login: bool = False) -> str:
     """Resumen de lo que vio el monitor, para poder arreglarlo sin descargar nada.
 
     Va dentro del mensaje de error, que acaba en docs/datos.json y por tanto se
@@ -216,10 +279,19 @@ def _diagnostico(documentos: list[str], url_final: str, titulo: str, enlaces: li
     """
     from monitor.parser import extraer_tablas, normalizar
 
-    lineas = [f"Se entró al portal pero no se reconoció ninguna tabla de envíos.",
+    lineas = ["No se reconoció ninguna tabla de envíos.",
               f"Última URL: {url_final}",
               f"Título de la página: {titulo or '(sin título)'}",
               f"Frames: {len(documentos)}"]
+
+    if sigue_en_login:
+        # Con diferencia el caso más común, y el que más despista si no se dice:
+        # todo lo demás que salga aquí es de la pantalla de acceso, no del portal.
+        lineas.append(
+            "⚠ SIGUE HABIENDO UN CAMPO DE CONTRASEÑA EN PANTALLA: no se llegó a entrar, "
+            "así que lo que ves debajo es la propia página de acceso. Revisa "
+            "DINAPAQ_USUARIO y DINAPAQ_PASSWORD antes que ninguna otra cosa."
+        )
 
     tablas = extraer_tablas(documentos)
     if not tablas:
@@ -264,9 +336,18 @@ async def obtener_envios() -> list[dict]:
         page.set_default_timeout(45_000)
         try:
             await page.goto(config.URL_LISTADO or config.URL_LOGIN, wait_until="domcontentloaded")
-            frame = await _frame_con_password(page)
+            # Damos tiempo a que ExtJS pinte el formulario. Si aun así no
+            # aparece y tampoco estábamos ya dentro, es un fallo que hay que
+            # cantar: antes se seguía adelante en silencio y el error acababa
+            # saliendo mucho después, disfrazado de «no hay tabla de envíos».
+            frame = await _esperar_frame_con_password(page)
             if frame is not None:
                 await _login(page, frame)
+            elif not config.URL_LISTADO:
+                log.warning(
+                    "No apareció ningún campo de contraseña en %s; se sigue por si la sesión ya estaba abierta",
+                    page.url,
+                )
 
             await _ir_al_listado(page)
             await _rellenar_fechas(page)
@@ -285,7 +366,8 @@ async def obtener_envios() -> list[dict]:
                     pass
 
                 informe = _diagnostico(
-                    documentos, page.url, await page.title(), await _enlaces_visibles(page)
+                    documentos, page.url, await page.title(), await _enlaces_visibles(page),
+                    sigue_en_login=await _frame_con_password(page) is not None,
                 )
                 (config.CAPTURAS / f"diagnostico-{sello}.txt").write_text(informe, encoding="utf-8")
                 raise PortalError(informe)
