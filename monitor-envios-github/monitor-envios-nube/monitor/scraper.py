@@ -1,377 +1,325 @@
-"""Acceso al portal DinaPaqWeb con Playwright, pensado para correr en un runner
-de GitHub Actions (máquina limpia en cada ejecución).
+"""Cliente del portal DinaPaqWeb (TIPSA-Dinapaq).
 
-Como cada ejecución arranca de cero, la sesión se inicia siempre desde los
-Secrets del repositorio: no hay que volver a introducir nada a mano nunca, y por
-eso los avisos siguen llegando aunque no tengas ningún equipo encendido.
+Por qué esto ya no usa un navegador
+-----------------------------------
+La primera versión manejaba el portal con Playwright, como si fuera una persona:
+rellenaba el formulario, pulsaba «Aceptar» y leía la tabla de la pantalla. Con
+este portal eso NO puede funcionar, y conviene dejar escrito por qué para que a
+nadie le tiente volver atrás:
 
-La navegación evita selectores rígidos: el formulario se localiza por el campo de
-contraseña y el listado por el texto del enlace del menú. El portal usa
-maquetación antigua, así que se recorren también los `frames`.
+* El formulario lo pinta ExtJS 2 con `monitorValid: true` y el botón lleva
+  `formBind: true`. Es decir, «Aceptar» nace **deshabilitado** y solo se activa
+  cuando la tarea de validación de ExtJS —que corre cada 200 ms— ve los campos
+  llenos. Rellenar con Playwright y pulsar acto seguido pulsaba un botón muerto.
+* El manejador del botón no envía nada: abre un cuadro de progreso y programa el
+  envío con `setTimeout(..., 3000)`. Tres segundos después hace una petición
+  AJAX a `ajax/ajax_login.php`. No hay navegación de por medio.
+* Con acceso correcto, la página **no cambia**: sigue mostrando el formulario y
+  abre el listado en una ventana nueva con `window.open('consulta_envios.php')`.
+  Por eso la comprobación «¿sigue habiendo un campo de contraseña?» daba siempre
+  «credenciales rechazadas», tanto si entrábamos como si no.
+
+Debajo de ExtJS, el portal es una API JSON limpia y estable desde 2008:
+
+    POST ajax/ajax_login.php           -> {"success":bool, "errors":{"msg":...}}
+    POST ajax/ajax_consulta_envios.php -> {"total":n, "datos":[...], "success":bool}
+
+Hablamos con ella directamente. Sale más rápido (sin Chromium que instalar en
+cada ejecución), es determinista y, cuando algo falla, el portal nos dice en
+castellano qué pasa en lugar de tener que adivinarlo de una captura.
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import re
-import time
 from datetime import datetime, timedelta
+from urllib.parse import urljoin
 
-from playwright.async_api import Frame, Page, async_playwright
+import requests
 
 from monitor import config
-from monitor.parser import parse_envios
 
 log = logging.getLogger("scraper")
 
-RE_BOTON_BUSCAR = re.compile(r"buscar|consultar|aceptar|ver|listar|enviar", re.I)
-# Marca entre frames en el HTML que se guarda como artefacto cuando no hay tabla
-SEPARADOR_FRAMES = "\n<!-- ---- siguiente frame ---- -->\n"
+TIEMPO_ESPERA = 45          # segundos por petición
+POR_PAGINA = 200            # el portal pagina; pedimos tandas grandes
+MAX_PAGINAS = 25            # tope de seguridad: 5.000 envíos
+
+CABECERAS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    ),
+    "X-Requested-With": "XMLHttpRequest",
+    "Accept": "application/json, text/javascript, */*; q=0.01",
+    "Accept-Language": "es-ES,es;q=0.9",
+}
+
+# Campo del JSON del portal -> nombre canónico que usan el panel y estado.py.
+# Los nombres canónicos son los mismos que ya reconocía el parser de HTML, así
+# que el panel y el historial siguen funcionando sin tocar nada.
+CAMPOS = {
+    "D_FECHA": "fecha",
+    "V_NOM_EST": "estado",
+    "D_FEC_HORA_EST": "fecha_estado",
+    "V_NOM_DES": "destinatario",
+    "V_POB_DES": "localidad",
+    "V_NOM_ORI": "remitente",
+    "V_POB_ORI": "localidad_origen",
+    "V_CP_ORI": "cp_origen",
+    "V_REF": "ref_cliente",
+    "I_BUL": "bultos",
+    "F_PESO_ORI": "kilos",
+    "V_OBS": "observaciones",
+}
+
+# Un envío se da por entregado cuando su último estado lo dice.
+RE_ENTREGADO = re.compile(r"entreg", re.I)
 
 
 class PortalError(RuntimeError):
     pass
 
 
-async def _frame_con_password(page: Page) -> Frame | None:
-    for frame in page.frames:
-        try:
-            if await frame.locator("input[type=password]").count():
-                return frame
-        except Exception:
+def _base(url_login: str) -> str:
+    """La carpeta del portal, a partir de la URL de acceso.
+
+    De `https://…/DinaPaqWeb/login_web.php` sale `https://…/DinaPaqWeb/`, que es
+    donde cuelgan `ajax/…` y `consulta_envios.php`.
+    """
+    return urljoin(url_login, ".")
+
+
+def _texto(valor) -> str:
+    if valor is None:
+        return ""
+    if isinstance(valor, float) and valor.is_integer():
+        valor = int(valor)
+    return re.sub(r"\s+", " ", str(valor)).strip()
+
+
+def _cuerpo(respuesta: requests.Response) -> str:
+    """El texto de la respuesta, decodificado sin destrozar los acentos.
+
+    El portal es de 2008 y sus páginas de error salen en ISO-8859-1 sin declarar
+    `charset`. En ese caso `requests` supone ISO-8859-1 unas veces y UTF-8 otras,
+    y el mensaje del portal llega ilegible («No hay sesiÃ³n registrada»)
+    justo cuando más falta hace entenderlo. Aquí se prueba en orden: lo que diga
+    la cabecera, UTF-8, y luego las codificaciones latinas.
+    """
+    declarado = ""
+    if coincidencia := re.search(r"charset=([\w-]+)", respuesta.headers.get("Content-Type", ""), re.I):
+        declarado = coincidencia.group(1)
+    for codificacion in (declarado, "utf-8", "cp1252", "latin-1"):
+        if not codificacion:
             continue
-    return None
-
-
-async def _esperar_frame_con_password(page: Page, ms: int = 15_000) -> Frame | None:
-    """Igual que el anterior, pero dando tiempo a que el formulario aparezca.
-
-    DinaPaqWeb no trae el formulario en el HTML: lo pinta ExtJS desde
-    `js/login.js` después de cargar la página. Mirar una sola vez nada más
-    llegar es una carrera que se pierde casi siempre, y el monitor concluía
-    que no había que autenticarse —o, peor, que ya había entrado— cuando en
-    realidad seguía en la pantalla de acceso.
-    """
-    limite = time.monotonic() + ms / 1000
-    while True:
-        frame = await _frame_con_password(page)
-        if frame is not None:
-            return frame
-        if time.monotonic() >= limite:
-            return None
-        await page.wait_for_timeout(250)
-
-
-SELECTOR_TEXTO = (
-    "input[type=text], input:not([type]), input[type=tel], "
-    "input[type=number], input[type=email]"
-)
-
-
-async def _campos_de_usuario(frame: Frame):
-    """Campos de texto del mismo formulario que la contraseña, en orden.
-
-    Se limita al formulario del login para no confundirse con buscadores u otros
-    inputs de la página, y sirve igual si el portal pide un solo usuario o dos
-    códigos (agencia + cliente).
-    """
-    formulario = frame.locator("form:has(input[type=password])").first
-    if await formulario.count():
-        campos = formulario.locator(SELECTOR_TEXTO)
-        if await campos.count():
-            return campos
-    return frame.locator(SELECTOR_TEXTO)
-
-
-async def _mensaje_de_error(page: Page) -> str:
-    """El aviso que enseña el portal cuando el acceso no cuela.
-
-    DinaPaqWeb usa ExtJS, así que el error sale en una ventana flotante
-    (`.x-window`) en vez de en el HTML de la página.
-    """
-    for selector in (".x-window-body", ".x-window", ".error", "#error"):
         try:
-            caja = page.locator(selector).first
-            if await caja.count() and await caja.is_visible():
-                texto = re.sub(r"\s+", " ", (await caja.inner_text()).strip())
-                if texto:
-                    return texto[:200]
-        except Exception:
+            return respuesta.content.decode(codificacion)
+        except (UnicodeDecodeError, LookupError):
             continue
-    return ""
+    return respuesta.content.decode("utf-8", "replace")
 
 
-async def _login(page: Page, frame: Frame) -> None:
+def _json_o_error(respuesta: requests.Response, que: str) -> dict:
+    """Interpreta la respuesta del portal, que no siempre es JSON limpio."""
+    if respuesta.status_code == 401:
+        raise PortalError(
+            f"El portal respondió 401 al {que}: la sesión no se ha registrado. "
+            "Suele significar que el acceso no llegó a completarse."
+        )
+    cuerpo = _cuerpo(respuesta).strip()
+    if not cuerpo:
+        raise PortalError(f"El portal devolvió una respuesta vacía al {que} (HTTP {respuesta.status_code}).")
+    try:
+        return json.loads(cuerpo)
+    except json.JSONDecodeError:
+        # Cuando la sesión caduca, el portal contesta con HTML («No hay sesión
+        # registrada») en vez de JSON. Enseñarlo recortado ayuda muchísimo.
+        limpio = re.sub(r"<[^>]+>", " ", cuerpo)
+        limpio = re.sub(r"\s+", " ", limpio).strip()
+        raise PortalError(
+            f"El portal no devolvió JSON al {que} (HTTP {respuesta.status_code}). "
+            f"Esto es lo que contestó: {limpio[:300] or '(sin texto)'}"
+        )
+
+
+def _abrir_sesion() -> tuple[requests.Session, str]:
+    """Entra en el portal y devuelve la sesión ya autenticada."""
     if not config.credenciales_ok():
         raise PortalError(
-            "Faltan Secrets: define DINAPAQ_USUARIO (o DINAPAQ_AGENCIA) y DINAPAQ_PASSWORD en el repositorio"
+            "Faltan Secrets: define DINAPAQ_USUARIO (o DINAPAQ_AGENCIA) y DINAPAQ_PASSWORD "
+            "en Settings → Secrets and variables → Actions."
         )
 
-    pwd = frame.locator(config.SEL_PASSWORD or "input[type=password]").first
-    valores = [v for v in (config.USUARIO, config.CLIENTE) if v]
+    base = _base(config.URL_LOGIN)
+    sesion = requests.Session()
+    sesion.headers.update(CABECERAS)
 
-    if config.SEL_USUARIO:
-        # el usuario tiene selector propio; el segundo campo, si lo hay, también
-        await frame.locator(config.SEL_USUARIO).first.fill(valores[0])
-        if len(valores) > 1 and config.SEL_CLIENTE:
-            await frame.locator(config.SEL_CLIENTE).first.fill(valores[1])
-    else:
-        campos = await _campos_de_usuario(frame)
-        visibles = [i for i in range(await campos.count()) if await campos.nth(i).is_visible()]
-        if not visibles:
-            raise PortalError("No se encontró ningún campo de usuario junto a la contraseña")
-        # un solo hueco y dos códigos: el portal espera agencia y cliente juntos
-        if len(visibles) == 1 and len(valores) > 1:
-            valores = ["".join(valores)]
-        for hueco, valor in zip(visibles, valores):
-            await campos.nth(hueco).fill(valor)
-
-    await pwd.fill(config.PASSWORD)
-
-    # ExtJS pinta varios `button` por pantalla (los de las ventanas flotantes que
-    # aún no se ven, por ejemplo), así que quedarse con el primero es una
-    # lotería. Se busca primero un submit de verdad, luego un botón cuyo texto
-    # sea de aceptar, y como último recurso se pulsa Intro.
-    for intento in (
-        lambda: frame.locator("input[type=submit], button[type=submit]").first,
-        lambda: frame.get_by_role("button", name=RE_BOTON_BUSCAR).first,
-        lambda: frame.locator("button:visible, .x-btn:visible").first,
-    ):
-        try:
-            boton = intento()
-            if await boton.count() and await boton.is_visible():
-                await boton.click()
-                break
-        except Exception:
-            continue
-    else:
-        await pwd.press("Enter")
-
-    await page.wait_for_load_state("networkidle")
-
-    # Aquí no vale mirar una sola vez: si las credenciales no valen, el portal
-    # recarga la misma página y ExtJS tarda un momento en repintar el
-    # formulario. Comprobando al instante veríamos «no hay formulario» y
-    # daríamos el acceso por bueno, para acabar fallando mucho más adelante con
-    # un «no se reconoció ninguna tabla» que despista por completo.
-    if await _esperar_frame_con_password(page, ms=8_000):
-        motivo = await _mensaje_de_error(page)
-        raise PortalError(
-            "El portal sigue mostrando el formulario de acceso: no aceptó las credenciales.\n"
-            + (f"Lo que dice el portal: {motivo}\n" if motivo else "")
-            + "Revisa DINAPAQ_USUARIO y DINAPAQ_PASSWORD. Este portal pide «código de agencia + "
-              "código de cliente» todo junto como usuario (por ejemplo 02112345); si tienes los "
-              "dos números por separado, ponlos unidos en DINAPAQ_USUARIO."
-        )
-
-
-async def _hay_listado(page: Page) -> bool:
-    """¿La pantalla actual ya trae envíos reconocibles?"""
+    # Visitar el login primero: así el portal nos da la cookie de sesión PHP
+    # antes de mandarle las credenciales, igual que haría un navegador.
     try:
-        return bool(parse_envios(await _html_de_todos_los_frames(page)))
-    except Exception:  # noqa: BLE001
-        return False
+        sesion.get(config.URL_LOGIN, timeout=TIEMPO_ESPERA)
+    except requests.RequestException as e:
+        raise PortalError(f"No se pudo abrir {config.URL_LOGIN}: {e}") from e
+
+    # El usuario de este portal es «código de agencia + código de cliente» todo
+    # junto. Si vienen en dos Secrets distintos, se pegan aquí.
+    usuario = (config.USUARIO or "") + (config.CLIENTE or "")
+
+    try:
+        respuesta = sesion.post(
+            urljoin(base, "ajax/ajax_login.php"),
+            data={
+                "usuario": usuario,
+                "password": config.PASSWORD,
+                "conectadep": "",
+                "departamento": "",
+            },
+            headers={"Referer": config.URL_LOGIN},
+            timeout=TIEMPO_ESPERA,
+        )
+    except requests.RequestException as e:
+        raise PortalError(f"No se pudo enviar el acceso al portal: {e}") from e
+
+    datos = _json_o_error(respuesta, "acceder")
+    if not datos.get("success"):
+        motivo = ""
+        if isinstance(datos.get("errors"), dict):
+            motivo = _texto(datos["errors"].get("msg"))
+        raise PortalError(
+            "El portal ha rechazado las credenciales."
+            + (f" Dice: «{motivo}»." if motivo else "")
+            + " Revisa los Secrets DINAPAQ_USUARIO y DINAPAQ_PASSWORD. El usuario es el "
+              "código de agencia y el de cliente escritos seguidos (por ejemplo 02112345)."
+        )
+
+    log.info("acceso al portal correcto")
+    return sesion, base
 
 
-async def _ir_al_listado(page: Page) -> None:
-    """Busca la pantalla de consulta de envíos por el texto del menú.
+def _pedir_pagina(sesion: requests.Session, base: str, inicio: int, desde: str, hasta: str) -> dict:
+    """Una tanda del listado, con los mismos parámetros que manda el portal."""
+    parametros = {
+        # Los que arma `AplicarFiltros()` en js/consulta_envios.js
+        "fechaini": desde,
+        "fechafin": hasta,
+        "filtrocampo": -1,        # sin filtro de texto
+        "filtro": "",
+        "estados": "TODOS",       # todos los estados, como el check «Todos»
+        "aplicafecha": "true",    # sí, aplica el rango de fechas
+        # Paginación y orden del store de ExtJS
+        "start": inicio,
+        "limit": POR_PAGINA,
+        "sort": "V_ALBARAN",
+        "dir": "ASC",
+    }
+    try:
+        respuesta = sesion.post(
+            urljoin(base, "ajax/ajax_consulta_envios.php"),
+            data=parametros,
+            headers={"Referer": urljoin(base, "consulta_envios.php")},
+            timeout=TIEMPO_ESPERA,
+        )
+    except requests.RequestException as e:
+        raise PortalError(f"No se pudo consultar el listado de envíos: {e}") from e
 
-    No basta con pulsar el primer enlace que encaje: en estos portales el menú
-    suele tener varias entradas parecidas («Envíos», «Consulta de envíos»,
-    «Relación de envíos»…) y solo una lleva al listado. Se prueban unas cuantas
-    y nos quedamos con la primera que dé envíos de verdad.
+    datos = _json_o_error(respuesta, "consultar los envíos")
+    if datos.get("success") is False:
+        motivo = ""
+        if isinstance(datos.get("errors"), dict):
+            motivo = _texto(datos["errors"].get("msg"))
+        raise PortalError(f"El portal rechazó la consulta de envíos{f': «{motivo}»' if motivo else ''}.")
+    return datos
+
+
+def _identificador(fila: dict) -> str:
+    """Número de envío completo: cargo + origen + albarán.
+
+    Es como lo compone el propio portal para enlazar el albarán escaneado, y
+    evita que dos agencias distintas con el mismo número de albarán se pisen.
     """
-    if config.URL_LISTADO:
-        if not page.url.startswith(config.URL_LISTADO):
-            await page.goto(config.URL_LISTADO, wait_until="domcontentloaded")
-        return
-
-    patron = re.compile(config.ENLACE_LISTADO, re.I)
-    candidatos: list[tuple[int, str]] = []
-    for n_frame, frame in enumerate(page.frames):
-        try:
-            enlaces = frame.locator("a")
-            for i in range(min(await enlaces.count(), 80)):
-                texto = re.sub(r"\s+", " ", (await enlaces.nth(i).inner_text()).strip())
-                if texto and patron.search(texto):
-                    candidatos.append((n_frame, texto))
-        except Exception:
-            continue
-
-    inicio = page.url
-    for n_frame, texto in candidatos[:6]:
-        try:
-            frames = page.frames
-            if n_frame >= len(frames):
-                continue
-            enlace = frames[n_frame].get_by_role("link", name=texto, exact=True).first
-            if not await enlace.count():
-                continue
-            await enlace.click()
-            await page.wait_for_load_state("networkidle")
-            await _rellenar_fechas(page)
-            if await _hay_listado(page):
-                return
-            # esa entrada del menú no era: volvemos y probamos la siguiente
-            await page.goto(inicio, wait_until="domcontentloaded")
-        except Exception:
-            try:
-                await page.goto(inicio, wait_until="domcontentloaded")
-            except Exception:
-                return
+    partes = [_texto(fila.get(k)) for k in ("V_COD_AGE_CARGO", "V_COD_AGE_ORI", "V_ALBARAN")]
+    completo = "".join(partes)
+    return completo or _texto(fila.get("V_ALBARAN")) or _texto(fila.get("U_GUID"))
 
 
-async def _rellenar_fechas(page: Page) -> None:
-    """Si la pantalla de consulta pide un rango de fechas, lo rellena y busca."""
+def _a_envio(fila: dict) -> dict:
+    campos: dict[str, str] = {}
+    for origen, canonico in CAMPOS.items():
+        valor = _texto(fila.get(origen))
+        if valor:
+            campos[canonico] = valor
+
+    referencia = _identificador(fila)
+    campos["referencia"] = referencia
+
+    # «Entrega» solo tiene sentido cuando el envío está entregado; si no, la
+    # fecha del último estado ya sale como «fecha_estado».
+    if RE_ENTREGADO.search(campos.get("estado", "")):
+        campos["entrega"] = campos.get("fecha_estado", "")
+
+    # El hash decide si un envío ha cambiado. Se calcula sobre los campos
+    # canónicos ordenados, no sobre el JSON crudo: así, si el portal añade una
+    # columna nueva que no nos interesa, no lo tomamos por una actualización.
+    huella = "|".join(f"{k}={campos[k]}" for k in sorted(campos))
+    return {
+        "id": referencia,
+        "campos": campos,
+        "crudo": [campos.get(k, "") for k in ("referencia", "fecha", "estado", "destinatario", "localidad")],
+        "hash": hashlib.sha1(huella.encode("utf-8")).hexdigest(),
+    }
+
+
+def leer_envios() -> list[dict]:
+    """Una pasada completa: entra, pide el listado y devuelve los envíos."""
+    sesion, base = _abrir_sesion()
+
     hasta = datetime.now()
     desde = hasta - timedelta(days=config.DIAS_ATRAS)
+    f_desde, f_hasta = desde.strftime("%d/%m/%Y"), hasta.strftime("%d/%m/%Y")
+    log.info("consultando envíos del %s al %s", f_desde, f_hasta)
 
-    for frame in page.frames:
-        try:
-            campos = frame.locator("input[type=text], input[type=date]")
-            candidatos = []
-            for i in range(min(await campos.count(), 30)):
-                attr = " ".join(
-                    filter(None, [await campos.nth(i).get_attribute("name"), await campos.nth(i).get_attribute("id")])
-                ).lower()
-                if re.search(r"fec|fech|desde|hasta|ini|fin", attr):
-                    candidatos.append((i, attr))
-            if not candidatos:
-                continue
-
-            for pos, (i, attr) in enumerate(candidatos[:2]):
-                valor = desde if (pos == 0 or "desde" in attr or "ini" in attr) else hasta
-                tipo = await campos.nth(i).get_attribute("type")
-                await campos.nth(i).fill(valor.strftime("%Y-%m-%d" if tipo == "date" else "%d/%m/%Y"))
-
-            botones = frame.locator("input[type=submit], input[type=button], button")
-            for i in range(min(await botones.count(), 15)):
-                etiqueta = await botones.nth(i).get_attribute("value") or await botones.nth(i).inner_text() or ""
-                if RE_BOTON_BUSCAR.search(etiqueta):
-                    await botones.nth(i).click()
-                    await page.wait_for_load_state("networkidle")
-                    return
-        except Exception:
-            continue
-
-
-async def _enlaces_visibles(page: Page, tope: int = 60) -> list[str]:
-    """Textos de los enlaces del menú, para saber a dónde se podía haber ido."""
-    vistos: list[str] = []
-    for frame in page.frames:
-        try:
-            enlaces = frame.locator("a")
-            for i in range(min(await enlaces.count(), tope)):
-                texto = re.sub(r"\s+", " ", (await enlaces.nth(i).inner_text()).strip())
-                if texto and texto not in vistos:
-                    vistos.append(texto)
-        except Exception:
-            continue
-    return vistos
-
-
-def _diagnostico(documentos: list[str], url_final: str, titulo: str, enlaces: list[str],
-                 sigue_en_login: bool = False) -> str:
-    """Resumen de lo que vio el monitor, para poder arreglarlo sin descargar nada.
-
-    Va dentro del mensaje de error, que acaba en docs/datos.json y por tanto se
-    lee desde el propio panel. Antes había que bajarse el artefacto con el HTML
-    para saber siquiera en qué pantalla se había quedado.
-    """
-    from monitor.parser import extraer_tablas, normalizar
-
-    lineas = ["No se reconoció ninguna tabla de envíos.",
-              f"Última URL: {url_final}",
-              f"Título de la página: {titulo or '(sin título)'}",
-              f"Frames: {len(documentos)}"]
-
-    if sigue_en_login:
-        # Con diferencia el caso más común, y el que más despista si no se dice:
-        # todo lo demás que salga aquí es de la pantalla de acceso, no del portal.
-        lineas.append(
-            "⚠ SIGUE HABIENDO UN CAMPO DE CONTRASEÑA EN PANTALLA: no se llegó a entrar, "
-            "así que lo que ves debajo es la propia página de acceso. Revisa "
-            "DINAPAQ_USUARIO y DINAPAQ_PASSWORD antes que ninguna otra cosa."
-        )
-
-    tablas = extraer_tablas(documentos)
-    if not tablas:
-        lineas.append("No hay ninguna tabla en la pantalla: seguramente no se llegó al listado.")
+    filas: list[dict] = []
+    total = None
+    for pagina in range(MAX_PAGINAS):
+        datos = _pedir_pagina(sesion, base, len(filas), f_desde, f_hasta)
+        tanda = datos.get("datos") or []
+        if total is None:
+            try:
+                total = int(datos.get("total") or 0)
+            except (TypeError, ValueError):
+                total = 0
+        filas.extend(tanda)
+        if not tanda or len(filas) >= total:
+            break
     else:
-        lineas.append(f"Tablas encontradas: {len(tablas)}. Sus cabeceras:")
-        # las más grandes primero: el listado suele ser la tabla con más filas
-        for t in sorted(tablas, key=len, reverse=True)[:4]:
-            cabecera = [c for c in (t[0] if t else []) if c][:12]
-            lineas.append(f"  · {len(t)} filas → {' | '.join(cabecera) or '(sin cabecera)'}")
-        lineas.append(
-            "Si alguna de esas es el listado, añade sus títulos de columna a "
-            "SINONIMOS en monitor/parser.py."
+        log.warning("se alcanzó el tope de %d páginas; puede faltar histórico", MAX_PAGINAS)
+
+    log.info("el portal declara %s envío(s); leídos %d", total, len(filas))
+
+    if not filas:
+        if total == 0:
+            # No es un fallo: puede que simplemente no haya envíos en el rango.
+            log.info("no hay envíos en el rango de fechas consultado")
+            return []
+        raise PortalError(
+            f"El portal dice tener {total} envíos pero no ha devuelto ninguno. "
+            "Puede que haya cambiado el formato de la respuesta de "
+            "ajax/ajax_consulta_envios.php."
         )
 
-    if enlaces:
-        lineas.append("Enlaces del menú: " + " · ".join(enlaces[:25]))
-        lineas.append(
-            "Si ves ahí la pantalla de consulta de envíos, entra tú al portal, ábrela "
-            "y pon su URL en la variable DINAPAQ_URL_LISTADO."
+    envios = [_a_envio(f) for f in filas if _identificador(f)]
+    if not envios:
+        raise PortalError(
+            "Se recibieron filas del portal pero ninguna trae número de albarán "
+            "(V_ALBARAN). Seguramente han cambiado los nombres de los campos; "
+            f"la primera fila trae estas claves: {sorted(filas[0])[:20]}"
         )
-    return "\n".join(lineas)
-
-
-async def _html_de_todos_los_frames(page: Page) -> list[str]:
-    """El HTML de cada frame por separado: el parser los mira uno a uno."""
-    partes = []
-    for frame in page.frames:
-        try:
-            partes.append(await frame.content())
-        except Exception:
-            continue
-    return partes
+    return envios
 
 
 async def obtener_envios() -> list[dict]:
-    """Una pasada completa: entra, navega al listado y devuelve los envíos leídos."""
-    async with async_playwright() as pw:
-        navegador = await pw.chromium.launch(headless=config.HEADLESS)
-        contexto = await navegador.new_context(locale="es-ES", viewport={"width": 1400, "height": 900})
-        page = await contexto.new_page()
-        page.set_default_timeout(45_000)
-        try:
-            await page.goto(config.URL_LISTADO or config.URL_LOGIN, wait_until="domcontentloaded")
-            # Damos tiempo a que ExtJS pinte el formulario. Si aun así no
-            # aparece y tampoco estábamos ya dentro, es un fallo que hay que
-            # cantar: antes se seguía adelante en silencio y el error acababa
-            # saliendo mucho después, disfrazado de «no hay tabla de envíos».
-            frame = await _esperar_frame_con_password(page)
-            if frame is not None:
-                await _login(page, frame)
-            elif not config.URL_LISTADO:
-                log.warning(
-                    "No apareció ningún campo de contraseña en %s; se sigue por si la sesión ya estaba abierta",
-                    page.url,
-                )
-
-            await _ir_al_listado(page)
-            await _rellenar_fechas(page)
-            documentos = await _html_de_todos_los_frames(page)
-
-            envios = parse_envios(documentos)
-            if not envios:
-                config.CAPTURAS.mkdir(parents=True, exist_ok=True)
-                sello = datetime.now().strftime("%Y%m%d-%H%M%S")
-                (config.CAPTURAS / f"sin-tabla-{sello}.html").write_text(
-                    SEPARADOR_FRAMES.join(documentos), encoding="utf-8"
-                )
-                try:
-                    await page.screenshot(path=str(config.CAPTURAS / f"sin-tabla-{sello}.png"), full_page=True)
-                except Exception:  # noqa: BLE001
-                    pass
-
-                informe = _diagnostico(
-                    documentos, page.url, await page.title(), await _enlaces_visibles(page),
-                    sigue_en_login=await _frame_con_password(page) is not None,
-                )
-                (config.CAPTURAS / f"diagnostico-{sello}.txt").write_text(informe, encoding="utf-8")
-                raise PortalError(informe)
-            return envios
-        finally:
-            await contexto.close()
-            await navegador.close()
+    """Fachada asíncrona, para no cambiar quien ya la llamaba con `asyncio.run`."""
+    return leer_envios()

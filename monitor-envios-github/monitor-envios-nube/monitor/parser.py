@@ -32,7 +32,7 @@ SINONIMOS: dict[str, tuple[str, ...]] = {
 }
 
 # Estas columnas, si cambian, se consideran "actualización" del envío
-CAMPOS_VIGILADOS = ("estado", "entrega", "observaciones", "localidad", "bultos", "kilos")
+CAMPOS_VIGILADOS = ("estado", "fecha_estado", "entrega", "observaciones", "localidad", "bultos", "kilos")
 
 
 def normalizar(texto: str) -> str:

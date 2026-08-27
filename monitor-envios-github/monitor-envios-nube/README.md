@@ -15,10 +15,10 @@ el panel. No hay nada que instalar ni que dejar encendido.
    ⏱ cada hora, 8:00-18:00 (cron de GitHub Actions)
         │
         ▼
-┌──────────────────┐   Playwright    ┌──────────────┐
-│ runner de GitHub │ ──────────────► │  DinaPaqWeb  │
-│  (Ubuntu)        │ ◄────────────── │   (portal)   │
-└────────┬─────────┘   listado HTML  └──────────────┘
+┌──────────────────┐  HTTP + JSON   ┌──────────────┐
+│ runner de GitHub │ ─────────────► │  DinaPaqWeb  │
+│  (Ubuntu)        │ ◄───────────── │   (portal)   │
+└────────┬─────────┘   listado JSON └──────────────┘
          │ compara con lo que ya sabía
          ├─────────────► 🔔 aviso push → tu móvil  (novedades)
          │
@@ -71,8 +71,8 @@ avisa del histórico.
 .github/workflows/monitor.yml   el cron y todo el proceso
 monitor/
   ejecutar.py    entrada: una pasada completa
-  scraper.py     Playwright: login y navegación por el portal
-  parser.py      HTML → lista de envíos (columnas por palabras clave)
+  scraper.py     cliente HTTP del portal: login AJAX y listado JSON
+  parser.py      utilidades de campos y detección de cambios
   estado.py      memoria entre ejecuciones y cálculo de novedades
   cifrado.py     AES-GCM + PBKDF2 (compatible con WebCrypto)
   notificar.py   avisos: push al dispositivo (y, si quieres, Telegram/email)
