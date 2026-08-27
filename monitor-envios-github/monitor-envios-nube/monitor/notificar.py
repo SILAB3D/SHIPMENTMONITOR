@@ -7,8 +7,10 @@ Secrets, ni se intentan.
 """
 from __future__ import annotations
 
+import json
 import logging
 import smtplib
+import urllib.error
 import urllib.parse
 import urllib.request
 from email.message import EmailMessage
@@ -79,14 +81,43 @@ def _push(mensaje: dict) -> None:
 
 # ─────────────────────────── refuerzos opcionales ───────────────────────────
 def _telegram(mensaje: str) -> None:
+    """Manda el aviso por Telegram, contando lo que diga Telegram si falla.
+
+    `urlopen` levanta un HTTPError seco («403: Forbidden») y se traga el cuerpo
+    de la respuesta, que es justo donde Telegram explica el problema de verdad:
+    «bot can't initiate conversation with a user» (no le has dado a /start),
+    «bot was blocked by the user», «chat not found»… Sin esa frase el fallo es
+    indistinguible de un token caducado, así que la rescatamos.
+    """
     if not (config.TELEGRAM_TOKEN and config.TELEGRAM_CHAT_ID):
         return
     url = f"https://api.telegram.org/bot{config.TELEGRAM_TOKEN}/sendMessage"
     datos = urllib.parse.urlencode(
         {"chat_id": config.TELEGRAM_CHAT_ID, "text": mensaje, "disable_web_page_preview": "true"}
     ).encode()
-    with urllib.request.urlopen(urllib.request.Request(url, data=datos), timeout=25) as r:
-        r.read()
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, data=datos), timeout=25) as r:
+            r.read()
+    except urllib.error.HTTPError as e:
+        detalle = ""
+        try:
+            respuesta = json.loads(e.read().decode("utf-8", "replace"))
+            detalle = respuesta.get("description") or ""
+        except Exception:  # noqa: BLE001
+            pass
+        pista = ""
+        if "initiate conversation" in detalle or "chat not found" in detalle:
+            pista = (" Abre el chat con tu bot en Telegram y pulsa «Iniciar» (/start): un bot no "
+                     "puede escribir el primero. Comprueba también que TELEGRAM_CHAT_ID es el tuyo.")
+        elif "blocked" in detalle:
+            pista = " Has bloqueado al bot en Telegram; desbloquéalo y vuelve a probar."
+        elif e.code in (401, 404):
+            pista = " El TELEGRAM_TOKEN no vale: vuelve a pedírselo a @BotFather."
+        raise RuntimeError(
+            f"Telegram respondió {e.code}"
+            + (f": «{detalle}»" if detalle else "")
+            + pista
+        ) from e
 
 
 def _email(asunto: str, mensaje: str) -> None:
