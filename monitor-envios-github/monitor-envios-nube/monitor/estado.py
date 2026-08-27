@@ -129,7 +129,13 @@ def sincronizar(estado: dict, envios: list[dict]) -> list[dict]:
             cambios.append(("recorrido", "", f"{ultimo.get('estado','')}{lugar} · {ultimo.get('ts','')}"))
 
         if cambios:
-            detalle = "; ".join(f"{c}: {a or '—'} → {b or '—'}" for c, a, b in cambios)
+            # Un cambio normal se cuenta «campo: antes → ahora». Los que no
+            # tienen «antes» —una lectura nueva en el recorrido— se cuentan sin
+            # flecha, que si no salía un «recorrido: — → TRANSITO» ilegible.
+            detalle = "; ".join(
+                f"{c}: {b or '—'}" if not a else f"{c}: {a} → {b or '—'}"
+                for c, a, b in cambios
+            )
             anotar("actualizado", envio["id"], f"Envío {envio['id']} actualizado", detalle, envio["campos"])
 
     del eventos[config.MAX_EVENTOS :]
