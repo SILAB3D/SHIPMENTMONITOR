@@ -55,8 +55,18 @@ PASSWORD = _texto("DINAPAQ_PASSWORD")
 SEL_USUARIO = _texto("DINAPAQ_SEL_USUARIO")
 SEL_CLIENTE = _texto("DINAPAQ_SEL_CLIENTE")
 SEL_PASSWORD = _texto("DINAPAQ_SEL_PASSWORD")
-DIAS_ATRAS = _int("DINAPAQ_DIAS_ATRAS", 7)
-HEADLESS = _bool("HEADLESS", True)
+# Cuántos días atrás se consulta. El portal se atraganta si el rango cruza de
+# mes (devuelve cero envíos sin dar error), pero eso ya lo resuelve el scraper
+# preguntando mes a mes, así que aquí la ventana puede ser todo lo larga que
+# haga falta. El tope solo evita que un dedazo dispare cientos de peticiones.
+MAX_DIAS_ATRAS = 90
+DIAS_ATRAS = max(1, min(_int("DINAPAQ_DIAS_ATRAS", 7), MAX_DIAS_ATRAS))
+
+# El recorrido de cada envío (fecha y hora de cada paso) vive en otra pantalla
+# del portal, una petición más por envío. Se puede apagar y limitar.
+LEER_DETALLE = _bool("DINAPAQ_LEER_DETALLE", True)
+MAX_DETALLES = _int("DINAPAQ_MAX_DETALLES", 120)
+HILOS_DETALLE = max(1, min(_int("DINAPAQ_HILOS_DETALLE", 6), 12))
 
 # --- Cifrado de los datos publicados ---
 # Al pegar la contraseña en la caja de Secrets de GitHub es facilísimo colar un

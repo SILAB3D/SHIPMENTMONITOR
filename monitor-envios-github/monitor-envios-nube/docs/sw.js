@@ -7,9 +7,10 @@
  *      la pantalla del móvil, con la app cerrada. Es el motivo de que no haga
  *      falta ni Telegram ni email.
  */
-const CACHE = 'monitor-envios-v5';
+const CACHE = 'shipmentmonitor-v6';
 const BASICOS = [
   './', 'index.html', 'icono.svg', 'icono-192.png', 'icono-512.png',
+  'icono-notificacion-192.png', 'icono-badge-96.png',
   'manifest.webmanifest', 'push-config.js',
   'vendor/react.js', 'vendor/react-dom.js', 'vendor/babel.js',
   'vendor/fuentes/inter-latin-wght-normal.woff2',
@@ -52,9 +53,12 @@ self.addEventListener('push', e => {
   const titulo = m.titulo || 'Novedad en tus envíos';
   const opciones = {
     body: m.cuerpo || 'Abre el panel para ver el detalle.',
-    icon: 'icono-192.png',
-    badge: 'icono-192.png',
-    tag: m.etiqueta || 'monitor-envios',
+    // Sin fondo: el icono cuadrado naranja quedaba como un pegote sobre la
+    // sombra de notificación. El badge (el iconito de la barra de estado)
+    // Android lo reduce a silueta, así que va en blanco y transparente.
+    icon: 'icono-notificacion-192.png',
+    badge: 'icono-badge-96.png',
+    tag: m.etiqueta || 'shipmentmonitor',
     renotify: true,
     timestamp: Date.now(),
     data: {url: m.url || './', envio_id: m.envio_id || null},

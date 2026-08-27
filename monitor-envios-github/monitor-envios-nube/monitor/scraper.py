@@ -34,10 +34,12 @@ import hashlib
 import json
 import logging
 import re
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
-from urllib.parse import urljoin
+from urllib.parse import urlencode, urljoin
 
 import requests
+from bs4 import BeautifulSoup
 
 from monitor import config
 
@@ -75,8 +77,12 @@ CAMPOS = {
     "V_OBS": "observaciones",
 }
 
-# Un envío se da por entregado cuando su último estado lo dice.
-RE_ENTREGADO = re.compile(r"entreg", re.I)
+# Un envío se da por entregado cuando su último estado lo dice. Ojo con
+# «PENDIENTE DE ENTREGAR A TIPSA», que lleva la palabra pero es el primer paso.
+RE_ENTREGADO = re.compile(r"^\s*entregad|entrega realizada", re.I)
+
+# Una marca de tiempo del portal: «23/07/26 08:47» o «23/07/2026 08:47:12»
+RE_MARCA = re.compile(r"^\s*\d{1,2}/\d{1,2}/\d{2,4}(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?\s*$")
 
 
 class PortalError(RuntimeError):
@@ -112,6 +118,13 @@ def _cuerpo(respuesta: requests.Response) -> str:
     declarado = ""
     if coincidencia := re.search(r"charset=([\w-]+)", respuesta.headers.get("Content-Type", ""), re.I):
         declarado = coincidencia.group(1)
+    else:
+        # Las pantallas del portal no lo dicen en la cabecera pero sí en el HTML
+        # (<meta charset="ISO-8859-1">). Mirar ahí evita depender del orden de
+        # las codificaciones de reserva.
+        cabeza = respuesta.content[:1024].decode("latin-1", "replace")
+        if coincidencia := re.search(r"charset=[\"\']?([\w-]+)", cabeza, re.I):
+            declarado = coincidencia.group(1)
     for codificacion in (declarado, "utf-8", "cp1252", "latin-1"):
         if not codificacion:
             continue
@@ -267,23 +280,150 @@ def _a_envio(fila: dict) -> dict:
     return {
         "id": referencia,
         "campos": campos,
+        # La llave de la pantalla de detalle del portal. No va en `campos` para
+        # no ensuciar la tabla de datos que enseña el panel.
+        "guid": _texto(fila.get("U_GUID")),
+        "fecha_envio": campos.get("fecha", ""),
         "crudo": [campos.get(k, "") for k in ("referencia", "fecha", "estado", "destinatario", "localidad")],
         "hash": hashlib.sha1(huella.encode("utf-8")).hexdigest(),
     }
 
 
-def leer_envios() -> list[dict]:
-    """Una pasada completa: entra, pide el listado y devuelve los envíos."""
-    sesion, base = _abrir_sesion()
+# ─────────────────────── detalle de cada envío ───────────────────────
+# La pantalla `detalle_envio.php` es la única que cuenta por dónde ha ido el
+# envío y cuándo. Trae dos vistas del mismo recorrido:
+#
+#   · un «stepper» con los cuatro hitos en lenguaje llano (Documentado, En
+#     camino, En reparto, Entregado) y la hora de cada uno;
+#   · una tabla con TODAS las lecturas, con su población («LECTURA EN HUB
+#     MADRID», «LEIDO EN DESTINO»…).
+#
+# Nos quedamos con las dos: los hitos ordenan el diagrama del panel y la tabla
+# es el detalle fino. Ambas vienen del servidor ya pintadas en el HTML, así que
+# se leen con BeautifulSoup.
 
-    hasta = datetime.now()
-    desde = hasta - timedelta(days=config.DIAS_ATRAS)
+def _limpio(nodo) -> str:
+    return re.sub(r"\s+", " ", nodo.get_text(" ", strip=True)).strip()
+
+
+def _hitos(sopa: BeautifulSoup) -> list[dict]:
+    """Los cuatro hitos del «stepper», del más antiguo al más reciente."""
+    hitos = []
+    for item in sopa.select("#stepper .stepper-item"):
+        titulo = item.select_one(".step-title")
+        marca = next((_limpio(s) for s in item.find_all("span") if RE_MARCA.match(_limpio(s))), "")
+        estado = _limpio(titulo) if titulo else ""
+        if estado:
+            hitos.append({"ts": marca, "estado": estado})
+    hitos.reverse()          # el portal los pinta del más nuevo al más viejo
+    return hitos
+
+
+def _lecturas(sopa: BeautifulSoup) -> list[dict]:
+    """La tabla de situaciones: fecha/hora, estado y población de cada lectura.
+
+    Se localiza por sus cabeceras en vez de por su posición, que en este portal
+    cambia según lo que traiga el envío (a veces no hay «datos de la entrega»).
+    """
+    for tabla in sopa.select("table"):
+        cabeceras = [_limpio(th).upper() for th in tabla.select("thead th")]
+        if not any("FECHA" in c for c in cabeceras) or not any("ESTADO" in c for c in cabeceras):
+            continue
+        filas = []
+        for tr in tabla.select("tbody tr"):
+            celdas = []
+            for td in tr.find_all("td"):
+                # Cada celda repite su texto dentro de un tooltip; con quedarnos
+                # con el primer trozo basta y evitamos el «ENTREGADOENTREGADO».
+                visible = td.find("span", class_=lambda c: not c or "mdl-tooltip" not in c)
+                celdas.append(_limpio(visible) if visible else _limpio(td))
+            if len(celdas) >= 2 and RE_MARCA.match(celdas[0]):
+                filas.append({
+                    "ts": celdas[0],
+                    "estado": celdas[1],
+                    "lugar": celdas[2] if len(celdas) > 2 else "",
+                })
+        if filas:
+            filas.reverse()   # también vienen del más nuevo al más viejo
+            return filas
+    return []
+
+
+def _url_detalle(base: str, guid: str, fecha: str) -> str:
+    return urljoin(base, "detalle_envio.php") + "?" + urlencode({"servicio": guid, "fecha": fecha})
+
+
+def _detalle(sesion: requests.Session, base: str, envio: dict) -> None:
+    """Rellena `hitos` y `pasos` del envío. Nunca tumba la comprobación.
+
+    Que falle el detalle de un envío no puede costar la pasada entera: lo
+    importante —el estado actual— ya venía en el listado. Si algo va mal se
+    anota y se sigue.
+    """
+    guid, fecha = envio.get("guid", ""), envio.get("fecha_envio", "")
+    if not guid:
+        return
+    url = _url_detalle(base, guid, fecha)
+    try:
+        respuesta = sesion.get(url, timeout=TIEMPO_ESPERA)
+        sopa = BeautifulSoup(_cuerpo(respuesta), "lxml")
+    except Exception as e:  # noqa: BLE001
+        log.warning("no se pudo leer el detalle de %s: %s", envio["id"], e)
+        return
+
+    envio["hitos"] = _hitos(sopa)
+    envio["pasos"] = _lecturas(sopa)
+    if not envio["hitos"] and not envio["pasos"]:
+        log.warning("el detalle de %s no trajo ningún paso reconocible", envio["id"])
+
+
+def _completar_detalles(sesion: requests.Session, base: str, envios: list[dict]) -> None:
+    """Pide el detalle de todos los envíos, en paralelo y con tope.
+
+    Son peticiones cortas y el portal las sirve sin quejarse, pero conviene no
+    abrirle veinte a la vez ni castigarle si un día aparecen cientos de envíos.
+    """
+    if not config.LEER_DETALLE:
+        return
+    objetivo = envios[: config.MAX_DETALLES]
+    if len(envios) > len(objetivo):
+        log.warning("solo se pedirá el detalle de los %d primeros envíos", len(objetivo))
+    with ThreadPoolExecutor(max_workers=config.HILOS_DETALLE) as pool:
+        list(pool.map(lambda e: _detalle(sesion, base, e), objetivo))
+
+    con_pasos = sum(1 for e in objetivo if e.get("pasos") or e.get("hitos"))
+    log.info("detalle leído de %d de %d envío(s)", con_pasos, len(objetivo))
+
+
+def _tramos_mensuales(desde: datetime, hasta: datetime) -> list[tuple[datetime, datetime]]:
+    """Parte un rango de fechas en trozos que no crucen el cambio de mes.
+
+    Esto no es un capricho: `ajax_consulta_envios.php` devuelve CERO envíos —sin
+    error, sin aviso— en cuanto el rango pisa dos meses naturales. Del 1 al 30
+    de mayo trae los trece envíos que hay; del 25 de abril al 5 de mayo, ninguno.
+
+    Con una ventana de una semana eso significa quedarse ciego los primeros días
+    de cada mes, que es justo cuando nadie lo mira. Preguntando mes a mes y
+    juntando las respuestas, el rango deja de importar.
+    """
+    tramos, inicio = [], desde
+    while inicio <= hasta:
+        # último día del mes de `inicio`
+        if inicio.month == 12:
+            siguiente = inicio.replace(year=inicio.year + 1, month=1, day=1)
+        else:
+            siguiente = inicio.replace(month=inicio.month + 1, day=1)
+        fin = min(hasta, siguiente - timedelta(days=1))
+        tramos.append((inicio, fin))
+        inicio = siguiente
+    return tramos
+
+
+def _envios_de_un_tramo(sesion: requests.Session, base: str, desde: datetime, hasta: datetime) -> list[dict]:
     f_desde, f_hasta = desde.strftime("%d/%m/%Y"), hasta.strftime("%d/%m/%Y")
-    log.info("consultando envíos del %s al %s", f_desde, f_hasta)
-
     filas: list[dict] = []
     total = None
-    for pagina in range(MAX_PAGINAS):
+    for _ in range(MAX_PAGINAS):
         datos = _pedir_pagina(sesion, base, len(filas), f_desde, f_hasta)
         tanda = datos.get("datos") or []
         if total is None:
@@ -295,20 +435,34 @@ def leer_envios() -> list[dict]:
         if not tanda or len(filas) >= total:
             break
     else:
-        log.warning("se alcanzó el tope de %d páginas; puede faltar histórico", MAX_PAGINAS)
+        log.warning("se alcanzó el tope de %d páginas en %s–%s", MAX_PAGINAS, f_desde, f_hasta)
+    log.info("%s–%s: %s envío(s)", f_desde, f_hasta, total)
+    return filas
 
-    log.info("el portal declara %s envío(s); leídos %d", total, len(filas))
+
+def leer_envios() -> list[dict]:
+    """Una pasada completa: entra, pide el listado y devuelve los envíos."""
+    sesion, base = _abrir_sesion()
+
+    hasta = datetime.now()
+    desde = hasta - timedelta(days=config.DIAS_ATRAS)
+
+    filas: list[dict] = []
+    vistos: set[str] = set()
+    for tramo_desde, tramo_hasta in _tramos_mensuales(desde, hasta):
+        for fila in _envios_de_un_tramo(sesion, base, tramo_desde, tramo_hasta):
+            clave = _identificador(fila)
+            if clave and clave not in vistos:
+                vistos.add(clave)
+                filas.append(fila)
+
+    log.info("%d envío(s) entre el %s y el %s",
+             len(filas), desde.strftime("%d/%m/%Y"), hasta.strftime("%d/%m/%Y"))
 
     if not filas:
-        if total == 0:
-            # No es un fallo: puede que simplemente no haya envíos en el rango.
-            log.info("no hay envíos en el rango de fechas consultado")
-            return []
-        raise PortalError(
-            f"El portal dice tener {total} envíos pero no ha devuelto ninguno. "
-            "Puede que haya cambiado el formato de la respuesta de "
-            "ajax/ajax_consulta_envios.php."
-        )
+        # No es un fallo: puede que simplemente no haya envíos en el rango.
+        log.info("no hay envíos en el rango de fechas consultado")
+        return []
 
     envios = [_a_envio(f) for f in filas if _identificador(f)]
     if not envios:
@@ -317,6 +471,17 @@ def leer_envios() -> list[dict]:
             "(V_ALBARAN). Seguramente han cambiado los nombres de los campos; "
             f"la primera fila trae estas claves: {sorted(filas[0])[:20]}"
         )
+
+    _completar_detalles(sesion, base, envios)
+
+    # El recorrido forma parte de lo que vigilamos: una lectura nueva en un hub
+    # no cambia el «último estado» del listado, pero sí es una novedad de
+    # verdad, así que entra en el hash.
+    for envio in envios:
+        pasos = envio.get("pasos") or []
+        if pasos:
+            marca = f"{len(pasos)}@{pasos[-1].get('ts','')}|{pasos[-1].get('estado','')}"
+            envio["hash"] = hashlib.sha1((envio["hash"] + marca).encode("utf-8")).hexdigest()
     return envios
 
 

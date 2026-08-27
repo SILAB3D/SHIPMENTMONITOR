@@ -1,17 +1,24 @@
 {
-  "name": "Monitor de envíos TIPSA",
-  "short_name": "Envíos",
+  "name": "ShipmentMonitor",
+  "short_name": "ShipmentMonitor",
   "description": "Vigila el portal DinaPaqWeb y avisa en el móvil de envíos nuevos y cambios de estado",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui"],
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
   "orientation": "portrait-primary",
   "background_color": "#000000",
   "theme_color": "#000000",
   "lang": "es",
   "dir": "ltr",
-  "categories": ["productivity", "business", "utilities"],
+  "categories": [
+    "productivity",
+    "business",
+    "utilities"
+  ],
   "icons": [
     {
       "src": "icono-192.png",

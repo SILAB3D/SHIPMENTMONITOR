@@ -81,8 +81,38 @@ def _color_en(x: float, y: float, lado: float, escala: float, desplazamiento: fl
     return (r, g, b, 255)
 
 
-def dibujar(lado: int, margen: float = 0.0, fondo_completo: bool = True) -> bytes:
-    """Devuelve las filas RGBA del icono. `margen` deja aire para los maskable."""
+def _color_suelto(x: float, y: float, escala: float, desplazamiento: float,
+                  tinta: tuple[int, int, int]) -> tuple[int, int, int, int]:
+    """Igual que `_color_en`, pero sin fondo: solo el dibujo, en un color.
+
+    Es lo que necesitan las notificaciones del móvil. Android pinta el icono
+    sobre la sombra de notificación —clara u oscura según el tema— y un cuadrado
+    naranja ahí queda como un pegote; con el fondo transparente se integra. Para
+    el «badge» además da igual el color: Android se queda solo con la silueta
+    (el canal alfa) y la tiñe él.
+    """
+    dx = (x - desplazamiento) / escala
+    dy = (y - desplazamiento) / escala
+
+    cen, radio_ext, radio_int = INSIGNIA
+    d_insignia = math.hypot(dx - cen[0], dy - cen[1])
+    # La insignia se dibuja como un anillo: relleno fuera del hueco interior.
+    if radio_int <= d_insignia <= radio_ext:
+        return (*tinta, 255)
+    if d_insignia < radio_int:
+        return (0, 0, 0, 0)
+
+    if min(_dist_segmento(dx, dy, *s) for s in SEGMENTOS) <= GROSOR / 2:
+        return (*tinta, 255)
+    return (0, 0, 0, 0)
+
+
+def dibujar(lado: int, margen: float = 0.0, fondo_completo: bool = True,
+            sin_fondo: tuple[int, int, int] | None = None) -> bytes:
+    """Devuelve las filas RGBA del icono. `margen` deja aire para los maskable.
+
+    Con `sin_fondo` se pinta solo el dibujo, en ese color y sobre transparente.
+    """
     escala = lado * (1 - 2 * margen) / LADO_BASE
     desplazamiento = lado * margen
     filas = bytearray()
@@ -93,8 +123,11 @@ def dibujar(lado: int, margen: float = 0.0, fondo_completo: bool = True) -> byte
             acc = [0, 0, 0, 0]
             for sy in range(MUESTREO):
                 for sx in range(MUESTREO):
-                    c = _color_en(px + (sx + 0.5) * paso, py + (sy + 0.5) * paso,
-                                  float(lado), escala, desplazamiento, fondo_completo)
+                    xx, yy = px + (sx + 0.5) * paso, py + (sy + 0.5) * paso
+                    if sin_fondo is None:
+                        c = _color_en(xx, yy, float(lado), escala, desplazamiento, fondo_completo)
+                    else:
+                        c = _color_suelto(xx, yy, escala, desplazamiento, sin_fondo)
                     for i in range(4):
                         acc[i] += c[i]
             n = MUESTREO * MUESTREO
@@ -125,6 +158,14 @@ def main() -> None:
     # encoge y el degradado ocupa todo el cuadrado, sin esquinas redondeadas.
     escribir_png(DOCS / "icono-maskable-512.png", 512,
                  dibujar(512, margen=0.14, fondo_completo=True))
+
+    # Notificaciones del móvil: sin fondo. El icono va en naranja, que se lee
+    # igual de bien en tema claro y en oscuro; el badge en blanco, porque
+    # Android solo mira la silueta.
+    escribir_png(DOCS / "icono-notificacion-192.png", 192,
+                 dibujar(192, margen=0.06, sin_fondo=NARANJA))
+    escribir_png(DOCS / "icono-badge-96.png", 96,
+                 dibujar(96, margen=0.06, sin_fondo=BLANCO))
 
 
 if __name__ == "__main__":

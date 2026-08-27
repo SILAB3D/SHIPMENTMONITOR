@@ -57,8 +57,16 @@ def test_los_numeros_aguantan_la_variable_vacia(monkeypatch):
 
 
 def test_un_numero_de_verdad_se_respeta(monkeypatch):
-    cfg = recargar(monkeypatch, DINAPAQ_DIAS_ATRAS=" 30 ")
-    assert cfg.DIAS_ATRAS == 30
+    cfg = recargar(monkeypatch, DINAPAQ_DIAS_ATRAS=" 14 ")
+    assert cfg.DIAS_ATRAS == 14
+
+
+def test_una_ventana_larga_se_admite_pero_con_tope(monkeypatch):
+    """Ventanas largas valen —el scraper parte el rango por meses—, pero con tope."""
+    assert recargar(monkeypatch, DINAPAQ_DIAS_ATRAS="45").DIAS_ATRAS == 45
+    cfg = recargar(monkeypatch, DINAPAQ_DIAS_ATRAS="4000")
+    assert cfg.DIAS_ATRAS == cfg.MAX_DIAS_ATRAS == 90
+    assert recargar(monkeypatch, DINAPAQ_DIAS_ATRAS="0").DIAS_ATRAS == 1
 
 
 def test_el_usuario_vacio_cae_en_el_nombre_antiguo(monkeypatch):

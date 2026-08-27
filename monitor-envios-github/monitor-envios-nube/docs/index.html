@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Monitor de envíos</title>
+<title>ShipmentMonitor</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icono.svg" type="image/svg+xml">
 <link rel="icon" href="icono-192.png" sizes="192x192" type="image/png">
 <!-- iOS no lee el manifest para el icono de la pantalla de inicio -->
 <link rel="apple-touch-icon" href="icono-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Envíos">
+<meta name="apple-mobile-web-app-title" content="ShipmentMonitor">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#000000">
@@ -176,6 +176,9 @@ button,input,select{font:inherit;color:inherit}
   border:2px solid var(--borde);background:var(--panel);font-size:.8rem;color:var(--tenue);flex:none;
 }
 .paso .etq{font-size:.62rem;line-height:1.2;color:var(--tenue);font-weight:600;overflow-wrap:anywhere}
+.paso .cuando{font-size:.58rem;line-height:1.15;color:var(--tenue);font-variant-numeric:tabular-nums;
+              white-space:nowrap;opacity:.85}
+.paso.hecho .cuando,.paso.actual .cuando{color:var(--suave)}
 .paso.hecho .bola{background:var(--naranja);border-color:var(--naranja);color:#0a0a0a}
 .paso.hecho .etq{color:var(--suave)}
 .paso.actual .bola{background:var(--panel);border-color:var(--naranja);color:var(--naranja);
@@ -188,6 +191,24 @@ button,input,select{font:inherit;color:inherit}
 .linea{flex:1 1 auto;height:2px;min-width:.25rem;margin-top:.8rem;background:var(--borde);border-radius:2px}
 .linea.hecha{background:var(--naranja)}
 
+/* ruta del envío: de quién sale y a quién va, sin que se solape en móvil */
+.ruta{display:grid;gap:var(--sp-1)}
+.ruta-fila{display:grid;grid-template-columns:1.15rem 1fr;gap:var(--sp-2);align-items:baseline;min-width:0}
+.ruta-fila .marca-ruta{font-size:.62rem;font-weight:800;color:var(--tenue);letter-spacing:.04em}
+.ruta-fila b{font-weight:600;font-size:.84rem;overflow-wrap:anywhere;display:block}
+.ruta-fila i{font-style:normal;font-size:.74rem;color:var(--tenue);overflow-wrap:anywhere;display:block}
+/* recorrido: cada situación por la que ha pasado el envío, con su hora */
+.recorrido{display:grid;gap:0}
+.recorrido-item{display:grid;grid-template-columns:auto 1fr;gap:var(--sp-2);min-width:0}
+.recorrido-hilo{display:grid;justify-items:center;gap:2px}
+.recorrido-punto{width:.5rem;height:.5rem;border-radius:50%;background:var(--borde);margin-top:.32rem;flex:none}
+.recorrido-item:first-child .recorrido-punto{background:var(--naranja);box-shadow:0 0 0 3px var(--naranja-suave)}
+.recorrido-raya{width:2px;flex:1 1 auto;min-height:.9rem;background:var(--borde);border-radius:2px}
+.recorrido-item:last-child .recorrido-raya{background:transparent}
+.recorrido-texto{padding-bottom:var(--sp-2);min-width:0}
+.recorrido-texto time{display:block;font-size:.68rem;color:var(--tenue);font-variant-numeric:tabular-nums}
+.recorrido-texto b{font-weight:600;font-size:.82rem;overflow-wrap:anywhere;display:block}
+.recorrido-texto span{font-size:.74rem;color:var(--tenue);overflow-wrap:anywhere}
 .detalle{border-top:1px solid var(--borde);padding-top:var(--sp-3);display:grid;gap:var(--sp-3)}
 .hist{display:grid;gap:var(--sp-2)}
 .hist-item{display:flex;gap:var(--sp-2);font-size:.82rem}
@@ -232,10 +253,77 @@ button,input,select{font:inherit;color:inherit}
   .acciones .btn{flex:1 1 auto}
   .marca-app h1{font-size:.95rem}
 }
+
+/* ─────────────── pantalla de arranque ───────────────
+   Un segundo con el icono dibujándose solo. No es adorno gratuito: la PWA
+   tarda un instante en descifrar datos.json y, sin esto, se veía un fogonazo
+   de página en blanco cada vez que se abría desde el icono del móvil. */
+#arranque{
+  position:fixed; inset:0; z-index:200; display:grid; place-items:center;
+  background:var(--bg); transition:opacity .32s ease;
+}
+#arranque.fuera{opacity:0; pointer-events:none}
+#arranque .marca{display:grid; justify-items:center; gap:var(--sp-4)}
+#arranque svg{width:104px; height:104px; overflow:visible}
+#arranque .nombre{
+  font-size:.9rem; font-weight:650; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--tenue); animation:arr-entra .5s .45s both;
+}
+/* La caja se dibuja como si la trazara un lápiz */
+#arranque .trazo{
+  fill:none; stroke:var(--naranja); stroke-width:10; stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:var(--largo); stroke-dashoffset:var(--largo);
+  animation:arr-traza .78s cubic-bezier(.65,0,.35,1) forwards;
+}
+#arranque .trazo.interior{animation-delay:.2s}
+#arranque .punto{transform-origin:150px 50px; animation:arr-punto .42s .58s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes arr-traza{to{stroke-dashoffset:0}}
+@keyframes arr-punto{from{transform:scale(0)} to{transform:scale(1)}}
+@keyframes arr-entra{from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:none}}
+
+/* Quien haya pedido menos animación ve el icono quieto, sin trazado ni rebote */
+@media (prefers-reduced-motion: reduce){
+  #arranque .trazo{animation:none; stroke-dashoffset:0}
+  #arranque .punto{animation:none}
+  #arranque .nombre{animation:none}
+}
 </style>
 </head>
 <body>
+<!-- Se pinta antes que React y se retira sola: ver #arranque en el <style>. -->
+<div id="arranque" role="status" aria-label="Abriendo ShipmentMonitor">
+  <div class="marca">
+    <svg viewBox="0 0 192 192" aria-hidden="true">
+      <path class="trazo" style="--largo:352" d="M96 42 150 68v56L96 150 42 124V68z"/>
+      <path class="trazo interior" style="--largo:176" d="M42 68l54 26 54-26M96 94v56"/>
+      <g class="punto">
+        <circle cx="150" cy="50" r="17" fill="var(--naranja)"/>
+        <circle cx="150" cy="50" r="7" fill="var(--bg)"/>
+      </g>
+    </svg>
+    <div class="nombre">ShipmentMonitor</div>
+  </div>
+</div>
 <div id="app"></div>
+<script>
+/* La animación dura 1 s justo. Si la app tarda más en montar, la pantalla se
+   queda puesta hasta que esté lista: nunca se ve el panel a medio hacer. */
+(function(){
+  var desde = Date.now(), listo = false;
+  window.cerrarArranque = function(){
+    if (listo) return;
+    listo = true;
+    setTimeout(function(){
+      var e = document.getElementById('arranque');
+      if (!e) return;
+      e.classList.add('fuera');
+      setTimeout(function(){ e.remove(); }, 400);
+    }, Math.max(0, 1000 - (Date.now() - desde)));
+  };
+  // Red de seguridad: si algo fallara al montar, no dejamos la pantalla clavada.
+  setTimeout(window.cerrarArranque, 6000);
+})();
+</script>
 <script type="text/babel">
 const {useState, useEffect, useCallback, useRef, Fragment} = React;
 
@@ -377,6 +465,17 @@ function haceCuanto(iso){
 
 const sinAcentos = t => (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
+/* Los campos se guardan con nombre de máquina para que el código sea estable;
+   aquí se traducen al enseñarlos. Lo que no esté en la tabla sale tal cual. */
+const ETIQUETAS = {
+  referencia:'Referencia', fecha:'Fecha de alta', estado:'Estado actual',
+  fecha_estado:'Último movimiento', destinatario:'Destinatario', localidad:'Población destino',
+  remitente:'Remitente', localidad_origen:'Población origen', cp_origen:'C.P. origen',
+  ref_cliente:'Tu referencia', bultos:'Bultos', kilos:'Kilos',
+  observaciones:'Observaciones', entrega:'Entregado el',
+};
+const etiqueta = k => ETIQUETAS[k] || k.replace(/_/g, ' ');
+
 const PASOS = [
   {etq:'Grabado',   icono:'1'},
   {etq:'Tránsito',  icono:'2'},
@@ -384,17 +483,52 @@ const PASOS = [
   {etq:'Entrega',   icono:'✓'},
 ];
 
-/** Traduce el texto de estado del portal a una posición del diagrama. */
+/** Traduce el texto de estado del portal a una posición del diagrama.
+ *
+ * El orden de las comprobaciones importa mucho, y no es el intuitivo:
+ * DinaPaqWeb llama «PENDIENTE DE ENTREGAR A TIPSA» al primer paso de todos.
+ * Buscar «entreg» lo primero colocaba ese estado —y el envío entero— en
+ * «Entregado» nada más grabarse. Por eso los estados iniciales se descartan
+ * antes que nada.
+ *
+ * Los textos que llegan son de dos sitios: el listado usa mayúsculas secas
+ * (TRANSITO, REPARTO, ENTREGADO) y el detalle nombres llanos (Documentado,
+ * En camino, En reparto, Entregado), además de las lecturas de almacén
+ * («LECTURA EN HUB MADRID», «LEIDO EN DESTINO»). Aquí caben todos.
+ */
 function analizarEstado(texto){
   const t = sinAcentos(texto);
-  const incidencia = /incid|ausen|rehus|devuel|falt|error|retenid|aduan|direccion erronea|no localiz/.test(t);
-  let paso = 0;
-  if (/entreg/.test(t)) paso = 3;
-  else if (/reparto|en entrega|salida a reparto|ultima milla/.test(t)) paso = 2;
-  else if (/transit|en ruta|almacen|recogid|salida|llegada|expedid|plataforma/.test(t)) paso = 1;
-  else if (/grabad|registrad|admitid|pendiente|alta|documentad/.test(t)) paso = 0;
+  // «Entrega parcial» cuenta como incidencia: ha llegado, pero no entero.
+  const incidencia = /incid|ausen|rehus|devuel|falt|error|retenid|aduan|direccion erronea|no localiz|extravi|siniestr|anulad|parcial|mal clasificad/.test(t);
+  let paso;
+  if (/pendiente de entregar|pendiente de recogida|grabad|registrad|documentad|admitid|preparad|\balta\b/.test(t)) paso = 0;
+  else if (/entregad|entrega realizada|entrega parcial/.test(t)) paso = 3;
+  else if (/reparto|en entrega|ultima milla/.test(t)) paso = 2;
+  else if (/transit|en camino|en ruta|\bhub\b|almacen|agencia|lectura|leido|recogid|salida|llegada|expedid|plataforma|delegacion/.test(t)) paso = 1;
   else if (incidencia) paso = 2;
+  else paso = 0;
   return {paso, incidencia, texto: texto || 'sin estado'};
+}
+
+/* El portal escribe las horas como «27/08/26 08:20:25». En el diagrama no cabe
+   tanto, así que se recorta a día y hora; en el recorrido se deja entera. */
+function horaCorta(marca){
+  if (!marca) return '';
+  const m = String(marca).match(/^(\d{1,2}\/\d{1,2})(?:\/\d{2,4})?(?:[ T](\d{1,2}:\d{2}))?/);
+  if (!m) return String(marca);
+  return m[2] ? `${m[1]} ${m[2]}` : m[1];
+}
+
+/** Para cada paso del diagrama, cuándo se alcanzó por primera vez.
+ *  `pasos` viene del portal en orden cronológico, así que la primera situación
+ *  que cae en un paso es la que lo estrenó. */
+function horasDePasos(pasos){
+  const horas = new Array(PASOS.length).fill(null);
+  for (const p of pasos || []){
+    const {paso} = analizarEstado(p.estado);
+    if (horas[paso] == null) horas[paso] = p.ts;
+  }
+  return horas;
 }
 
 /* ─────────────────── acceso ─────────────────── */
@@ -421,7 +555,7 @@ function Acceso({onEntrar}){
       <div className="tarjeta acceso-caja">
         <div className="acceso-cabecera">
           <img src="icono.svg" alt="" />
-          <h1>Monitor de envíos</h1>
+          <h1>ShipmentMonitor</h1>
           <p>Introduce la contraseña del panel para ver tus envíos</p>
         </div>
         <form onSubmit={enviar}>
@@ -453,8 +587,9 @@ function Acceso({onEntrar}){
 }
 
 /* ─────────────────── diagrama ─────────────────── */
-function Diagrama({estado}){
+function Diagrama({estado, pasos}){
   const {paso, incidencia} = analizarEstado(estado);
+  const horas = horasDePasos(pasos);
   return (
     <div className="pasos" role="img" aria-label={`Estado: ${estado || 'desconocido'}`}>
       {PASOS.map((p, i) => {
@@ -471,6 +606,7 @@ function Diagrama({estado}){
             <div className={clases.join(' ')}>
               <div className="bola">{i === paso && incidencia ? '!' : (hecho ? '✓' : p.icono)}</div>
               <div className="etq">{p.etq}</div>
+              {horas[i] && <div className="cuando">{horaCorta(horas[i])}</div>}
             </div>
           </Fragment>
         );
@@ -486,6 +622,16 @@ function TarjetaEnvio({envio, historial}){
   const {incidencia} = analizarEstado(c.estado);
   const extras = Object.entries(c).filter(([k]) => k.startsWith('extra:'));
 
+  // De dónde viene: población de origen y, si la hay, su código postal
+  const procedencia = [c.localidad_origen, c.cp_origen].filter(Boolean).join(' · ');
+
+  // El recorrido detallado del portal; los hitos son su versión resumida.
+  const recorrido = envio.pasos || [];
+  // Para el diagrama valen los hitos («Documentado», «En camino»…) porque
+  // marcan justo los cuatro pasos. Si no los hay, se deducen del recorrido; y
+  // si tampoco, queda el estado actual del listado, como hasta ahora.
+  const pasosDelDiagrama = (envio.hitos && envio.hitos.length) ? envio.hitos : recorrido;
+
   return (
     <article className="tarjeta envio">
       <header className="envio-cab">
@@ -496,7 +642,27 @@ function TarjetaEnvio({envio, historial}){
         <span className={'chip ' + (incidencia ? 'alerta' : 'marca')}>{c.estado || 'sin estado'}</span>
       </header>
 
-      <Diagrama estado={c.estado} />
+      <Diagrama estado={c.estado} pasos={pasosDelDiagrama} />
+
+      {/* De dónde sale y a dónde va, que es lo primero que se mira */}
+      {(c.remitente || c.destinatario) && (
+        <div className="ruta">
+          <div className="ruta-fila">
+            <span className="marca-ruta">DE</span>
+            <div style={{minWidth:0}}>
+              <b>{c.remitente || '—'}</b>
+              {procedencia && <i>{procedencia}</i>}
+            </div>
+          </div>
+          <div className="ruta-fila">
+            <span className="marca-ruta">A</span>
+            <div style={{minWidth:0}}>
+              <b>{c.destinatario || '—'}</b>
+              {c.localidad && <i>{c.localidad}</i>}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="datos">
         {c.fecha && <div className="dato"><span>Fecha</span><b>{c.fecha}</b></div>}
@@ -520,15 +686,35 @@ function TarjetaEnvio({envio, historial}){
             <div className="titulo-seccion">Todos los datos</div>
             <div className="datos">
               {Object.entries(c).filter(([k]) => !k.startsWith('extra:')).map(([k,v]) => (
-                <div className="dato" key={k}><span>{k}</span><b>{v || '—'}</b></div>
+                <div className="dato" key={k}><span>{etiqueta(k)}</span><b>{v || '—'}</b></div>
               ))}
               {extras.map(([k,v]) => (
                 <div className="dato" key={k}><span>{k.slice(6)}</span><b>{v || '—'}</b></div>
               ))}
             </div>
           </div>
+          {recorrido.length > 0 && (
+            <div>
+              <div className="titulo-seccion">Recorrido en el portal</div>
+              <div className="recorrido">
+                {recorrido.slice().reverse().map((s, i) => (
+                  <div className="recorrido-item" key={`${s.ts}-${i}`}>
+                    <div className="recorrido-hilo">
+                      <div className="recorrido-punto" />
+                      <div className="recorrido-raya" />
+                    </div>
+                    <div className="recorrido-texto">
+                      <time>{s.ts}</time>
+                      <b>{s.estado}</b>
+                      {s.lugar && <span>{s.lugar}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div>
-            <div className="titulo-seccion">Historial</div>
+            <div className="titulo-seccion">Cambios detectados</div>
             <div className="hist">
               {historial.length === 0 && <div className="envio-sub">Sin cambios registrados todavía.</div>}
               {historial.map(h => (
@@ -763,7 +949,7 @@ function Panel({datos, onRecargar, onSalir, recargando}){
         <div className="barra-int">
           <div className="marca-app">
             <img src="icono.svg" alt="" />
-            <h1>Monitor de envíos</h1>
+            <h1>ShipmentMonitor</h1>
           </div>
           <div className="crece" />
           <div className="acciones">
@@ -862,6 +1048,8 @@ function App(){
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 ReactDOM.createRoot(document.getElementById('app')).render(<App />);
+// Ya hay algo que enseñar: la pantalla de arranque se va (nunca antes de 1 s).
+requestAnimationFrame(() => window.cerrarArranque && window.cerrarArranque());
 </script>
 </body>
 </html>
