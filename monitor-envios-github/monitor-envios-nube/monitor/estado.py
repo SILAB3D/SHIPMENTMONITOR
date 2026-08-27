@@ -150,4 +150,7 @@ def sellar_meta(estado: dict, error: str | None = None, envios_leidos: int = 0) 
         "repo": config.REPO,
         "ejecucion": config.EJECUCION_URL,
         "canales": config.canales(),
+        # Huellas de los dispositivos suscritos: el panel las usa para decirte
+        # si ESTE aparato está en la lista de los que reciben avisos.
+        "push_dispositivos": config.huellas_suscripciones(),
     }

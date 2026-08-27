@@ -133,7 +133,20 @@ button,input,select{font:inherit;color:inherit}
 .crece{flex:1 1 auto;min-width:0}
 .acciones{display:flex;gap:var(--sp-2);align-items:center;flex-wrap:wrap}
 
-.contenido{max-width:var(--ancho);margin:0 auto;padding:var(--sp-4);display:grid;gap:var(--sp-4)}
+/* En el móvil la barra se comía 138 px en tres líneas. Las cifras de la tira
+   ya salen en el título de cada sección, así que ahí sobran, y todo lo demás
+   entra apretado en la parte de arriba. */
+@media (max-width:620px){
+  .barra-int{padding:var(--sp-2) var(--sp-3);gap:var(--sp-2)}
+  .barra-int .tira{display:none}
+  .marca-app img{width:24px;height:24px}
+  .marca-app h1{font-size:.98rem}
+  .acciones .btn{padding:.32rem .7rem;font-size:.82rem}
+  .contenido{padding:var(--sp-2) var(--sp-3) var(--sp-5)}
+}
+
+.contenido{max-width:var(--ancho);margin:0 auto;padding:var(--sp-3) var(--sp-4) var(--sp-5);
+            display:grid;gap:var(--sp-3)}
 .columnas{display:grid;gap:var(--sp-4);grid-template-columns:1fr}
 @media (min-width:1024px){
   .columnas{grid-template-columns:minmax(0,2.4fr) minmax(17rem,1fr);align-items:start}
@@ -141,13 +154,15 @@ button,input,select{font:inherit;color:inherit}
 }
 .columnas>*{min-width:0}
 
-.metricas{display:grid;gap:var(--sp-3);grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr))}
+.metricas{display:grid;gap:var(--sp-2);grid-template-columns:repeat(auto-fit,minmax(7.5rem,1fr))}
 .metrica{display:grid;gap:.1rem;padding:var(--sp-3);background:var(--panel-2);border-radius:var(--r);border:1px solid var(--borde)}
 .metrica span{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--tenue);font-weight:700}
-.metrica b{font-size:1.45rem;font-weight:700;letter-spacing:-.03em;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.metrica b{font-size:1.25rem;font-weight:700;letter-spacing:-.03em;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
 .metrica small{font-size:.75rem;color:var(--suave)}
 
 .filtros{display:flex;gap:var(--sp-2);align-items:center;flex-wrap:wrap}
+.chips-filtro{display:flex;gap:var(--sp-2);min-width:0;max-width:100%}
+.chips-filtro>*{flex:0 0 auto}
 .filtros .buscador{flex:1 1 12rem;min-width:0;position:relative}
 .filtros .buscador input{width:100%;padding:.5rem .8rem;border:1px solid var(--borde);
   border-radius:999px;background:var(--panel);}
@@ -157,10 +172,23 @@ button,input,select{font:inherit;color:inherit}
   padding:.35rem .8rem;font-size:.83rem;font-weight:600;cursor:pointer;color:var(--suave);white-space:nowrap;
 }
 .filtro-btn.activo{background:var(--naranja);border-color:var(--naranja);color:#0a0a0a}
+/* En pantallas estrechas los cuatro filtros y el buscador se llevaban dos
+   líneas enteras y desordenadas. Aquí los filtros van en una tira que se
+   desplaza a lo ancho —empezando por «Todos», no medio cortada— y el buscador
+   debajo, más bajito. */
+@media (max-width:620px){
+  .filtros{flex-direction:column;align-items:stretch;gap:var(--sp-2);min-width:0}
+  .chips-filtro{width:100%;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+  .chips-filtro::-webkit-scrollbar{display:none}
+  /* En columna, el «flex:1 1 12rem» del buscador se interpreta como ALTO y
+     dejaba una caja de 12rem. En vertical manda el contenido. */
+  .filtros .buscador{flex:0 0 auto}
+  .filtros .buscador input{padding:.35rem .75rem;font-size:.85rem}
+}
 
 /* ───────────────────────── envíos ───────────────────────── */
-.rejilla{display:grid;gap:var(--sp-4);grid-template-columns:repeat(auto-fill,minmax(min(100%,19rem),1fr))}
-.envio{display:flex;flex-direction:column;gap:var(--sp-3);padding:var(--sp-4);min-width:0}
+.rejilla{display:grid;gap:var(--sp-3);grid-template-columns:repeat(auto-fill,minmax(min(100%,17rem),1fr))}
+.envio{display:flex;flex-direction:column;gap:var(--sp-2);padding:var(--sp-3);min-width:0}
 .envio-cab{display:flex;gap:var(--sp-2);align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
 .envio-ref{font-size:1.05rem;font-weight:650;letter-spacing:-.02em;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
 .envio-sub{font-size:.82rem;color:var(--suave);overflow-wrap:anywhere}
@@ -228,7 +256,16 @@ button,input,select{font:inherit;color:inherit}
 .vacio{color:var(--tenue);font-size:.87rem;padding:var(--sp-3) 0;text-align:center}
 
 /* ─────────── tarjeta de avisos push ─────────── */
-.push{margin-bottom:var(--sp-4)}
+.push{margin-bottom:0}
+.push-linea{display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap}
+.push-txt{flex:1 1 14rem;min-width:0;font-size:.87rem;color:var(--suave);line-height:1.4}
+.push-txt b{color:var(--texto);font-weight:650}
+.push-txt small{display:block;font-size:.78rem;color:var(--tenue)}
+@media (max-width:620px){
+  .push{padding:var(--sp-3)}
+  .push-txt small{display:none}      /* en el móvil, el titular basta */
+  .push-linea{gap:var(--sp-2)}
+}
 .push h2{font-size:1rem;margin:0 0 var(--sp-2);display:flex;align-items:center;gap:var(--sp-2)}
 .push p{margin:0 0 var(--sp-3);font-size:.87rem;color:var(--suave);line-height:1.55}
 .push ol{margin:0 0 var(--sp-3);padding-left:1.15rem;font-size:.87rem;color:var(--suave);line-height:1.7}
@@ -253,6 +290,44 @@ button,input,select{font:inherit;color:inherit}
   .acciones .btn{flex:1 1 auto}
   .marca-app h1{font-size:.95rem}
 }
+
+/* ─────────────── jerarquía del panel ───────────────
+   Lo que importa manda: primero los envíos que siguen en movimiento, después
+   los que ya están cerrados y al final todo lo demás. Las secciones de abajo
+   se pliegan para que no empujen a los envíos fuera de la pantalla. */
+.seccion{display:grid;gap:var(--sp-2)}
+.seccion-cab{
+  display:flex;align-items:center;gap:var(--sp-2);width:100%;
+  background:none;border:0;padding:var(--sp-1) 0;cursor:pointer;color:inherit;text-align:left;
+}
+.seccion-cab:not([aria-expanded]){cursor:default}
+.seccion-cab h2{
+  font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:var(--tenue);
+}
+.seccion.primaria .seccion-cab h2{color:var(--naranja);font-size:.78rem}
+.cuenta{
+  font-size:.7rem;font-weight:700;color:var(--suave);background:var(--panel-2);
+  border:1px solid var(--borde);border-radius:999px;padding:.05rem .5rem;font-variant-numeric:tabular-nums;
+}
+.seccion.primaria .cuenta{background:var(--naranja-suave);border-color:var(--naranja-borde);color:var(--naranja-claro)}
+.flecha{margin-left:auto;color:var(--tenue);font-size:.7rem;transition:transform .18s ease}
+.seccion-cab[aria-expanded="true"] .flecha{transform:rotate(90deg)}
+.raya{flex:1 1 auto;height:1px;background:var(--borde);min-width:1rem}
+
+/* Tira de cifras de la barra superior: lo mismo que las métricas, en una línea */
+.tira{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;font-size:.78rem;color:var(--tenue)}
+.tira b{font-variant-numeric:tabular-nums;font-weight:700}
+.tira .dato-tira{display:flex;gap:.3rem;align-items:baseline;white-space:nowrap}
+.tira .sep{opacity:.35}
+
+/* Prueba de los avisos */
+.prueba{display:grid;gap:var(--sp-2)}
+.prueba-lista{display:grid;gap:.35rem;margin:0;padding:0;list-style:none}
+.prueba-lista li{display:grid;grid-template-columns:1.1rem 1fr;gap:var(--sp-2);font-size:.83rem;align-items:baseline}
+.prueba-lista .marca-ok{color:var(--ok);font-weight:700}
+.prueba-lista .marca-mal{color:var(--error);font-weight:700}
+.prueba-lista .marca-esp{color:var(--tenue)}
+.prueba-lista small{display:block;color:var(--tenue);font-size:.75rem;overflow-wrap:anywhere}
 
 /* ─────────────── pantalla de arranque ───────────────
    Un segundo con el icono dibujándose solo. No es adorno gratuito: la PWA
@@ -735,13 +810,25 @@ function TarjetaEnvio({envio, historial}){
 
 /* ─────────────────── paneles ─────────────────── */
 /* ─────────────────── tarjeta de avisos push ─────────────────── */
-function AvisosPush({repo}){
+function AvisosPush({repo, meta}){
   const [sus, setSus]       = useState(null);      // suscripción viva en este navegador
   const [pegada, setPegada] = useState(() => leer(PUSH_PEGADA) || '');
   const [error, setError]   = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [copiado, setCopiado] = useState(false);
   const [oculta, setOculta]   = useState(false);
+  // ¿El repositorio ya conoce a este dispositivo? Lo dicen las huellas que
+  // publica el monitor: si la nuestra está, no hay nada que pegar y la tarjeta
+  // sobra, aunque este navegador no recuerde haberlo hecho.
+  const [dadoDeAlta, setDadoDeAlta] = useState(false);
+
+  useEffect(() => {
+    const altas = meta && meta.push_dispositivos;
+    if (!sus || !Array.isArray(altas)) { setDadoDeAlta(false); return; }
+    let vivo = true;
+    huellaDe(sus.endpoint).then(h => { if (vivo) setDadoDeAlta(altas.includes(h)); }).catch(() => {});
+    return () => { vivo = false; };
+  }, [sus, meta]);
 
   useEffect(() => {
     suscripcionActual().then(setSus).catch(() => {});
@@ -761,7 +848,7 @@ function AvisosPush({repo}){
   };
 
   const texto = sus ? comoTexto(sus) : '';
-  const alDia = sus && pegada === sus.endpoint;
+  const alDia = sus && (dadoDeAlta || pegada === sus.endpoint);
   const urlSecrets = repo ? `https://github.com/${repo}/settings/secrets/actions` : null;
 
   /* iOS solo deja suscribirse si la app está instalada en la pantalla de inicio. */
@@ -804,28 +891,27 @@ function AvisosPush({repo}){
       </div>
     );
   }
-  if (alDia) return null;
+  if (alDia || oculta) return null;
 
   return (
     <div className="tarjeta pad push">
       {!sus ? (
         <Fragment>
-          <h2>🔔 Recibe los avisos en este dispositivo</h2>
-          <p>
-            El monitor te avisará aquí mismo cuando aparezca un envío nuevo o cambie un estado,
-            con la aplicación cerrada. No hace falta Telegram ni correo.
-          </p>
-          {error && <div className="aviso mal" style={{marginBottom:'.75rem'}}>{error}</div>}
-          <div className="acciones-push">
+          {/* Una sola línea: esta tarjeta no puede empujar los envíos fuera de
+              la pantalla, que es a lo que se viene. */}
+          <div className="push-linea">
+            <span className="push-txt">
+              🔔 <b>Recibe los avisos en este dispositivo</b>
+              <small>Te avisa de envíos nuevos y cambios de estado con la app cerrada.</small>
+            </span>
             <button className="btn primario" onClick={activar} disabled={ocupado}>
               {ocupado ? 'Activando…' : 'Activar avisos'}
             </button>
-            {!instalada() && (
-              <span style={{fontSize:'.82rem',color:'var(--tenue)'}}>
-                Consejo: instálalo como app para que los avisos sean más fiables.
-              </span>
-            )}
+            <button className="enlace" onClick={() => setOculta(true)} title="Ocultar hasta la próxima visita">
+              Ahora no
+            </button>
           </div>
+          {error && <div className="aviso mal" style={{marginTop:'.6rem'}}>{error}</div>}
         </Fragment>
       ) : (
         <Fragment>
@@ -858,6 +944,151 @@ function AvisosPush({repo}){
           </div>
         </Fragment>
       )}
+    </div>
+  );
+}
+
+/* ─────────────────── secciones plegables ───────────────────
+   El panel tiene un orden de importancia: los envíos activos arriba y del todo
+   abiertos, los cerrados debajo, y lo demás plegado. Así lo que se mira todos
+   los días entra en pantalla sin desplazarse. */
+function Seccion({titulo, cuenta, primaria, abiertaPorDefecto = true, plegable = true, children}){
+  const [abierta, setAbierta] = useState(abiertaPorDefecto);
+  const cuerpo = <div>{children}</div>;
+  if (!plegable) {
+    return (
+      <section className={'seccion' + (primaria ? ' primaria' : '')}>
+        <div className="seccion-cab">
+          <h2>{titulo}</h2>
+          {cuenta != null && <span className="cuenta">{cuenta}</span>}
+          <span className="raya" />
+        </div>
+        {cuerpo}
+      </section>
+    );
+  }
+  return (
+    <section className={'seccion' + (primaria ? ' primaria' : '')}>
+      <button className="seccion-cab" aria-expanded={abierta} onClick={() => setAbierta(a => !a)}>
+        <h2>{titulo}</h2>
+        {cuenta != null && <span className="cuenta">{cuenta}</span>}
+        <span className="raya" />
+        <span className="flecha">▶</span>
+      </button>
+      {abierta && cuerpo}
+    </section>
+  );
+}
+
+/* ─────────────────── prueba de los avisos ───────────────────
+   Comprueba, uno por uno, los eslabones de la cadena que lleva un aviso desde
+   GitHub hasta esta pantalla. El único que no se puede probar desde aquí es el
+   propio envío desde GitHub Actions —haría falta una clave del repositorio, y
+   esta página es pública—, así que para ese se ofrece el enlace que lo lanza. */
+const PASOS_PRUEBA = [
+  ['permiso',  'Permiso de notificaciones'],
+  ['sw',       'Service worker activo'],
+  ['sub',      'Suscripción push válida'],
+  ['alta',     'Este dispositivo está dado de alta en el repositorio'],
+  ['pantalla', 'El aviso se ve en pantalla'],
+];
+
+async function huellaDe(endpoint){
+  const bytes = new TextEncoder().encode(endpoint);
+  const resumen = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(resumen)].map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 16);
+}
+
+function PruebaAvisos({meta}){
+  const [estado, setEstado] = useState(null);      // {clave: {ok, nota}}
+  const [probando, setProbando] = useState(false);
+
+  const probar = async () => {
+    setProbando(true);
+    const r = {};
+    const anota = (k, ok, nota) => { r[k] = {ok, nota}; setEstado({...r}); };
+    try {
+      if (typeof Notification === 'undefined') {
+        anota('permiso', false, 'Este navegador no admite notificaciones.');
+        setProbando(false); return;
+      }
+      let permiso = Notification.permission;
+      if (permiso === 'default') permiso = await Notification.requestPermission();
+      anota('permiso', permiso === 'granted',
+            permiso === 'granted' ? 'Concedido'
+            : permiso === 'denied' ? 'Bloqueado. Hay que permitirlo en los ajustes del sitio.'
+            : 'Sin responder.');
+      if (permiso !== 'granted') { setProbando(false); return; }
+
+      const reg = await navigator.serviceWorker?.getRegistration();
+      anota('sw', !!(reg && reg.active), reg ? 'Registrado' : 'No hay service worker: recarga la página.');
+      if (!reg) { setProbando(false); return; }
+
+      const sub = await reg.pushManager.getSubscription();
+      anota('sub', !!sub, sub ? new URL(sub.endpoint).host
+                              : 'Sin suscripción: pulsa «Activar avisos» más arriba.');
+
+      if (sub) {
+        const huella = await huellaDe(sub.endpoint);
+        const altas = meta?.push_dispositivos;
+        if (!Array.isArray(altas)) {
+          anota('alta', null, 'La última comprobación es anterior a esta versión; se sabrá en la siguiente.');
+        } else if (altas.includes(huella)) {
+          anota('alta', true, `Sí, entre los ${altas.length} dispositivo(s) del Secret PUSH_SUSCRIPCIONES.`);
+        } else {
+          anota('alta', false, 'No. Copia el texto de la suscripción en el Secret PUSH_SUSCRIPCIONES.');
+        }
+      }
+
+      await reg.showNotification('✅ Los avisos funcionan', {
+        body: 'Prueba lanzada desde el panel. Si estás leyendo esto en una notificación, este dispositivo está listo.',
+        icon: 'icono-notificacion-192.png', badge: 'icono-badge-96.png',
+        tag: 'prueba-panel', renotify: true,
+      });
+      anota('pantalla', true, 'Enviado. Debería haber aparecido ahora mismo.');
+    } catch (e) {
+      setEstado(es => ({...(es || {}), error: {ok: false, nota: String(e && e.message || e)}}));
+    }
+    setProbando(false);
+  };
+
+  const marca = v => v?.ok === true ? <span className="marca-ok">✓</span>
+                   : v?.ok === false ? <span className="marca-mal">✗</span>
+                   : <span className="marca-esp">·</span>;
+
+  return (
+    <div className="prueba">
+      <div className="envio-sub">
+        Comprueba de un vistazo los eslabones que llevan un aviso hasta esta pantalla.
+      </div>
+      <div className="acciones">
+        <button className="btn primario" onClick={probar} disabled={probando}>
+          {probando ? 'Probando…' : 'Probar los avisos'}
+        </button>
+        {meta?.repo && (
+          <a className="btn" target="_blank" rel="noopener"
+             href={`https://github.com/${meta.repo}/actions/workflows/monitor.yml`}>
+            Prueba completa desde GitHub
+          </a>
+        )}
+      </div>
+      {estado && (
+        <ul className="prueba-lista">
+          {PASOS_PRUEBA.map(([k, texto]) => (
+            <li key={k}>
+              {marca(estado[k])}
+              <div>{texto}{estado[k]?.nota && <small>{estado[k].nota}</small>}</div>
+            </li>
+          ))}
+          {estado.error && (
+            <li><span className="marca-mal">✗</span><div>Algo falló<small>{estado.error.nota}</small></div></li>
+          )}
+        </ul>
+      )}
+      <div className="envio-sub" style={{fontSize:'.75rem'}}>
+        El último eslabón —que GitHub Actions consiga empujar el aviso— solo se puede
+        probar desde el propio GitHub: usa «Run workflow» marcando la casilla de prueba.
+      </div>
     </div>
   );
 }
@@ -939,9 +1170,33 @@ function Panel({datos, onRecargar, onSalir, recargando}){
     if (!q) return true;
     return (e.id + ' ' + JSON.stringify(e.campos)).toLowerCase().includes(q);
   });
+
+  /* Un envío está «activo» mientras no esté entregado y sin problemas. Las
+     incidencias también son activas: son las que más urge mirar, así que van
+     arriba del todo dentro de su grupo. */
+  const activo = e => { const a = analizarEstado(e.campos.estado); return a.incidencia || a.paso !== 3; };
+  const pesoUrgencia = e => analizarEstado(e.campos.estado).incidencia ? 0 : 1;
+  const activos = visibles.filter(activo).sort((a, b) => pesoUrgencia(a) - pesoUrgencia(b));
+  const cerrados = visibles.filter(e => !activo(e));
+
   const historialDe = id => eventos.filter(ev => ev.envio_id === id);
+  const rejilla = lista => (
+    <div className="rejilla">
+      {lista.map(e => <TarjetaEnvio key={e.id} envio={e} historial={historialDe(e.id)} />)}
+    </div>
+  );
   const frescura = meta.ultima_comprobacion &&
     (Date.now() - new Date(meta.ultima_comprobacion)) < 3 * 3600 * 1000;
+
+  // Las cifras de la barra van sobre TODOS los envíos, no sobre los filtrados:
+  // son la foto general, y cambiarlas al buscar despistaba.
+  const resumen = envios.reduce((acc, e) => {
+    const a = analizarEstado(e.campos.estado);
+    if (a.incidencia) acc.incidencias++;
+    else if (a.paso === 3) acc.entregados++;
+    if (a.incidencia || a.paso !== 3) acc.activos++;
+    return acc;
+  }, {activos: 0, entregados: 0, incidencias: 0});
 
   return (
     <Fragment>
@@ -950,6 +1205,15 @@ function Panel({datos, onRecargar, onSalir, recargando}){
           <div className="marca-app">
             <img src="icono.svg" alt="" />
             <h1>ShipmentMonitor</h1>
+          </div>
+          <div className="tira">
+            <span className="dato-tira"><b>{resumen.activos}</b> activos</span>
+            <span className="sep">·</span>
+            <span className="dato-tira" style={{color: resumen.incidencias ? 'var(--error)' : undefined}}>
+              <b>{resumen.incidencias}</b> incid.
+            </span>
+            <span className="sep">·</span>
+            <span className="dato-tira"><b>{resumen.entregados}</b> entregados</span>
           </div>
           <div className="crece" />
           <div className="acciones">
@@ -967,34 +1231,52 @@ function Panel({datos, onRecargar, onSalir, recargando}){
       <main className="contenido">
         {meta.error && <div className="aviso mal">⚠ La última comprobación falló: {meta.error}</div>}
 
-        <AvisosPush repo={meta.repo} />
-
-        <Metricas meta={meta} envios={envios} />
+        {/* La tarjeta de avisos solo aparece cuando hay algo que hacer con ella */}
+        <AvisosPush repo={meta.repo} meta={meta} />
 
         <div className="filtros">
-          {[['todos','Todos'],['curso','En curso'],['entregados','Entregados'],['incidencias','Incidencias']].map(([k,l]) => (
-            <button key={k} className={'filtro-btn' + (filtro === k ? ' activo' : '')} onClick={()=>setFiltro(k)}>{l}</button>
-          ))}
+          <div className="chips-filtro">
+            {[['todos','Todos'],['curso','En curso'],['entregados','Entregados'],['incidencias','Incidencias']].map(([k,l]) => (
+              <button key={k} className={'filtro-btn' + (filtro === k ? ' activo' : '')} onClick={()=>setFiltro(k)}>{l}</button>
+            ))}
+          </div>
           <div className="buscador">
             <input type="search" value={busqueda} onChange={e=>setBusqueda(e.target.value)}
                    placeholder="Buscar referencia, destinatario, localidad…" aria-label="Buscar" />
           </div>
         </div>
 
-        <div className="columnas">
-          <div>
-            {visibles.length === 0
-              ? <div className="tarjeta pad vacio">No hay envíos que coincidan.</div>
-              : <div className="rejilla">
-                  {visibles.map(e => <TarjetaEnvio key={e.id} envio={e} historial={historialDe(e.id)} />)}
-                </div>}
+        {/* 1º — los que siguen en movimiento: siempre abiertos y los primeros */}
+        <Seccion titulo="Envíos activos" cuenta={activos.length} primaria plegable={false}>
+          {activos.length === 0
+            ? <div className="tarjeta pad vacio">
+                {visibles.length ? 'Ninguno en movimiento ahora mismo.' : 'No hay envíos que coincidan.'}
+              </div>
+            : rejilla(activos)}
+        </Seccion>
+
+        {/* 2º — los ya cerrados: presentes, pero sin robar sitio */}
+        {cerrados.length > 0 && (
+          <Seccion titulo="Entregados" cuenta={cerrados.length} abiertaPorDefecto={activos.length === 0}>
+            {rejilla(cerrados)}
+          </Seccion>
+        )}
+
+        {/* 3º — el resto, plegado */}
+        <Seccion titulo="Novedades" cuenta={eventos.length} abiertaPorDefecto={false}>
+          <Novedades eventos={eventos} />
+        </Seccion>
+
+        <Seccion titulo="Avisos y estado" abiertaPorDefecto={false}>
+          <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-4)'}}>
+            <Metricas meta={meta} envios={envios} />
+            <PruebaAvisos meta={meta} />
           </div>
-          <aside className="lateral"><Novedades eventos={eventos} /></aside>
-        </div>
+        </Seccion>
       </main>
 
       <footer className="pie-app">
-        <span>Comprueba el portal cada hora, de 8:00 a 18:00</span>
+        <span>Lunes a viernes · cada 15 min de 8:30 a 10:30, y cada hora hasta las 17:30</span>
         {meta.repo && <a className="enlace" href={`https://github.com/${meta.repo}/actions`} target="_blank" rel="noopener">Ver ejecuciones</a>}
         <span>Avisos: {Object.entries(meta.canales || {}).filter(([,v])=>v)
           .map(([k]) => ({push:'push al dispositivo', telegram:'Telegram', email:'email'}[k] || k))
@@ -1028,7 +1310,7 @@ function App(){
   useEffect(() => {
     if (!clave) return;
     recargar(clave);
-    const t = setInterval(() => recargar(clave), 5 * 60 * 1000);   // el workflow va cada hora en horario laboral
+    const t = setInterval(() => recargar(clave), 5 * 60 * 1000);   // el workflow va cada 15 min / cada hora en horario laboral
     return () => clearInterval(t);
   }, [clave, recargar]);
 

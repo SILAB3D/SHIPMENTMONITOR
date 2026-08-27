@@ -1,6 +1,7 @@
 """Configuración: todo llega por variables de entorno (los Secrets del repositorio)."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -171,6 +172,23 @@ def suscripciones() -> list[dict]:
 
 def push_ok() -> bool:
     return bool(VAPID_PRIVADA and suscripciones())
+
+
+def huellas_suscripciones() -> list[str]:
+    """Huella corta de cada dispositivo suscrito a los avisos.
+
+    Va en los datos que publica el panel para que este pueda contestar a «¿este
+    móvil recibirá los avisos?» sin necesidad de ningún servidor: el navegador
+    calcula la huella de SU suscripción y mira si está en la lista.
+
+    Se publica la huella y no el endpoint porque el endpoint es la dirección a
+    la que se empujan los avisos y el repositorio es público. SHA-256 es de una
+    sola dirección: de la huella no se vuelve al endpoint.
+    """
+    return [
+        hashlib.sha256(s["endpoint"].encode("utf-8")).hexdigest()[:16]
+        for s in suscripciones()
+    ]
 
 
 def canales() -> dict[str, bool]:

@@ -224,7 +224,8 @@ correo) y en el log dice, canal por canal, cuál ha llegado y cuál no.
 No consulta el portal: manda una notificación y punto. En unos segundos tu móvil
 debería enseñar **«✅ Los avisos funcionan»**.
 
-Si llega: ya está todo. El cron corre solo cada hora, de 8:00 a 18:00, con tu ordenador
+Si llega: ya está todo. El cron corre solo de lunes a viernes —cada cuarto de hora de
+8:30 a 10:30 y cada hora hasta las 17:30—, con tu ordenador
 apagado, y solo te escribirá cuando haya algo nuevo de verdad.
 
 Si no llega, mira el log de esa ejecución: el paso «Enviar un aviso de prueba por cada canal»
