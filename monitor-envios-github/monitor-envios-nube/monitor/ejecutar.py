@@ -53,7 +53,27 @@ def probar_avisos() -> int:
 
     for canal, como in resultado.items():
         (log.info if como == "ok" else log.error)("  %s → %s", canal, como)
+
+    if resultado.get("telegram", "").startswith("error"):
+        _pistas_telegram()
+
     return 0 if all(v == "ok" for v in resultado.values()) else 1
+
+
+def _pistas_telegram() -> None:
+    """Cuando Telegram falla, decir cuál es el TELEGRAM_CHAT_ID que sí vale."""
+    chats = notificar.chats_de_telegram()
+    if not chats:
+        log.error(
+            "Telegram no tiene ninguna conversación registrada con este bot. Abre Telegram, "
+            "busca tu bot, pulsa «Iniciar» (/start), escríbele cualquier cosa y vuelve a lanzar "
+            "esta prueba: entonces podré decirte el TELEGRAM_CHAT_ID correcto."
+        )
+        return
+    log.error("Estos son los chats que han hablado con el bot; el TELEGRAM_CHAT_ID es uno de ellos:")
+    for chat in chats:
+        log.error("  · %s  (%s%s)", chat["id"], chat["tipo"], f", {chat['nombre']}" if chat["nombre"] else "")
+    log.error("Cópialo en el Secret TELEGRAM_CHAT_ID del repositorio y repite la prueba.")
 
 
 def main() -> int:

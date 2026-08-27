@@ -120,6 +120,42 @@ def _telegram(mensaje: str) -> None:
         ) from e
 
 
+def chats_de_telegram() -> list[dict]:
+    """Chats que le han escrito al bot, para dar con el TELEGRAM_CHAT_ID bueno.
+
+    El error más habitual es poner en el Secret el número que va delante de los
+    dos puntos del token: ese es el id del PROPIO bot, y Telegram contesta
+    «the bot can't send messages to the bot». El id que hace falta es el del
+    chat contigo, y la única forma de averiguarlo desde aquí es preguntarle a
+    Telegram quién ha hablado con el bot.
+
+    Devuelve una lista de {"id", "tipo", "nombre"}, sin repetir. El token nunca
+    sale de aquí.
+    """
+    if not config.TELEGRAM_TOKEN:
+        return []
+    url = f"https://api.telegram.org/bot{config.TELEGRAM_TOKEN}/getUpdates"
+    try:
+        with urllib.request.urlopen(url, timeout=25) as r:
+            respuesta = json.loads(r.read().decode("utf-8", "replace"))
+    except Exception:  # noqa: BLE001
+        return []
+
+    vistos: dict[str, dict] = {}
+    for actualizacion in respuesta.get("result") or []:
+        for clave in ("message", "edited_message", "channel_post", "my_chat_member"):
+            chat = (actualizacion.get(clave) or {}).get("chat")
+            if not isinstance(chat, dict) or "id" not in chat:
+                continue
+            nombre = chat.get("title") or chat.get("username") or chat.get("first_name") or ""
+            vistos[str(chat["id"])] = {
+                "id": str(chat["id"]),
+                "tipo": chat.get("type", ""),
+                "nombre": nombre,
+            }
+    return list(vistos.values())
+
+
 def _email(asunto: str, mensaje: str) -> None:
     if not (config.SMTP_HOST and config.EMAIL_DESTINO):
         return
