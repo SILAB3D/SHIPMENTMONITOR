@@ -17,30 +17,43 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 log = logging.getLogger("monitor")
 
 
-def probar_push() -> int:
-    """Comprueba de punta a punta que los avisos llegan al móvil."""
-    subs = config.suscripciones()
-    if not config.VAPID_PRIVADA:
-        log.error("falta el Secret VAPID_PRIVADA (genera el par con «python -m monitor.webpush --generar-claves»)")
-        return 2
-    if not subs:
-        log.error("el Secret PUSH_SUSCRIPCIONES está vacío o no tiene ninguna suscripción válida; "
-                  "actívalos en el panel y pega el texto que te da")
+def probar_avisos() -> int:
+    """Manda un aviso de prueba por CADA canal configurado y dice cómo ha ido.
+
+    Es la única forma de saber que Telegram o el correo siguen funcionando sin
+    esperar a que cambie un envío de verdad. Sale 0 solo si todos los canales
+    configurados han entregado; si no hay ninguno, sale 2, porque un monitor sin
+    avisos no sirve de nada.
+    """
+    canales = config.canales()
+    activos = [c for c, ok in canales.items() if ok]
+    log.info("canales configurados: %s", ", ".join(activos) or "ninguno")
+
+    if not activos:
+        log.error(
+            "no hay ningún canal de avisos configurado. Para el push: activa los avisos en el "
+            "panel y pega el texto en el Secret PUSH_SUSCRIPCIONES (hace falta también "
+            "VAPID_PRIVADA). Para Telegram: TELEGRAM_TOKEN y TELEGRAM_CHAT_ID. Para el correo: "
+            "SMTP_HOST y EMAIL_DESTINO."
+        )
         return 2
 
-    log.info("enviando aviso de prueba a %d dispositivo(s)…", len(subs))
-    resultado = {}
-    notificar._intentar(
-        "push",
-        lambda: notificar._push({
-            "titulo": "✅ Los avisos funcionan",
-            "cuerpo": "Este es un aviso de prueba del monitor de envíos.",
-            "etiqueta": "prueba",
-        }),
-        resultado,
-    )
-    log.info("resultado: %s", resultado)
-    return 0 if resultado.get("push") == "ok" else 1
+    titulo = "✅ Los avisos funcionan"
+    cuerpo = "Este es un aviso de prueba del monitor de envíos. Si lo estás leyendo, este canal está bien."
+    resultado: dict[str, str] = {}
+
+    if canales["push"]:
+        log.info("enviando push de prueba a %d dispositivo(s)…", len(config.suscripciones()))
+        notificar._intentar("push", lambda: notificar._push(
+            {"titulo": titulo, "cuerpo": cuerpo, "etiqueta": "prueba"}), resultado)
+    if canales["telegram"]:
+        notificar._intentar("telegram", lambda: notificar._telegram(f"{titulo}\n{cuerpo}"), resultado)
+    if canales["email"]:
+        notificar._intentar("email", lambda: notificar._email(titulo, cuerpo), resultado)
+
+    for canal, como in resultado.items():
+        (log.info if como == "ok" else log.error)("  %s → %s", canal, como)
+    return 0 if all(v == "ok" for v in resultado.values()) else 1
 
 
 def main() -> int:
@@ -48,12 +61,12 @@ def main() -> int:
     ap.add_argument("--demo", action="store_true", help="usa datos ficticios en lugar del portal")
     ap.add_argument("--semilla", type=int, default=0, help="variante de los datos de demostración")
     ap.add_argument("--sin-avisos", action="store_true", help="no envía ningún aviso")
-    ap.add_argument("--probar-push", action="store_true",
-                    help="manda un aviso de prueba a los dispositivos suscritos y termina")
+    ap.add_argument("--probar-avisos", "--probar-push", dest="probar_avisos", action="store_true",
+                    help="manda un aviso de prueba por cada canal configurado y termina")
     args = ap.parse_args()
 
-    if args.probar_push:
-        return probar_push()
+    if args.probar_avisos:
+        return probar_avisos()
 
     if not config.CLAVE_PANEL and not args.demo:
         log.error("Falta el Secret CLAVE_PANEL: sin él no se pueden cifrar los datos publicados")

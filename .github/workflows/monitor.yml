@@ -24,8 +24,8 @@ on:
     - cron: '0 6-17 * * *'
   workflow_dispatch:        # botón "Run workflow" para forzar una comprobación
     inputs:
-      probar_push:
-        description: 'Enviar solo un aviso de prueba al móvil (no consulta el portal)'
+      probar_avisos:
+        description: 'Enviar solo un aviso de prueba por cada canal configurado (no consulta el portal)'
         type: boolean
         default: false
 
@@ -99,18 +99,25 @@ jobs:
         run: pip install -r requirements.txt
 
       # ── Modo prueba: solo comprueba que el aviso llega al móvil ──
-      - name: Enviar un aviso de prueba
-        if: steps.horario.outputs.toca == 'si' && inputs.probar_push
+      - name: Enviar un aviso de prueba por cada canal
+        if: steps.horario.outputs.toca == 'si' && inputs.probar_avisos
         env:
           VAPID_PRIVADA:      ${{ secrets.VAPID_PRIVADA }}
           VAPID_CONTACTO:     ${{ secrets.VAPID_CONTACTO }}
           PUSH_SUSCRIPCIONES: ${{ secrets.PUSH_SUSCRIPCIONES }}
-        run: python -m monitor.ejecutar --probar-push
+          TELEGRAM_TOKEN:     ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          SMTP_HOST:          ${{ secrets.SMTP_HOST }}
+          SMTP_PUERTO:        ${{ secrets.SMTP_PUERTO }}
+          SMTP_USUARIO:       ${{ secrets.SMTP_USUARIO }}
+          SMTP_PASSWORD:      ${{ secrets.SMTP_PASSWORD }}
+          EMAIL_DESTINO:      ${{ secrets.EMAIL_DESTINO }}
+        run: python -m monitor.ejecutar --probar-avisos
 
       # ── Modo normal ──
       - name: Consultar el portal
         id: consulta
-        if: steps.horario.outputs.toca == 'si' && !inputs.probar_push
+        if: steps.horario.outputs.toca == 'si' && !inputs.probar_avisos
         continue-on-error: true      # aunque falle, queremos guardar el estado y los avisos
         env:
           DINAPAQ_USUARIO:       ${{ secrets.DINAPAQ_USUARIO }}
@@ -139,7 +146,7 @@ jobs:
         run: python -m monitor.ejecutar
 
       - name: Guardar los datos en el repositorio
-        if: steps.horario.outputs.toca == 'si' && !inputs.probar_push
+        if: steps.horario.outputs.toca == 'si' && !inputs.probar_avisos
         run: |
           git config user.name  "monitor-envios"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -187,20 +194,20 @@ jobs:
       # Requiere Settings → Pages → Source = "GitHub Actions". Si no lo has
       # puesto todavía, estos pasos avisan pero no tumban la comprobación.
       - name: Preparar Pages
-        if: steps.horario.outputs.toca == 'si' && !inputs.probar_push
+        if: steps.horario.outputs.toca == 'si' && !inputs.probar_avisos
         id: configurar-pages
         continue-on-error: true
         uses: actions/configure-pages@v5
 
       - name: Empaquetar el panel
-        if: "steps.horario.outputs.toca == 'si' && !inputs.probar_push && steps.configurar-pages.outcome == 'success'"
+        if: "steps.horario.outputs.toca == 'si' && !inputs.probar_avisos && steps.configurar-pages.outcome == 'success'"
         continue-on-error: true
         uses: actions/upload-pages-artifact@v3
         with:
           path: monitor-envios-github/monitor-envios-nube/docs
 
       - name: Publicar el panel
-        if: "steps.horario.outputs.toca == 'si' && !inputs.probar_push && steps.configurar-pages.outcome == 'success'"
+        if: "steps.horario.outputs.toca == 'si' && !inputs.probar_avisos && steps.configurar-pages.outcome == 'success'"
         id: pages
         continue-on-error: true
         uses: actions/deploy-pages@v4
