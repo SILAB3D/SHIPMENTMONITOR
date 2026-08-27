@@ -142,9 +142,9 @@ https://silab3d.github.io/SHIPMENTMONITOR/
 
 **Actions → Monitor de envíos → Run workflow → Run workflow.**
 
-Deja la casilla «Enviar solo un aviso de prueba» **sin marcar**.
+Deja la casilla «Enviar solo un aviso de prueba por cada canal configurado» **sin marcar**.
 
-Tarda un par de minutos porque instala Chromium. Cuando termine en verde:
+Tarda menos de un minuto. Cuando termine en verde:
 
 - se habrá creado `docs/datos.json` en el repositorio;
 - el panel estará publicado en la dirección de arriba;
@@ -216,7 +216,10 @@ JSON entre corchetes. Lo que no entienda, lo ignora sin protestar.
 ## PASO 6 — Comprobar que el aviso llega
 
 **Actions → Monitor de envíos → Run workflow**, ahora **sí** marcando
-**«Enviar solo un aviso de prueba al móvil»** → **Run workflow**.
+**«Enviar solo un aviso de prueba por cada canal configurado»** → **Run workflow**.
+
+Esa prueba manda un aviso por cada canal que tengas puesto (push, Telegram y
+correo) y en el log dice, canal por canal, cuál ha llegado y cuál no.
 
 No consulta el portal: manda una notificación y punto. En unos segundos tu móvil
 debería enseñar **«✅ Los avisos funcionan»**.
@@ -224,7 +227,7 @@ debería enseñar **«✅ Los avisos funcionan»**.
 Si llega: ya está todo. El cron corre solo cada hora, de 8:00 a 18:00, con tu ordenador
 apagado, y solo te escribirá cuando haya algo nuevo de verdad.
 
-Si no llega, mira el log de esa ejecución: el paso «Enviar un aviso de prueba»
+Si no llega, mira el log de esa ejecución: el paso «Enviar un aviso de prueba por cada canal»
 dice exactamente qué ha pasado.
 
 ---
@@ -285,6 +288,20 @@ novedades, nada más).
 | El log dice «suscripción caducada» | El navegador rotó la suscripción. Abre la app, la tarjeta de avisos te pedirá pegar la nueva. Es normal que pase de tanto en tanto. |
 | En el iPhone no aparece el botón «Activar avisos» | No has abierto la app **desde su icono**, o no llegaste a instalarla. Safari no da push desde una pestaña. |
 | El log dice «ok» pero no ves nada | Mira el ahorro de batería y el «No molestar» del teléfono. En Android, ajustes de la app instalada → Notificaciones. |
+| El navegador dice «Registration failed - push service error» al pulsar «Activar avisos» | Estás en **Brave**, que trae desactivado el servicio de push de Google. Ve a `brave://settings/privacy`, activa **«Usar los servicios de Google para la mensajería push»** y reinicia el navegador. En Chrome o Edge funciona sin tocar nada. |
+
+### El aviso de Telegram no llega
+
+Lanza **Run workflow** con la casilla de prueba marcada y mira el log del paso
+«Enviar un aviso de prueba por cada canal»: el monitor traduce lo que conteste
+Telegram y, si hace falta, te dice cuál es el `TELEGRAM_CHAT_ID` bueno.
+
+| Lo que dice el log | Qué pasa |
+|---|---|
+| «the bot can't send messages to the bot» | En `TELEGRAM_CHAT_ID` está el id del **propio bot** (el número que va delante de los dos puntos del token), no el de tu chat. El log te lista los chats buenos justo debajo. |
+| «bot can't initiate conversation with a user» o «chat not found» | Nunca le has escrito al bot. Ábrelo en Telegram, pulsa **Iniciar** (`/start`), mándale cualquier cosa y repite la prueba. |
+| «Telegram no tiene ninguna conversación registrada con este bot» | Lo mismo: escríbele una vez al bot y vuelve a lanzar la prueba, y entonces sí podrá decirte el id. |
+| Un 401 o un 404 | El `TELEGRAM_TOKEN` no vale. Pídeselo otra vez a **@BotFather**. |
 
 ### Falla un paso que ya habías arreglado
 
