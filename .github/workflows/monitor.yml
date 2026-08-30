@@ -12,28 +12,21 @@ name: Monitor de envíos
 
 on:
   schedule:
-    # Horario de vigilancia (hora de España, de lunes a viernes):
+    # UNA sola línea de cron, a propósito. Aquí hubo cuatro, una por franja y
+    # con listas de minutos, y GitHub las despachó UNA VEZ AL DÍA CADA UNA, a
+    # horas cualesquiera de la tarde: de las 16 comprobaciones previstas para el
+    # viernes 28 no se hizo ninguna, y el fallo fue mudo porque el filtro
+    # horario las descartaba con toda la razón. Con una sola expresión sencilla
+    # —la forma que llevaba semanas funcionando— el planificador se porta.
     #
-    #   · de 8:30 a 10:30 → cada cuarto de hora  (es cuando se mueve el reparto)
-    #   · de 10:30 a 17:30 → una vez por hora, a y media
-    #
-    # Los cron de GitHub van en UTC y no entienden de husos ni de cambios de
-    # hora, así que aquí se cubre de más y el primer paso del job descarta lo
-    # que sobre mirando ya el reloj de Madrid. Con eso el horario sale igual de
-    # exacto en verano (UTC+2) que en invierno (UTC+1), sin tocar nada en marzo
-    # ni en octubre.
-    #
-    # El reparto de horas UTC cubre la franja de los cuartos en las dos
-    # estaciones (Madrid 8:30–10:30 son 6:30–8:30 UTC en verano y 7:30–9:30 en
-    # invierno). El minuto :30 de las 9 UTC se deja fuera aquí a propósito: ya
-    # lo pone la línea de la franja horaria, y dos cron a la misma hora
-    # dispararían dos ejecuciones.
-    - cron: '30,45 6     * * 1-5'
-    - cron: '0,15,30,45 7-8 * * 1-5'
-    - cron: '0,15 9      * * 1-5'
-    # Franja horaria: Madrid 10:30–17:30 son 9:30–15:30 UTC en verano y
-    # 10:30–16:30 en invierno.
-    - cron: '30 9-16     * * 1-5'
+    # Dispara cada cuarto de hora entre las 6:00 y las 16:59 UTC, que cubre de
+    # sobra la jornada española en verano y en invierno. Cuáles de esos disparos
+    # se convierten en comprobación lo decide el paso «¿Toca comprobar ahora?»,
+    # mirando el reloj de Madrid y cuánto hace de la última. GitHub retrasa y se
+    # salta ejecuciones cuando va cargado, así que el horario no puede depender
+    # de que un disparo concreto llegue puntual: depende del hueco desde la
+    # anterior, y un disparo perdido se arregla solo en el siguiente.
+    - cron: '*/15 6-16 * * 1-5'
   workflow_dispatch:        # botón "Run workflow" para forzar una comprobación
     inputs:
       probar_avisos:
@@ -64,50 +57,10 @@ jobs:
       url: ${{ steps.pages.outputs.page_url }}
 
     steps:
-      # Los cron de GitHub son UTC y cubren un rango de más. Aquí decidimos con
-      # la hora real de Madrid, para que el horario sea el mismo en verano y en
-      # invierno. Lanzarlo a mano funciona siempre, sea la hora que sea.
-      - name: ¿Toca comprobar a esta hora?
-        id: horario
-        # Este paso corre ANTES del checkout, así que la carpeta del proyecto
-        # todavía no existe: hay que anular el working-directory por defecto.
-        working-directory: .
-        run: |
-          dia=$(TZ=Europe/Madrid date +%u)          # 1 lunes … 7 domingo
-          hora=$(TZ=Europe/Madrid date +%-H)
-          minuto=$(TZ=Europe/Madrid date +%-M)
-          reloj=$(( hora * 60 + minuto ))           # minutos desde medianoche
-          echo "En España es $(TZ=Europe/Madrid date '+%A %d/%m a las %H:%M')."
-
-          # 510 = 8:30 · 630 = 10:30 · 1080 = 18:00 (media hora de margen sobre
-          # la última comprobación, la de las 17:30, porque GitHub retrasa los
-          # cron cuando va cargado y no queremos perderla por llegar tarde).
-          toca=si
-          motivo="Dentro del horario de vigilancia."
-          if [ "${{ github.event_name }}" != "schedule" ]; then
-            motivo="Lanzada a mano: se comprueba sea la hora que sea."
-          elif [ "$dia" -gt 5 ]; then
-            toca=no; motivo="Fin de semana: no se vigila."
-          elif [ "$reloj" -lt 510 ]; then
-            toca=no; motivo="Antes de las 8:30: todavía no toca."
-          elif [ "$reloj" -gt 1080 ]; then
-            toca=no; motivo="Pasadas las 18:00: por hoy hemos terminado."
-          elif [ "$reloj" -le 630 ]; then
-            motivo="Franja de 8:30 a 10:30: se comprueba cada cuarto de hora."
-          elif [ "$minuto" -lt 20 ]; then
-            # A partir de las 10:30 solo interesa la comprobación de «y media».
-            # El cambio de hora hace que alguna de las de los cuartos caiga aquí
-            # en verano; estas son las que se descartan.
-            toca=no; motivo="A partir de las 10:30 solo se comprueba a y media."
-          else
-            motivo="Franja de 10:30 a 17:30: comprobación de la hora."
-          fi
-
-          echo "$motivo"
-          echo "toca=$toca" >> "$GITHUB_OUTPUT"
-
+      # El checkout va lo primero porque para decidir si toca comprobar hay que
+      # saber cuánto hace de la última, y eso lo dice el fichero de datos. Son
+      # dos segundos; el resto del job sigue sin correr si no tocaba.
       - uses: actions/checkout@v4
-        if: steps.horario.outputs.toca == 'si'
         with:
           # Por defecto, checkout se queda en el commit que disparó la ejecución.
           # Aquí eso no vale: si dos comprobaciones se disparan seguidas, la
@@ -115,6 +68,15 @@ jobs:
           # primera, volvería a dar por nuevos envíos ya avisados y chocaría al
           # subir. Queremos siempre la punta de la rama.
           ref: ${{ github.ref_name }}
+
+      # La regla del horario vive en herramientas/toca_comprobar.sh, no aquí:
+      # metida en el workflow no había forma de probarla, y ya falló una vez en
+      # silencio. Ahora tiene sus propias pruebas en tests/test_horario.py.
+      - name: ¿Toca comprobar ahora?
+        id: horario
+        run: bash herramientas/toca_comprobar.sh
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
 
       - uses: actions/setup-python@v5
         if: steps.horario.outputs.toca == 'si'

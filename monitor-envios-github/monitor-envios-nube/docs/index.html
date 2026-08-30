@@ -1185,8 +1185,23 @@ function Panel({datos, onRecargar, onSalir, recargando}){
       {lista.map(e => <TarjetaEnvio key={e.id} envio={e} historial={historialDe(e.id)} />)}
     </div>
   );
-  const frescura = meta.ultima_comprobacion &&
-    (Date.now() - new Date(meta.ultima_comprobacion)) < 3 * 3600 * 1000;
+  /* ¿Están los datos al día? La respuesta depende de la hora: a las once de la
+     noche es normal que la última comprobación sea de las 17:30, pero a media
+     mañana eso significa que algo se ha roto. El monitor estuvo un viernes
+     entero sin comprobar nada —GitHub dejó de disparar el cron— y no se notó
+     hasta días después, así que ahora el panel lo canta. */
+  const desfase = meta.ultima_comprobacion
+    ? Math.round((Date.now() - new Date(meta.ultima_comprobacion)) / 60000) : null;
+  const enHorario = (() => {
+    const ahora = new Date(new Date().toLocaleString('en-US', {timeZone: 'Europe/Madrid'}));
+    const dia = ahora.getDay(), reloj = ahora.getHours() * 60 + ahora.getMinutes();
+    return dia >= 1 && dia <= 5 && reloj >= 510 && reloj <= 1080;
+  })();
+  // En horario laboral se comprueba como mucho cada hora: pasada hora y media
+  // sin noticias, algo va mal. Fuera de horario, basta con que sea de hoy.
+  const margen = enHorario ? 90 : 20 * 60;
+  const frescura = desfase !== null && desfase <= margen;
+  const paradoEnHorario = enHorario && desfase !== null && desfase > margen;
 
   // Las cifras de la barra van sobre TODOS los envíos, no sobre los filtrados:
   // son la foto general, y cambiarlas al buscar despistaba.
@@ -1230,6 +1245,20 @@ function Panel({datos, onRecargar, onSalir, recargando}){
 
       <main className="contenido">
         {meta.error && <div className="aviso mal">⚠ La última comprobación falló: {meta.error}</div>}
+
+        {paradoEnHorario && (
+          <div className="aviso mal">
+            ⚠ <b>El monitor lleva {haceCuanto(meta.ultima_comprobacion).replace('hace ', '')} sin comprobar el portal</b>,
+            y a esta hora debería hacerlo cada hora como mucho. Puede que GitHub haya dejado de
+            lanzar las comprobaciones programadas.{' '}
+            {meta.repo && (
+              <a className="enlace" target="_blank" rel="noopener"
+                 href={`https://github.com/${meta.repo}/actions/workflows/monitor.yml`}>
+                Míralo en Actions y lánzala a mano
+              </a>
+            )}
+          </div>
+        )}
 
         {/* La tarjeta de avisos solo aparece cuando hay algo que hacer con ella */}
         <AvisosPush repo={meta.repo} meta={meta} />
