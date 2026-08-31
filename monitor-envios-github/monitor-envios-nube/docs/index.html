@@ -515,10 +515,32 @@ async function descifrarTolerante(sobre, password){
   throw e;
 }
 
+/* De dónde se bajan los datos.
+ *
+ * Del repositorio, no de la copia que sirve GitHub Pages. Antes valía la copia
+ * de Pages porque el workflow desplegaba en cada comprobación; ahora una sola
+ * ejecución cubre horas —comprueba, guarda y se vuelve a dormir— y Pages solo
+ * se despliega al cerrar la jornada. Leyendo del repositorio, el panel ve cada
+ * comprobación en cuanto se guarda.
+ *
+ * Si el repositorio no contesta (sin conexión, o alguien que abre el panel de
+ * otra copia), se cae con elegancia a la copia local de siempre.
+ */
+const REPO_DATOS = 'https://raw.githubusercontent.com/SILAB3D/SHIPMENTMONITOR/main/'
+                 + 'monitor-envios-github/monitor-envios-nube/docs/datos.json';
+
+async function bajarSobre(){
+  for (const url of [REPO_DATOS, 'datos.json']) {
+    try {
+      const r = await fetch(url + '?t=' + Date.now(), {cache: 'no-store'});
+      if (r.ok) return await r.json();
+    } catch (_) { /* probamos el siguiente */ }
+  }
+  throw new Error('no se pudieron descargar los datos (¿ha corrido ya el workflow?)');
+}
+
 async function cargarDatos(password){
-  const r = await fetch('datos.json?t=' + Date.now(), {cache:'no-store'});
-  if (!r.ok) throw new Error('todavía no hay datos publicados (¿ha corrido ya el workflow?)');
-  const sobre = await r.json();
+  const sobre = await bajarSobre();
   if (!sobre.datos) return sobre;                 // fichero en claro (modo demo)
   return descifrarTolerante(sobre, password);
 }
