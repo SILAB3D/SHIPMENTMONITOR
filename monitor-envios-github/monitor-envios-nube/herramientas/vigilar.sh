@@ -111,22 +111,44 @@ comprobar() {
 arranque=$(date +%s)
 fallos=0
 comprobaciones=0
+evento=${GITHUB_EVENT_NAME:-manual}
+
+cerrar() {
+  echo "Jornada cerrada: ${comprobaciones} comprobación(es), ${fallos} fallo(s) seguidos al final."
+  { echo "comprobaciones=${comprobaciones}"; echo "fallos=${fallos}"; } >> "${GITHUB_OUTPUT:-/dev/stdout}"
+  exit 0
+}
 
 read -r accion resto <<< "$(que_hacer "$(dia_ahora)" "$(reloj_ahora)")"
-case "$accion" in
-  salir)
-    echo "$resto"
-    { echo "comprobaciones=0"; echo "fallos=0"; } >> "${GITHUB_OUTPUT:-/dev/stdout}"
-    exit 0 ;;
-  esperar)
-    echo "Aún no son las 8:30; esperando ${resto} min para empezar la jornada."
-    sleep $(( resto * 60 )) ;;
-esac
+
+# Lanzada a mano se comprueba SIEMPRE, sea la hora que sea: si alguien pulsa el
+# botón es porque quiere mirar el portal ahora, no dentro de doce horas. Si
+# además cae en jornada, se queda vigilando el resto del día.
+if [ "$evento" != "schedule" ]; then
+  echo "Lanzada a mano: se comprueba ahora mismo."
+  comprobar
+  comprobaciones=1
+  if [ "$accion" != "vigilar" ]; then echo "$resto No hay jornada que vigilar."; cerrar; fi
+else
+  case "$accion" in
+    salir)   echo "$resto"; cerrar ;;
+    esperar) echo "Aún no son las 8:30; esperando ${resto} min para empezar la jornada."
+             sleep $(( resto * 60 )) ;;
+  esac
+fi
 
 echo "Vigilancia en marcha. Hoy: cada 15 min hasta las 10:30 y cada hora hasta las 17:30."
+
+# Una comprobación por vuelta, y a dormir hasta la siguiente. Si la ejecución
+# venía lanzada a mano ya se comprobó antes de entrar aquí, así que esa primera
+# vuelta se salta la comprobación y va directa a esperar.
+saltar=$comprobaciones
 while true; do
-  comprobar
-  comprobaciones=$(( comprobaciones + 1 ))
+  if [ "$saltar" -eq 0 ]; then
+    comprobar
+    comprobaciones=$(( comprobaciones + 1 ))
+  fi
+  saltar=0
 
   ahora=$(reloj_ahora)
   if [ "$ahora" -ge "$FIN" ]; then
@@ -145,5 +167,4 @@ while true; do
   sleep "$espera"
 done
 
-echo "Jornada cerrada: ${comprobaciones} comprobación(es), ${fallos} fallo(s) seguidos al final."
-{ echo "comprobaciones=${comprobaciones}"; echo "fallos=${fallos}"; } >> "${GITHUB_OUTPUT:-/dev/stdout}"
+cerrar

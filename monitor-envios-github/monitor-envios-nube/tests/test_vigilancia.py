@@ -111,3 +111,72 @@ def test_el_dia_entero_cabe_en_las_comprobaciones_previstas():
     assert momentos[:9] == [H(8, 30) + 15 * i for i in range(9)]
     # el resto, de hora en hora
     assert momentos[9:] == [H(11, 30) + 60 * i for i in range(7)]
+
+
+# ─────────────────── la jornada de punta a punta ───────────────────
+# Se ejecuta el guion de verdad, con un portal y un git de mentira y el reloj
+# corriendo a toda velocidad, para ver que el bucle hace lo que dice.
+
+GUION_COMPLETO = GUION.read_text(encoding="utf-8")
+
+
+def _correr(tmp_path, *, evento, hora, minutos_max=320, pasos_esperados=None):
+    """Ejecuta vigilar.sh con `sleep`, `python` y `git` sustituidos por títeres."""
+    falso = tmp_path / "bin"; falso.mkdir()
+    registro = tmp_path / "registro.txt"
+    # sleep no duerme: adelanta el reloj falso, que vive en un fichero
+    (falso / "sleep").write_text(
+        "#!/bin/bash\n"
+        f'echo "dormir $1" >> {registro}\n'
+        f'echo $(( $(cat {tmp_path}/reloj) + ($1 / 60) )) > {tmp_path}/reloj\n', encoding="utf-8")
+    (falso / "python").write_text(f'#!/bin/bash\necho "comprobado" >> {registro}\nexit 0\n', encoding="utf-8")
+    (falso / "git").write_text("#!/bin/bash\nexit 0\n", encoding="utf-8")
+    for f in falso.iterdir():
+        f.chmod(0o755)
+    (tmp_path / "reloj").write_text(str(hora), encoding="utf-8")
+    (tmp_path / "docs").mkdir(exist_ok=True)
+    (tmp_path / "docs" / "datos.json").write_text("{}", encoding="utf-8")
+
+    # el guion pregunta la hora con reloj_ahora(); se la damos del fichero
+    guion = GUION_COMPLETO.replace(
+        "reloj_ahora() { echo $(( $(TZ=Europe/Madrid date +%-H) * 60 + $(TZ=Europe/Madrid date +%-M) )); }",
+        f'reloj_ahora() {{ cat {tmp_path}/reloj; }}').replace(
+        "dia_ahora()   { TZ=Europe/Madrid date +%u; }", "dia_ahora()   { echo 1; }")
+    (tmp_path / "vigilar.sh").write_text(guion, encoding="utf-8")
+
+    r = subprocess.run(["bash", str(tmp_path / "vigilar.sh")], capture_output=True, text=True,
+                       cwd=str(tmp_path),
+                       env={"PATH": f"{falso}:/usr/bin:/bin", "GITHUB_EVENT_NAME": evento,
+                            "GITHUB_REF_NAME": "main", "VIGILAR_MAX_MINUTOS": str(minutos_max)})
+    hechas = registro.read_text(encoding="utf-8").count("comprobado") if registro.exists() else 0
+    return hechas, r.stdout
+
+
+def test_una_jornada_completa_hace_las_16_comprobaciones(tmp_path):
+    """Arrancando a las 8:30 y sin tope, el día entero sale de una sola ejecución."""
+    hechas, salida = _correr(tmp_path, evento="schedule", hora=H(8, 30), minutos_max=100000)
+    assert hechas == 16, salida[-600:]
+    assert "jornada terminada" in salida
+
+
+def test_el_tope_de_horas_corta_y_deja_el_relevo(tmp_path):
+    hechas, salida = _correr(tmp_path, evento="schedule", hora=H(8, 30), minutos_max=60)
+    assert 1 <= hechas < 16
+    assert "lo retoma la siguiente" in salida
+
+
+def test_a_mano_de_madrugada_comprueba_una_vez_y_para(tmp_path):
+    hechas, salida = _correr(tmp_path, evento="workflow_dispatch", hora=H(3, 0))
+    assert hechas == 1
+    assert "No hay jornada que vigilar" in salida
+
+
+def test_a_mano_en_jornada_comprueba_y_se_queda(tmp_path):
+    hechas, _ = _correr(tmp_path, evento="workflow_dispatch", hora=H(16, 0), minutos_max=100000)
+    assert hechas == 3          # 16:00 (a mano), 17:00 y la de cierre de las 17:30
+
+
+def test_programada_de_madrugada_no_comprueba_nada(tmp_path):
+    hechas, salida = _correr(tmp_path, evento="schedule", hora=H(3, 0))
+    assert hechas == 0
+    assert "demasiado pronto" in salida.lower()
