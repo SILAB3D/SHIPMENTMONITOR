@@ -13,8 +13,15 @@
 <meta name="apple-mobile-web-app-title" content="ShipmentMonitor">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#f6f6f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#08080a" media="(prefers-color-scheme: dark)">
 <!-- Clave pública VAPID: la necesita el navegador para suscribirse a los avisos -->
+<script>
+/* El tema elegido se aplica antes de que se pinte nada: si se hiciera desde
+   React, quien tenga el oscuro vería un destello en blanco al abrir. */
+try{ var _t = localStorage.getItem('shipmentmonitor:tema');
+     if (_t) document.documentElement.setAttribute('data-tema', _t); }catch(e){}
+</script>
 <script src="push-config.js"></script>
 <!-- Librerías servidas en local: la PWA funciona sin internet y sin depender de un CDN -->
 <script src="vendor/react.js"></script>
@@ -22,345 +29,368 @@
 <script src="vendor/babel.js"></script>
 <style>
 /* ───────────────────────── tipografía ─────────────────────────
-   Inter variable, servida en local (sin CDN ni Google Fonts). */
+   Inter servida en local: la PWA abre igual sin conexión y sin depender
+   de un CDN que algún día deje de estar. */
 @font-face{
-  font-family:'Inter var';
-  src:url('vendor/fuentes/inter-latin-wght-normal.woff2') format('woff2-variations');
-  font-weight:100 900; font-style:normal; font-display:swap;
+  font-family:'Inter var'; font-style:normal; font-weight:100 900; font-display:swap;
+  src:url('vendor/fuentes/inter-latin-wght-normal.woff2') format('woff2');
 }
-/* ───────────────────────── tokens ─────────────────────────
-   Tema único: negro con los detalles en naranja. No depende del tema del
-   sistema a propósito —antes había una versión clara y otra oscura—, así que
-   el panel se ve igual en el móvil, en el escritorio y en la app instalada. */
-:root{
-  color-scheme: dark;                       /* barras de scroll y controles oscuros */
 
-  --naranja:#f97316; --naranja-claro:#fb923c; --naranja-suave:#1c0e04; --naranja-borde:#7c2d12;
-  --bg:#000000; --panel:#0c0c0c; --panel-2:#141414; --borde:#272727;
-  --texto:#f5f5f4; --suave:#a1a1a0; --tenue:#6f6f6e;
-  --ok:#4ade80; --ok-bg:#0a2415; --error:#fb7185; --error-bg:#2a1015; --info:#7dd3fc;
-  --sombra:0 1px 2px rgba(0,0,0,.6), 0 12px 32px -20px rgba(0,0,0,1);
+/* ───────────────────────── el sistema ─────────────────────────
+   Dos temas de verdad, no uno oscuro y un apaño. El monitor se mira desde el
+   móvil en un almacén con sol y desde el ordenador a las ocho de la tarde: el
+   claro y el oscuro tienen que estar los dos bien. Se sigue al sistema salvo
+   que se elija a mano (se recuerda en este navegador).
+
+   El color dice algo en esta app y solo se usa para eso: naranja = en marcha,
+   verde = entregado, rojo = atención. El resto es gris. */
+:root{
+  --marca:#ea580c; --marca-viva:#f97316; --marca-tenue:#fff1e7; --marca-borde:#fdba8c;
+  --ok:#15803d;   --ok-fondo:#e9f7ee;  --ok-borde:#9ae6b4;
+  --mal:#dc2626;  --mal-fondo:#fdeceb; --mal-borde:#f7b4b0;
+
+  --fondo:#f6f6f7; --lienzo:#ffffff; --lienzo-2:#fafafa; --borde:#e6e6e9; --borde-fuerte:#d4d4d8;
+  --texto:#18181b; --suave:#52525b; --tenue:#8a8a93;
+  --sombra:0 1px 2px rgba(24,24,27,.05), 0 8px 24px -16px rgba(24,24,27,.25);
+  --sombra-alta:0 2px 6px rgba(24,24,27,.07), 0 18px 40px -22px rgba(24,24,27,.35);
 
   --fuente:'Inter var',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   --sp-1:.25rem; --sp-2:.5rem; --sp-3:.75rem; --sp-4:1rem; --sp-5:1.5rem; --sp-6:2rem;
-  --r-sm:8px; --r:12px; --r-lg:18px;
-  --ancho:1180px;
+  --r-sm:8px; --r:12px; --r-lg:16px; --r-xl:22px;
+  --ancho:1240px;
+  color-scheme:light;
 }
+@media (prefers-color-scheme:dark){
+  :root:not([data-tema="claro"]){ color-scheme:dark;
+    --marca:#f97316; --marca-viva:#fb923c; --marca-tenue:#26150a; --marca-borde:#7c3d15;
+    --ok:#4ade80; --ok-fondo:#0d2318; --ok-borde:#1f5136;
+    --mal:#fb7185; --mal-fondo:#2a1116; --mal-borde:#7a2a37;
+    --fondo:#08080a; --lienzo:#111113; --lienzo-2:#17171a; --borde:#26262b; --borde-fuerte:#34343b;
+    --texto:#f4f4f5; --suave:#a2a2ab; --tenue:#71717a;
+    --sombra:0 1px 2px rgba(0,0,0,.6), 0 10px 30px -20px rgba(0,0,0,1);
+    --sombra-alta:0 2px 8px rgba(0,0,0,.7), 0 24px 50px -26px rgba(0,0,0,1);
+  }
+}
+:root[data-tema="oscuro"]{ color-scheme:dark;
+  --marca:#f97316; --marca-viva:#fb923c; --marca-tenue:#26150a; --marca-borde:#7c3d15;
+  --ok:#4ade80; --ok-fondo:#0d2318; --ok-borde:#1f5136;
+  --mal:#fb7185; --mal-fondo:#2a1116; --mal-borde:#7a2a37;
+  --fondo:#08080a; --lienzo:#111113; --lienzo-2:#17171a; --borde:#26262b; --borde-fuerte:#34343b;
+  --texto:#f4f4f5; --suave:#a2a2ab; --tenue:#71717a;
+  --sombra:0 1px 2px rgba(0,0,0,.6), 0 10px 30px -20px rgba(0,0,0,1);
+  --sombra-alta:0 2px 8px rgba(0,0,0,.7), 0 24px 50px -26px rgba(0,0,0,1);
+}
+
 /* ───────────────────────── base ───────────────────────── */
-*,*::before,*::after{box-sizing:border-box}
+*{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{
-  background:var(--bg); color:var(--texto);
-  font:400 15px/1.55 var(--fuente);
-  font-feature-settings:'cv05' 1,'ss01' 1;   /* formas más limpias de la l y la a */
-  letter-spacing:-.006em;
-  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
-  overflow-x:hidden;
+  background:var(--fondo); color:var(--texto); font-family:var(--fuente);
+  font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased;
+  padding-bottom:env(safe-area-inset-bottom);
 }
 h1,h2,h3,p{margin:0}
-button,input,select{font:inherit;color:inherit}
-:focus-visible{outline:2px solid var(--naranja);outline-offset:2px;border-radius:var(--r-sm)}
+button{font:inherit;color:inherit}
+a{color:var(--marca)}
+:focus-visible{outline:2px solid var(--marca); outline-offset:2px; border-radius:6px}
+img{max-width:100%}
 
 /* ───────────────────────── piezas ───────────────────────── */
-.btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-2);
-  border:1px solid var(--borde);background:var(--panel);border-radius:var(--r-sm);
-  padding:.5rem .9rem;cursor:pointer;font-weight:550;white-space:nowrap;
-  transition:border-color .15s,background .15s,transform .05s;
-}
-.btn:hover{border-color:var(--naranja);color:var(--naranja)}
-.btn:active{transform:translateY(1px)}
-.btn:disabled{opacity:.55;cursor:default;transform:none}
-.btn.primario{background:var(--naranja);border-color:var(--naranja);color:#0a0a0a}
-.btn.primario:hover{background:var(--naranja-claro);border-color:var(--naranja-claro);color:#1c1917}
-.btn.icono{padding:.5rem .6rem}
-.btn.bloque{width:100%;padding:.7rem 1rem}
+.tarjeta{background:var(--lienzo); border:1px solid var(--borde); border-radius:var(--r-lg); box-shadow:var(--sombra)}
+.pad{padding:var(--sp-4)}
+.crece{flex:1 1 auto; min-width:0}
+.vacio{color:var(--tenue); font-size:.88rem; text-align:center; padding:var(--sp-5) var(--sp-3)}
+.titulo-seccion{font-size:.68rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
+                color:var(--tenue); margin-bottom:var(--sp-2)}
 
-.campo{display:flex;flex-direction:column;gap:var(--sp-2)}
-.campo label{font-size:.8rem;font-weight:600;color:var(--suave)}
-.campo input{
-  width:100%;padding:.65rem .8rem;border:1px solid var(--borde);border-radius:var(--r-sm);
-  background:var(--panel-2);
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:.4rem;
+  border:1px solid var(--borde-fuerte); background:var(--lienzo); color:var(--texto);
+  border-radius:999px; padding:.42rem .9rem; font-size:.86rem; font-weight:600;
+  cursor:pointer; white-space:nowrap; text-decoration:none;
+  transition:background .15s ease, border-color .15s ease, transform .08s ease;
 }
-.campo input:focus{outline:none;border-color:var(--naranja);box-shadow:0 0 0 3px var(--naranja-suave)}
-.campo .pista{font-size:.75rem;color:var(--tenue)}
+.btn:hover{background:var(--lienzo-2); border-color:var(--tenue)}
+.btn:active{transform:translateY(1px)}
+.btn[disabled]{opacity:.55; cursor:default}
+.btn.primario{background:var(--marca); border-color:var(--marca); color:#fff}
+.btn.primario:hover{background:var(--marca-viva); border-color:var(--marca-viva)}
+.btn.bloque{width:100%}
+.btn.icono{padding:.42rem; width:2.15rem; height:2.15rem}
 
 .chip{
-  display:inline-flex;align-items:center;gap:.35rem;font-size:.75rem;font-weight:600;
-  padding:.2rem .6rem;border-radius:999px;border:1px solid var(--borde);color:var(--suave);
-  background:var(--panel);white-space:nowrap;
+  display:inline-flex; align-items:center; gap:.35rem; font-size:.72rem; font-weight:700;
+  border-radius:999px; padding:.2rem .6rem; border:1px solid var(--borde); color:var(--suave);
+  background:var(--lienzo-2); white-space:nowrap; max-width:min(58%,13rem); flex:none;
 }
-.chip.on{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent);background:var(--ok-bg)}
-.chip.alerta{color:var(--error);border-color:color-mix(in srgb,var(--error) 40%,transparent);background:var(--error-bg)}
-.chip.marca{color:var(--naranja);border-color:var(--naranja-borde);background:var(--naranja-suave)}
+.chip span{overflow:hidden; text-overflow:ellipsis}
+.chip .punto{width:.45rem; height:.45rem; border-radius:50%; background:currentColor; flex:none}
+.chip.curso{color:var(--marca); background:var(--marca-tenue); border-color:var(--marca-borde)}
+.chip.ok{color:var(--ok); background:var(--ok-fondo); border-color:var(--ok-borde)}
+.chip.alerta{color:var(--mal); background:var(--mal-fondo); border-color:var(--mal-borde)}
 
-.tarjeta{background:var(--panel);border:1px solid var(--borde);border-radius:var(--r-lg);box-shadow:var(--sombra)}
-.pad{padding:var(--sp-4)}
-.titulo-seccion{
-  font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--tenue);
-  font-weight:700;margin-bottom:var(--sp-3);
-}
+.aviso{border-radius:var(--r); padding:var(--sp-3) var(--sp-4); font-size:.88rem; line-height:1.55}
+.aviso.mal{background:var(--mal-fondo); border:1px solid var(--mal-borde); color:var(--mal)}
+.aviso.mal b{color:inherit}
+.enlace{background:none; border:0; padding:0; color:var(--marca); font-size:.85rem; font-weight:600; cursor:pointer}
 
 /* ───────────────────────── acceso ───────────────────────── */
-.acceso{min-height:100dvh;display:grid;place-items:center;padding:var(--sp-5) var(--sp-4)}
-.acceso-caja{width:min(100%,26rem);display:grid;gap:var(--sp-5);padding:var(--sp-6) var(--sp-5)}
-.acceso-cabecera{display:grid;gap:var(--sp-2);justify-items:center;text-align:center}
-.acceso-cabecera img{width:56px;height:56px}
-.acceso-cabecera h1{font-size:1.4rem;letter-spacing:-.03em;font-weight:650}
-.acceso-cabecera p{font-size:.9rem;color:var(--suave)}
-.acceso form{display:grid;gap:var(--sp-4)}
-.recordar{display:flex;gap:var(--sp-3);align-items:flex-start;cursor:pointer;
-          background:var(--panel-2);border:1px solid var(--borde);border-radius:var(--r);padding:var(--sp-3)}
-.recordar input{margin:.2rem 0 0;accent-color:var(--naranja);width:1.05rem;height:1.05rem;flex:none}
-.recordar b{display:block;font-size:.9rem}
-.recordar span{font-size:.78rem;color:var(--suave)}
-.aviso{border-radius:var(--r);padding:var(--sp-3);font-size:.87rem;border:1px solid}
-.aviso.mal{background:var(--error-bg);border-color:color-mix(in srgb,var(--error) 35%,transparent);color:var(--error)}
-.aviso.info{background:var(--naranja-suave);border-color:var(--naranja-borde);color:var(--naranja)}
+.acceso{min-height:100dvh; display:grid; place-items:center; padding:var(--sp-5)}
+.acceso-caja{width:min(26rem,100%); display:grid; gap:var(--sp-4)}
+.acceso-cabecera{display:grid; justify-items:center; gap:var(--sp-2); text-align:center; margin-bottom:var(--sp-2)}
+.acceso-cabecera img{width:56px; height:56px}
+.acceso-cabecera h1{font-size:1.5rem; font-weight:700; letter-spacing:-.03em}
+.acceso-cabecera p{color:var(--tenue); font-size:.9rem}
+.campo{display:grid; gap:var(--sp-2)}
+.campo label{font-size:.8rem; font-weight:700; color:var(--suave)}
+.campo input{
+  width:100%; padding:.65rem .85rem; border:1px solid var(--borde-fuerte); border-radius:var(--r);
+  background:var(--lienzo); color:var(--texto); font:inherit;
+}
+.campo input:focus{outline:none; border-color:var(--marca); box-shadow:0 0 0 3px var(--marca-tenue)}
+.pista{font-size:.78rem; color:var(--tenue); line-height:1.5}
+.pista code{font-family:var(--mono); font-size:.95em; background:var(--lienzo-2);
+            border:1px solid var(--borde); border-radius:5px; padding:0 .25rem}
+.recordar{display:flex; gap:var(--sp-2); align-items:flex-start; font-size:.85rem; cursor:pointer}
+.recordar span span{display:block; color:var(--tenue); font-size:.78rem; font-weight:400}
+.recordar b{font-weight:650}
 
-/* ───────────────────────── estructura ───────────────────────── */
+/* ───────────────────────── esqueleto ───────────────────────── */
 .barra{
-  position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--panel) 92%,transparent);
-  backdrop-filter:blur(10px);border-bottom:1px solid var(--borde);
+  position:sticky; top:0; z-index:30; background:color-mix(in srgb, var(--fondo) 88%, transparent);
+  backdrop-filter:saturate(1.6) blur(12px); border-bottom:1px solid var(--borde);
 }
-.barra-int{
-  max-width:var(--ancho);margin:0 auto;padding:var(--sp-3) var(--sp-4);
-  display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap;
+.barra-int{max-width:var(--ancho); margin:0 auto; padding:var(--sp-3) var(--sp-4);
+           display:flex; align-items:center; gap:var(--sp-3)}
+.marca-app{display:flex; align-items:center; gap:var(--sp-2); min-width:0; overflow:hidden}
+.marca-app img{width:26px; height:26px; flex:none}
+.marca-app h1{font-size:1rem; font-weight:700; letter-spacing:-.025em; white-space:nowrap;
+              overflow:hidden; text-overflow:ellipsis}
+.acciones{display:flex; gap:var(--sp-2); align-items:center; flex:none}
+.contenido{max-width:var(--ancho); margin:0 auto; padding:var(--sp-4); display:grid; gap:var(--sp-4)}
+
+/* ─────────── cabecera del día: la respuesta de un vistazo ───────────
+   Es lo primero y lo más grande porque es la pregunta que trae aquí a
+   cualquiera: ¿hay algo que mirar ahora mismo? */
+.jornada{display:grid; gap:var(--sp-4); padding:var(--sp-5) var(--sp-4)}
+.jornada-titular{display:flex; align-items:center; gap:var(--sp-3); flex-wrap:wrap}
+.faro{width:.85rem; height:.85rem; border-radius:50%; flex:none; background:var(--ok); position:relative}
+.faro::after{content:''; position:absolute; inset:-5px; border-radius:50%;
+             border:2px solid currentColor; opacity:.25}
+.faro.curso{background:var(--marca); color:var(--marca)}
+.faro.ok{background:var(--ok); color:var(--ok)}
+.faro.alerta{background:var(--mal); color:var(--mal); animation:latir 2s ease-in-out infinite}
+@keyframes latir{0%,100%{box-shadow:0 0 0 0 var(--mal-fondo)} 50%{box-shadow:0 0 0 7px transparent}}
+.jornada h2{font-size:1.4rem; font-weight:700; letter-spacing:-.03em; line-height:1.2}
+.jornada .cuando{margin-left:auto; font-size:.8rem; color:var(--tenue); white-space:nowrap}
+
+/* Las cifras son los filtros: se tocan, no solo se leen */
+.cifras{display:flex; gap:var(--sp-2); flex-wrap:wrap}
+.cifra{
+  flex:1 1 7rem; min-width:0; display:grid; gap:.1rem; text-align:left; cursor:pointer;
+  background:var(--lienzo-2); border:1px solid var(--borde); border-radius:var(--r);
+  padding:var(--sp-3); transition:border-color .15s ease, background .15s ease;
 }
-.marca-app{display:flex;align-items:center;gap:var(--sp-2);min-width:0}
-.marca-app img{width:28px;height:28px;flex:none}
-.marca-app h1{font-size:1.05rem;font-weight:650;letter-spacing:-.03em;white-space:nowrap}
-.crece{flex:1 1 auto;min-width:0}
-.acciones{display:flex;gap:var(--sp-2);align-items:center;flex-wrap:wrap}
+.cifra:hover{border-color:var(--borde-fuerte)}
+.cifra b{font-size:1.55rem; font-weight:750; letter-spacing:-.04em; font-variant-numeric:tabular-nums; line-height:1}
+.cifra span{font-size:.72rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--tenue)}
+.cifra.activa{background:var(--lienzo); border-color:var(--marca); box-shadow:0 0 0 3px var(--marca-tenue)}
+.cifra.curso b{color:var(--marca)} .cifra.ok b{color:var(--ok)} .cifra.alerta b{color:var(--mal)}
 
-/* En el móvil la barra se comía 138 px en tres líneas. Las cifras de la tira
-   ya salen en el título de cada sección, así que ahí sobran, y todo lo demás
-   entra apretado en la parte de arriba. */
-@media (max-width:620px){
-  .barra-int{padding:var(--sp-2) var(--sp-3);gap:var(--sp-2)}
-  .barra-int .tira{display:none}
-  .marca-app img{width:24px;height:24px}
-  .marca-app h1{font-size:.98rem}
-  .acciones .btn{padding:.32rem .7rem;font-size:.82rem}
-  .contenido{padding:var(--sp-2) var(--sp-3) var(--sp-5)}
+.buscador{position:relative; display:flex; align-items:center}
+.buscador input{
+  width:100%; padding:.5rem .9rem .5rem 2.1rem; border:1px solid var(--borde);
+  border-radius:999px; background:var(--lienzo-2); color:var(--texto); font:inherit; font-size:.88rem;
 }
+.buscador input:focus{outline:none; border-color:var(--marca); background:var(--lienzo)}
+.buscador .lupa{position:absolute; left:.75rem; color:var(--tenue); pointer-events:none; font-size:.85rem}
 
-.contenido{max-width:var(--ancho);margin:0 auto;padding:var(--sp-3) var(--sp-4) var(--sp-5);
-            display:grid;gap:var(--sp-3)}
-.columnas{display:grid;gap:var(--sp-4);grid-template-columns:1fr}
-@media (min-width:1024px){
-  .columnas{grid-template-columns:minmax(0,2.4fr) minmax(17rem,1fr);align-items:start}
-  .lateral{position:sticky;top:5rem}
+/* ───────────────────────── secciones ───────────────────────── */
+.seccion{display:grid; gap:var(--sp-3)}
+.seccion-cab{display:flex; align-items:center; gap:var(--sp-2); width:100%; text-align:left;
+             background:none; border:0; padding:0; cursor:pointer}
+.seccion-cab h2{font-size:.72rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--tenue)}
+.seccion.primaria .seccion-cab h2{color:var(--texto); font-size:.9rem; letter-spacing:.01em; text-transform:none}
+.cuenta{font-size:.72rem; font-weight:700; color:var(--suave); background:var(--lienzo-2);
+        border:1px solid var(--borde); border-radius:999px; padding:.05rem .5rem; font-variant-numeric:tabular-nums}
+.raya{flex:1 1 auto; height:1px; background:var(--borde); min-width:1rem}
+.flecha{color:var(--tenue); font-size:.65rem; transition:transform .18s ease}
+.seccion-cab[aria-expanded="true"] .flecha{transform:rotate(90deg)}
+
+/* ───────────────────────── tarjeta de envío ─────────────────────────
+   El titular es el DESTINATARIO, no el número de albarán: nadie reconoce
+   «0280010370017025111854», y a todo el mundo le dice algo «Hospital Severo
+   Ochoa». El número queda abajo, que es donde se busca cuando hace falta. */
+.rejilla{display:grid; gap:var(--sp-3); align-items:start;
+         grid-template-columns:repeat(auto-fill,minmax(min(100%,20rem),1fr))}
+.envio{
+  display:grid; align-content:start; gap:var(--sp-3); padding:var(--sp-4); min-width:0; text-align:left; width:100%;
+  background:var(--lienzo); border:1px solid var(--borde); border-radius:var(--r-lg);
+  box-shadow:var(--sombra); cursor:pointer; position:relative; overflow:hidden;
+  transition:box-shadow .18s ease, border-color .18s ease, transform .18s ease;
+  animation:entrar .3s ease both;
 }
-.columnas>*{min-width:0}
+@keyframes entrar{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+.envio:hover{box-shadow:var(--sombra-alta); border-color:var(--borde-fuerte)}
+.envio::before{content:''; position:absolute; inset:0 auto 0 0; width:3px; background:var(--borde-fuerte)}
+.envio.curso::before{background:var(--marca)}
+.envio.ok::before{background:var(--ok)}
+.envio.alerta::before{background:var(--mal)}
 
-.metricas{display:grid;gap:var(--sp-2);grid-template-columns:repeat(auto-fit,minmax(7.5rem,1fr))}
-.metrica{display:grid;gap:.1rem;padding:var(--sp-3);background:var(--panel-2);border-radius:var(--r);border:1px solid var(--borde)}
-.metrica span{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--tenue);font-weight:700}
-.metrica b{font-size:1.25rem;font-weight:700;letter-spacing:-.03em;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
-.metrica small{font-size:.75rem;color:var(--suave)}
+/* min-width:0 en cascada: sin esto, un destinatario largo estira la celda de la
+   rejilla y el contenido se sale de la tarjeta en pantallas intermedias. */
+.envio-cuerpo{display:grid; gap:var(--sp-3); min-width:0; text-align:left;
+              background:none; border:0; padding:0; cursor:pointer; color:inherit}
+.envio > *{min-width:0}
+.envio-cuerpo > *{min-width:0}
+.envio-cab{display:flex; gap:var(--sp-3); align-items:flex-start; justify-content:space-between; min-width:0}
+.envio-quien{min-width:0; display:grid; gap:.1rem}
+.envio-quien b{font-size:1rem; font-weight:650; letter-spacing:-.01em; line-height:1.3; overflow-wrap:anywhere}
+.envio-quien span{font-size:.8rem; color:var(--tenue)}
 
-.filtros{display:flex;gap:var(--sp-2);align-items:center;flex-wrap:wrap}
-.chips-filtro{display:flex;gap:var(--sp-2);min-width:0;max-width:100%}
-.chips-filtro>*{flex:0 0 auto}
-.filtros .buscador{flex:1 1 12rem;min-width:0;position:relative}
-.filtros .buscador input{width:100%;padding:.5rem .8rem;border:1px solid var(--borde);
-  border-radius:999px;background:var(--panel);}
-.filtros .buscador input:focus{outline:none;border-color:var(--naranja)}
-.filtro-btn{
-  border:1px solid var(--borde);background:var(--panel);border-radius:999px;
-  padding:.35rem .8rem;font-size:.83rem;font-weight:600;cursor:pointer;color:var(--suave);white-space:nowrap;
-}
-.filtro-btn.activo{background:var(--naranja);border-color:var(--naranja);color:#0a0a0a}
-/* En pantallas estrechas los cuatro filtros y el buscador se llevaban dos
-   líneas enteras y desordenadas. Aquí los filtros van en una tira que se
-   desplaza a lo ancho —empezando por «Todos», no medio cortada— y el buscador
-   debajo, más bajito. */
-@media (max-width:620px){
-  .filtros{flex-direction:column;align-items:stretch;gap:var(--sp-2);min-width:0}
-  .chips-filtro{width:100%;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
-  .chips-filtro::-webkit-scrollbar{display:none}
-  /* En columna, el «flex:1 1 12rem» del buscador se interpreta como ALTO y
-     dejaba una caja de 12rem. En vertical manda el contenido. */
-  .filtros .buscador{flex:0 0 auto}
-  .filtros .buscador input{padding:.35rem .75rem;font-size:.85rem}
-}
+/* Ruta: de dónde sale y a dónde va, en una línea que se lee de un golpe */
+.ruta{display:flex; align-items:center; gap:var(--sp-2); font-size:.78rem; color:var(--suave); min-width:0}
+.ruta i{font-style:normal; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0}
+.ruta .hacia{color:var(--tenue); flex:none}
 
-/* ───────────────────────── envíos ───────────────────────── */
-.rejilla{display:grid;gap:var(--sp-3);grid-template-columns:repeat(auto-fill,minmax(min(100%,17rem),1fr))}
-.envio{display:flex;flex-direction:column;gap:var(--sp-2);padding:var(--sp-3);min-width:0}
-.envio-cab{display:flex;gap:var(--sp-2);align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
-.envio-ref{font-size:1.05rem;font-weight:650;letter-spacing:-.02em;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
-.envio-sub{font-size:.82rem;color:var(--suave);overflow-wrap:anywhere}
-.datos{display:grid;grid-template-columns:repeat(auto-fit,minmax(5.4rem,1fr));gap:var(--sp-2) var(--sp-3)}
-.dato span{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--tenue);font-weight:700}
-.dato b{font-weight:550;font-size:.88rem;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+/* Progreso: una barra con sus hitos y la hora de cada uno */
+.pasos{display:grid; gap:.4rem}
+.via{display:flex; align-items:center; gap:0}
+.nodo{width:.7rem; height:.7rem; border-radius:50%; flex:none; background:var(--borde-fuerte);
+      border:2px solid var(--lienzo); box-shadow:0 0 0 1px var(--borde-fuerte)}
+.tramo{flex:1 1 auto; height:2px; background:var(--borde-fuerte); min-width:.5rem}
+.nodo.hecho{background:var(--marca); box-shadow:0 0 0 1px var(--marca)}
+.tramo.hecho{background:var(--marca)}
+.envio.ok .nodo.hecho{background:var(--ok); box-shadow:0 0 0 1px var(--ok)}
+.envio.ok .tramo.hecho{background:var(--ok)}
+.nodo.aqui{width:1rem; height:1rem; background:var(--lienzo); border:3px solid var(--marca);
+           box-shadow:0 0 0 3px var(--marca-tenue)}
+.envio.ok .nodo.aqui{border-color:var(--ok); box-shadow:0 0 0 3px var(--ok-fondo); background:var(--ok)}
+.envio.alerta .nodo.hecho{background:var(--mal); box-shadow:0 0 0 1px var(--mal)}
+.envio.alerta .tramo.hecho{background:var(--mal)}
+.envio.alerta .nodo.aqui{border-color:var(--mal); box-shadow:0 0 0 3px var(--mal-fondo); background:var(--lienzo)}
+.etiquetas{display:flex; justify-content:space-between; gap:.15rem}
+.etiquetas > div{flex:1 1 0; min-width:0; text-align:center; display:grid; gap:.05rem}
+.etiquetas > div:first-child{text-align:left} .etiquetas > div:last-child{text-align:right}
+.etiquetas .etq{font-size:.62rem; font-weight:700; color:var(--tenue); letter-spacing:.02em}
+.etiquetas .hora{font-size:.6rem; color:var(--tenue); font-variant-numeric:tabular-nums; opacity:.85}
+.etiquetas .marcado .etq{color:var(--suave)}
 
-/* diagrama de pasos: flex puro, sin posicionamiento absoluto → nunca se solapa */
-.pasos{display:flex;align-items:flex-start;gap:.15rem;padding-top:var(--sp-1)}
-.paso{flex:1 1 0;min-width:2.6rem;max-width:5rem;display:grid;justify-items:center;gap:.3rem;text-align:center}
-.paso .bola{
-  width:1.65rem;height:1.65rem;border-radius:50%;display:grid;place-items:center;
-  border:2px solid var(--borde);background:var(--panel);font-size:.8rem;color:var(--tenue);flex:none;
-}
-.paso .etq{font-size:.62rem;line-height:1.2;color:var(--tenue);font-weight:600;overflow-wrap:anywhere}
-.paso .cuando{font-size:.58rem;line-height:1.15;color:var(--tenue);font-variant-numeric:tabular-nums;
-              white-space:nowrap;opacity:.85}
-.paso.hecho .cuando,.paso.actual .cuando{color:var(--suave)}
-.paso.hecho .bola{background:var(--naranja);border-color:var(--naranja);color:#0a0a0a}
-.paso.hecho .etq{color:var(--suave)}
-.paso.actual .bola{background:var(--panel);border-color:var(--naranja);color:var(--naranja);
-                   box-shadow:0 0 0 4px var(--naranja-suave)}
-.paso.actual .etq{color:var(--naranja)}
-.paso.final .bola{background:var(--ok);border-color:var(--ok);color:#0a0a0a;box-shadow:0 0 0 4px var(--ok-bg)}
-.paso.final .etq{color:var(--ok)}
-.paso.incidencia .bola{border-color:var(--error);color:var(--error);box-shadow:0 0 0 4px var(--error-bg)}
-.paso.incidencia .etq{color:var(--error)}
-.linea{flex:1 1 auto;height:2px;min-width:.25rem;margin-top:.8rem;background:var(--borde);border-radius:2px}
-.linea.hecha{background:var(--naranja)}
+.envio-pie{display:flex; align-items:center; gap:var(--sp-2); justify-content:space-between; min-width:0; flex-wrap:wrap;
+           border-top:1px solid var(--borde); padding-top:var(--sp-2); font-size:.75rem; color:var(--tenue)}
+.envio-ref{font-family:var(--mono); font-size:.7rem; letter-spacing:-.02em; overflow-wrap:anywhere}
 
-/* ruta del envío: de quién sale y a quién va, sin que se solape en móvil */
-.ruta{display:grid;gap:var(--sp-1)}
-.ruta-fila{display:grid;grid-template-columns:1.15rem 1fr;gap:var(--sp-2);align-items:baseline;min-width:0}
-.ruta-fila .marca-ruta{font-size:.62rem;font-weight:800;color:var(--tenue);letter-spacing:.04em}
-.ruta-fila b{font-weight:600;font-size:.84rem;overflow-wrap:anywhere;display:block}
-.ruta-fila i{font-style:normal;font-size:.74rem;color:var(--tenue);overflow-wrap:anywhere;display:block}
-/* recorrido: cada situación por la que ha pasado el envío, con su hora */
-.recorrido{display:grid;gap:0}
-.recorrido-item{display:grid;grid-template-columns:auto 1fr;gap:var(--sp-2);min-width:0}
-.recorrido-hilo{display:grid;justify-items:center;gap:2px}
-.recorrido-punto{width:.5rem;height:.5rem;border-radius:50%;background:var(--borde);margin-top:.32rem;flex:none}
-.recorrido-item:first-child .recorrido-punto{background:var(--naranja);box-shadow:0 0 0 3px var(--naranja-suave)}
-.recorrido-raya{width:2px;flex:1 1 auto;min-height:.9rem;background:var(--borde);border-radius:2px}
+/* Detalle desplegado */
+.detalle{display:grid; gap:var(--sp-4); border-top:1px solid var(--borde); padding-top:var(--sp-3); min-width:0}
+.detalle > *{min-width:0}
+.datos{display:grid; grid-template-columns:repeat(auto-fit,minmax(6.5rem,1fr)); gap:var(--sp-2) var(--sp-3)}
+.dato span{display:block; font-size:.66rem; text-transform:uppercase; letter-spacing:.05em; color:var(--tenue); font-weight:700}
+.dato b{font-weight:550; font-size:.85rem; overflow-wrap:anywhere}
+.recorrido{display:grid; min-width:0}
+.recorrido-item{display:grid; grid-template-columns:auto 1fr; gap:var(--sp-3); min-width:0}
+.recorrido-hilo{display:grid; justify-items:center}
+.recorrido-punto{width:.5rem; height:.5rem; border-radius:50%; background:var(--borde-fuerte); margin-top:.35rem}
+.recorrido-item:first-child .recorrido-punto{background:var(--marca); box-shadow:0 0 0 3px var(--marca-tenue)}
+.recorrido-raya{width:2px; flex:1; min-height:1rem; background:var(--borde); justify-self:center}
 .recorrido-item:last-child .recorrido-raya{background:transparent}
-.recorrido-texto{padding-bottom:var(--sp-2);min-width:0}
-.recorrido-texto time{display:block;font-size:.68rem;color:var(--tenue);font-variant-numeric:tabular-nums}
-.recorrido-texto b{font-weight:600;font-size:.82rem;overflow-wrap:anywhere;display:block}
-.recorrido-texto span{font-size:.74rem;color:var(--tenue);overflow-wrap:anywhere}
-.detalle{border-top:1px solid var(--borde);padding-top:var(--sp-3);display:grid;gap:var(--sp-3)}
-.hist{display:grid;gap:var(--sp-2)}
-.hist-item{display:flex;gap:var(--sp-2);font-size:.82rem}
-.hist-item time{color:var(--tenue);flex:none;font-variant-numeric:tabular-nums}
-.pie{display:flex;justify-content:space-between;align-items:center;gap:var(--sp-2);flex-wrap:wrap}
-.enlace{background:none;border:0;padding:0;color:var(--naranja);font-size:.82rem;font-weight:600;cursor:pointer}
+.recorrido-texto{padding-bottom:var(--sp-3); min-width:0}
+.recorrido-texto time{display:block; font-size:.68rem; color:var(--tenue); font-variant-numeric:tabular-nums}
+.recorrido-texto b{display:block; font-size:.82rem; font-weight:600; overflow-wrap:anywhere}
+.recorrido-texto span{font-size:.74rem; color:var(--tenue)}
+.hist{display:grid; gap:var(--sp-2)}
+.hist-item{display:flex; gap:var(--sp-2); font-size:.8rem; color:var(--suave)}
+.hist-item time{color:var(--tenue); flex:none; font-variant-numeric:tabular-nums}
 
 /* ───────────────────────── novedades ───────────────────────── */
-.novedad{display:flex;gap:var(--sp-3);padding:var(--sp-3) 0;border-bottom:1px solid var(--borde);min-width:0}
-.novedad:last-child{border-bottom:0;padding-bottom:0}
-.novedad .marca{width:1.9rem;height:1.9rem;border-radius:50%;display:grid;place-items:center;flex:none;
-  background:var(--naranja-suave);color:var(--naranja);font-size:.85rem;border:1px solid var(--naranja-borde)}
+.novedad{display:flex; gap:var(--sp-3); padding:var(--sp-3) 0; border-bottom:1px solid var(--borde); min-width:0}
+.novedad:last-child{border-bottom:0; padding-bottom:0}
+.novedad .marca{width:1.6rem; height:1.6rem; border-radius:50%; display:grid; place-items:center; flex:none;
+                background:var(--marca-tenue); color:var(--marca); font-weight:800; font-size:.8rem}
 .novedad .txt{min-width:0}
-.novedad b{font-size:.88rem;display:block;overflow-wrap:anywhere}
-.novedad p{font-size:.82rem;color:var(--suave);overflow-wrap:anywhere}
-.novedad time{font-size:.72rem;color:var(--tenue)}
-.vacio{color:var(--tenue);font-size:.87rem;padding:var(--sp-3) 0;text-align:center}
+.novedad .txt b{font-size:.85rem; font-weight:650; display:block; overflow-wrap:anywhere}
+.novedad .txt p{font-size:.8rem; color:var(--suave); margin:.1rem 0}
+.novedad .txt time{font-size:.72rem; color:var(--tenue)}
 
-/* ─────────── tarjeta de avisos push ─────────── */
-.push{margin-bottom:0}
-.push-linea{display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap}
-.push-txt{flex:1 1 14rem;min-width:0;font-size:.87rem;color:var(--suave);line-height:1.4}
-.push-txt b{color:var(--texto);font-weight:650}
-.push-txt small{display:block;font-size:.78rem;color:var(--tenue)}
-@media (max-width:620px){
-  .push{padding:var(--sp-3)}
-  .push-txt small{display:none}      /* en el móvil, el titular basta */
-  .push-linea{gap:var(--sp-2)}
-}
-.push h2{font-size:1rem;margin:0 0 var(--sp-2);display:flex;align-items:center;gap:var(--sp-2)}
-.push p{margin:0 0 var(--sp-3);font-size:.87rem;color:var(--suave);line-height:1.55}
-.push ol{margin:0 0 var(--sp-3);padding-left:1.15rem;font-size:.87rem;color:var(--suave);line-height:1.7}
-.push ol code{background:var(--panel-2);border:1px solid var(--borde);border-radius:6px;
-  padding:.05rem .35rem;font-size:.85em;color:var(--texto)}
-.push .acciones-push{display:flex;flex-wrap:wrap;gap:var(--sp-2);align-items:center}
-.push.hecho{display:flex;align-items:center;gap:var(--sp-2);font-size:.87rem;color:var(--suave)}
-.push.hecho .punto{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}
-.suscripcion{
-  width:100%;box-sizing:border-box;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  font-size:.72rem;line-height:1.5;background:var(--panel-2);color:var(--texto);
-  border:1px solid var(--borde);border-radius:var(--r);padding:var(--sp-3);
-  min-height:5.5rem;resize:vertical;margin-bottom:var(--sp-3);word-break:break-all;
-}
+/* ─────────── avisos push ─────────── */
+.push{padding:var(--sp-3) var(--sp-4)}
+.push h2{font-size:.95rem; margin:0 0 var(--sp-2)}
+.push p{margin:0 0 var(--sp-3); font-size:.86rem; color:var(--suave); line-height:1.55}
+.push ol{margin:0 0 var(--sp-3); padding-left:1.15rem; font-size:.85rem; color:var(--suave); line-height:1.7}
+.push ol code{font-family:var(--mono); background:var(--lienzo-2); border:1px solid var(--borde);
+              border-radius:5px; padding:0 .25rem}
+.push-linea{display:flex; align-items:center; gap:var(--sp-3); flex-wrap:wrap}
+.push-txt{flex:1 1 14rem; min-width:0; font-size:.86rem; color:var(--suave); line-height:1.4}
+.push-txt b{color:var(--texto); font-weight:650}
+.push-txt small{display:block; font-size:.78rem; color:var(--tenue)}
+.push .acciones-push{display:flex; flex-wrap:wrap; gap:var(--sp-2); align-items:center}
+.push.hecho{display:flex; align-items:center; gap:var(--sp-2); font-size:.86rem; color:var(--suave)}
+.push.hecho .punto{width:8px; height:8px; border-radius:50%; background:var(--ok); flex:none}
+.suscripcion{width:100%; min-height:6rem; font-family:var(--mono); font-size:.7rem; padding:var(--sp-2);
+             border:1px solid var(--borde); border-radius:var(--r); background:var(--lienzo-2);
+             color:var(--suave); resize:vertical; margin-bottom:var(--sp-3)}
 
-.pie-app{max-width:var(--ancho);margin:0 auto;padding:0 var(--sp-4) var(--sp-6);
-         font-size:.75rem;color:var(--tenue);display:flex;gap:var(--sp-3);flex-wrap:wrap}
-@media (max-width:520px){
-  .barra-int{padding:var(--sp-3)}
-  .contenido{padding:var(--sp-3)}
-  .acciones{width:100%}
-  .acciones .btn{flex:1 1 auto}
-  .marca-app h1{font-size:.95rem}
-}
-
-/* ─────────────── jerarquía del panel ───────────────
-   Lo que importa manda: primero los envíos que siguen en movimiento, después
-   los que ya están cerrados y al final todo lo demás. Las secciones de abajo
-   se pliegan para que no empujen a los envíos fuera de la pantalla. */
-.seccion{display:grid;gap:var(--sp-2)}
-.seccion-cab{
-  display:flex;align-items:center;gap:var(--sp-2);width:100%;
-  background:none;border:0;padding:var(--sp-1) 0;cursor:pointer;color:inherit;text-align:left;
-}
-.seccion-cab:not([aria-expanded]){cursor:default}
-.seccion-cab h2{
-  font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:var(--tenue);
-}
-.seccion.primaria .seccion-cab h2{color:var(--naranja);font-size:.78rem}
-.cuenta{
-  font-size:.7rem;font-weight:700;color:var(--suave);background:var(--panel-2);
-  border:1px solid var(--borde);border-radius:999px;padding:.05rem .5rem;font-variant-numeric:tabular-nums;
-}
-.seccion.primaria .cuenta{background:var(--naranja-suave);border-color:var(--naranja-borde);color:var(--naranja-claro)}
-.flecha{margin-left:auto;color:var(--tenue);font-size:.7rem;transition:transform .18s ease}
-.seccion-cab[aria-expanded="true"] .flecha{transform:rotate(90deg)}
-.raya{flex:1 1 auto;height:1px;background:var(--borde);min-width:1rem}
-
-/* Tira de cifras de la barra superior: lo mismo que las métricas, en una línea */
-.tira{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;font-size:.78rem;color:var(--tenue)}
-.tira b{font-variant-numeric:tabular-nums;font-weight:700}
-.tira .dato-tira{display:flex;gap:.3rem;align-items:baseline;white-space:nowrap}
-.tira .sep{opacity:.35}
-
-/* Prueba de los avisos */
-.prueba{display:grid;gap:var(--sp-2)}
-.prueba-lista{display:grid;gap:.35rem;margin:0;padding:0;list-style:none}
-.prueba-lista li{display:grid;grid-template-columns:1.1rem 1fr;gap:var(--sp-2);font-size:.83rem;align-items:baseline}
-.prueba-lista .marca-ok{color:var(--ok);font-weight:700}
-.prueba-lista .marca-mal{color:var(--error);font-weight:700}
+/* ─────────── prueba de avisos ─────────── */
+.prueba{display:grid; gap:var(--sp-3)}
+.prueba-lista{display:grid; gap:.4rem; margin:0; padding:0; list-style:none}
+.prueba-lista li{display:grid; grid-template-columns:1.1rem 1fr; gap:var(--sp-2); font-size:.84rem; align-items:baseline}
+.prueba-lista .marca-ok{color:var(--ok); font-weight:800}
+.prueba-lista .marca-mal{color:var(--mal); font-weight:800}
 .prueba-lista .marca-esp{color:var(--tenue)}
-.prueba-lista small{display:block;color:var(--tenue);font-size:.75rem;overflow-wrap:anywhere}
+.prueba-lista small{display:block; color:var(--tenue); font-size:.76rem; overflow-wrap:anywhere}
+.metricas{display:grid; gap:var(--sp-2); grid-template-columns:repeat(auto-fit,minmax(7rem,1fr))}
+.metrica{display:grid; gap:.1rem; padding:var(--sp-3); background:var(--lienzo-2);
+         border:1px solid var(--borde); border-radius:var(--r)}
+.metrica span{font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--tenue); font-weight:700}
+.metrica b{font-size:1.2rem; font-weight:700; font-variant-numeric:tabular-nums}
+.metrica small{font-size:.74rem; color:var(--suave)}
+.envio-sub{font-size:.82rem; color:var(--suave); overflow-wrap:anywhere}
+
+.pie-app{max-width:var(--ancho); margin:0 auto; padding:0 var(--sp-4) var(--sp-6);
+         display:flex; gap:var(--sp-3); flex-wrap:wrap; font-size:.76rem; color:var(--tenue)}
+
+/* ───────────────────────── móvil ───────────────────────── */
+@media (max-width:640px){
+  .barra-int{padding:var(--sp-2) var(--sp-3); gap:var(--sp-2)}
+  /* En 390 px la barra no daba de sí y los botones se comían el nombre. */
+  .acciones .btn{padding:.34rem .7rem; font-size:.82rem}
+  .btn.icono{width:1.95rem; height:1.95rem; padding:.3rem}
+  .marca-app img{width:22px; height:22px}
+  .marca-app h1{font-size:.94rem}
+  .contenido{padding:var(--sp-3); gap:var(--sp-3)}
+  .jornada{padding:var(--sp-4) var(--sp-3); gap:var(--sp-3)}
+  .jornada h2{font-size:1.15rem}
+  .jornada .cuando{margin-left:0; width:100%}
+  .cifra{flex:1 1 calc(50% - var(--sp-2)); padding:var(--sp-2) var(--sp-3)}
+  .cifra b{font-size:1.3rem}
+  .envio{padding:var(--sp-3)}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important; transition-duration:.01ms !important}
+}
 
 /* ─────────────── pantalla de arranque ───────────────
-   Un segundo con el icono dibujándose solo. No es adorno gratuito: la PWA
-   tarda un instante en descifrar datos.json y, sin esto, se veía un fogonazo
-   de página en blanco cada vez que se abría desde el icono del móvil. */
-#arranque{
-  position:fixed; inset:0; z-index:200; display:grid; place-items:center;
-  background:var(--bg); transition:opacity .32s ease;
-}
+   Un segundo con el icono dibujándose solo. No es adorno: la PWA tarda un
+   instante en descifrar los datos y, sin esto, se veía un fogonazo en blanco
+   cada vez que se abría desde el icono del móvil. */
+#arranque{position:fixed; inset:0; z-index:200; display:grid; place-items:center;
+          background:var(--fondo); transition:opacity .32s ease}
 #arranque.fuera{opacity:0; pointer-events:none}
 #arranque .marca{display:grid; justify-items:center; gap:var(--sp-4)}
 #arranque svg{width:104px; height:104px; overflow:visible}
-#arranque .nombre{
-  font-size:.9rem; font-weight:650; letter-spacing:.14em; text-transform:uppercase;
-  color:var(--tenue); animation:arr-entra .5s .45s both;
-}
-/* La caja se dibuja como si la trazara un lápiz */
-#arranque .trazo{
-  fill:none; stroke:var(--naranja); stroke-width:10; stroke-linecap:round; stroke-linejoin:round;
-  stroke-dasharray:var(--largo); stroke-dashoffset:var(--largo);
-  animation:arr-traza .78s cubic-bezier(.65,0,.35,1) forwards;
-}
+#arranque .nombre{font-size:.85rem; font-weight:700; letter-spacing:.16em; text-transform:uppercase;
+                  color:var(--tenue); animation:arr-entra .5s .45s both}
+#arranque .trazo{fill:none; stroke:var(--marca); stroke-width:10; stroke-linecap:round; stroke-linejoin:round;
+                 stroke-dasharray:var(--largo); stroke-dashoffset:var(--largo);
+                 animation:arr-traza .78s cubic-bezier(.65,0,.35,1) forwards}
 #arranque .trazo.interior{animation-delay:.2s}
 #arranque .punto{transform-origin:150px 50px; animation:arr-punto .42s .58s cubic-bezier(.34,1.56,.64,1) both}
 @keyframes arr-traza{to{stroke-dashoffset:0}}
 @keyframes arr-punto{from{transform:scale(0)} to{transform:scale(1)}}
 @keyframes arr-entra{from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:none}}
-
-/* Quien haya pedido menos animación ve el icono quieto, sin trazado ni rebote */
-@media (prefers-reduced-motion: reduce){
+@media (prefers-reduced-motion:reduce){
   #arranque .trazo{animation:none; stroke-dashoffset:0}
-  #arranque .punto{animation:none}
-  #arranque .nombre{animation:none}
+  #arranque .punto,#arranque .nombre{animation:none}
 }
 </style>
 </head>
@@ -408,6 +438,7 @@ const {useState, useEffect, useCallback, useRef, Fragment} = React;
 
 const CLAVE_GUARDADA = 'monitor-envios:clave';
 const ULTIMO_VISTO   = 'monitor-envios:ultimo-evento';
+const TEMA           = 'shipmentmonitor:tema';
 
 const guardar = (k, v) => { try { localStorage.setItem(k, v); } catch (_) {} };
 const leer    = k      => { try { return localStorage.getItem(k); } catch (_) { return null; } };
@@ -683,113 +714,92 @@ function Acceso({onEntrar}){
   );
 }
 
-/* ─────────────────── diagrama ─────────────────── */
-function Diagrama({estado, pasos}){
+/* ─────────────────── progreso del envío ───────────────────
+   Cuatro hitos sobre una vía. Se ve de un vistazo por dónde va y, debajo de
+   cada uno alcanzado, cuándo pasó. El color lo pone el estado, no el diagrama:
+   naranja mientras se mueve, verde al entregar, rojo si hay incidencia. */
+const estadoCorto = e => (e || 'sin estado').replace(/^\s*incidencia\s*[:·-]\s*/i, '');
+
+function Progreso({estado, pasos}){
   const {paso, incidencia} = analizarEstado(estado);
   const horas = horasDePasos(pasos);
+  const entregado = paso === PASOS.length - 1 && !incidencia;
   return (
     <div className="pasos" role="img" aria-label={`Estado: ${estado || 'desconocido'}`}>
-      {PASOS.map((p, i) => {
-        const entregado = paso === PASOS.length - 1 && !incidencia;
-        const hecho = i < paso || (i === paso && entregado);
-        const clases = ['paso'];
-        if (hecho) clases.push('hecho');
-        if (i === paso) clases.push('actual');
-        if (i === paso && entregado) clases.push('final');
-        if (i === paso && incidencia) clases.push('incidencia');
-        return (
+      <div className="via">
+        {PASOS.map((p, i) => (
           <Fragment key={p.etq}>
-            {i > 0 && <div className={'linea' + (i <= paso ? ' hecha' : '')} />}
-            <div className={clases.join(' ')}>
-              <div className="bola">{i === paso && incidencia ? '!' : (hecho ? '✓' : p.icono)}</div>
-              <div className="etq">{p.etq}</div>
-              {horas[i] && <div className="cuando">{horaCorta(horas[i])}</div>}
-            </div>
+            {i > 0 && <div className={'tramo' + (i <= paso ? ' hecho' : '')} />}
+            <div className={'nodo' + (i < paso || entregado && i === paso ? ' hecho' : '')
+                                   + (i === paso ? ' aqui' : '')} />
           </Fragment>
-        );
-      })}
+        ))}
+      </div>
+      <div className="etiquetas">
+        {PASOS.map((p, i) => (
+          <div key={p.etq} className={i <= paso ? 'marcado' : ''}>
+            <div className="etq">{p.etq}</div>
+            {horas[i] && <div className="hora">{horaCorta(horas[i])}</div>}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
-/* ─────────────────── tarjeta de envío ─────────────────── */
+/* ─────────────────── tarjeta de envío ───────────────────
+   El titular es el DESTINATARIO. Nadie reconoce «0280010370017025111854»; a
+   cualquiera le dice algo «Hospital Severo Ochoa». El número baja al pie, que
+   es donde se busca cuando de verdad hace falta.
+   La tarjeta entera abre el detalle: un enlace de seis píxeles no es un objetivo
+   razonable en un móvil. */
 function TarjetaEnvio({envio, historial}){
   const [abierto, setAbierto] = useState(false);
   const c = envio.campos || {};
-  const {incidencia} = analizarEstado(c.estado);
+  const {paso, incidencia} = analizarEstado(c.estado);
+  const tono = incidencia ? 'alerta' : (paso === PASOS.length - 1 ? 'ok' : 'curso');
   const extras = Object.entries(c).filter(([k]) => k.startsWith('extra:'));
 
-  // De dónde viene: población de origen y, si la hay, su código postal
-  const procedencia = [c.localidad_origen, c.cp_origen].filter(Boolean).join(' · ');
-
-  // El recorrido detallado del portal; los hitos son su versión resumida.
+  const procedencia = c.localidad_origen || c.cp_origen || '';
   const recorrido = envio.pasos || [];
-  // Para el diagrama valen los hitos («Documentado», «En camino»…) porque
-  // marcan justo los cuatro pasos. Si no los hay, se deducen del recorrido; y
-  // si tampoco, queda el estado actual del listado, como hasta ahora.
   const pasosDelDiagrama = (envio.hitos && envio.hitos.length) ? envio.hitos : recorrido;
+  // Cuándo se movió por última vez, que es lo que de verdad se quiere saber
+  const ultimoMovimiento = recorrido.length ? recorrido[recorrido.length - 1].ts
+                                            : (c.fecha_estado || '');
 
   return (
-    <article className="tarjeta envio">
-      <header className="envio-cab">
-        <div style={{minWidth:0}}>
-          <div className="envio-ref">{envio.id}</div>
-          <div className="envio-sub">{c.destinatario || 'Sin destinatario'}{c.localidad ? ` · ${c.localidad}` : ''}</div>
-        </div>
-        <span className={'chip ' + (incidencia ? 'alerta' : 'marca')}>{c.estado || 'sin estado'}</span>
-      </header>
-
-      <Diagrama estado={c.estado} pasos={pasosDelDiagrama} />
-
-      {/* De dónde sale y a dónde va, que es lo primero que se mira */}
-      {(c.remitente || c.destinatario) && (
-        <div className="ruta">
-          <div className="ruta-fila">
-            <span className="marca-ruta">DE</span>
-            <div style={{minWidth:0}}>
-              <b>{c.remitente || '—'}</b>
-              {procedencia && <i>{procedencia}</i>}
-            </div>
+    <article className={'envio ' + tono}>
+      <div className="envio-cuerpo" role="button" tabIndex={0} aria-expanded={abierto}
+           onClick={() => setAbierto(a => !a)}
+           onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAbierto(a => !a); } }}>
+        <header className="envio-cab">
+          <div className="envio-quien">
+            <b>{c.destinatario || 'Sin destinatario'}</b>
+            <span>{c.localidad || 'destino sin indicar'}</span>
           </div>
-          <div className="ruta-fila">
-            <span className="marca-ruta">A</span>
-            <div style={{minWidth:0}}>
-              <b>{c.destinatario || '—'}</b>
-              {c.localidad && <i>{c.localidad}</i>}
-            </div>
+          <span className={'chip ' + tono} title={c.estado}>
+              <i className="punto" /><span>{estadoCorto(c.estado)}</span>
+            </span>
+        </header>
+
+        {(c.remitente || procedencia) && (
+          <div className="ruta">
+            <i title={c.remitente}>{c.remitente || procedencia}</i>
+            <span className="hacia">→</span>
+            <i title={c.destinatario}>{c.localidad || '—'}</i>
           </div>
+        )}
+
+        <Progreso estado={c.estado} pasos={pasosDelDiagrama} />
+
+        <div className="envio-pie">
+          <span className="envio-ref">{envio.id}</span>
+          <span>{ultimoMovimiento ? `movido ${horaCorta(ultimoMovimiento)}` : `visto ${haceCuanto(envio.visto_ultima)}`}</span>
         </div>
-      )}
-
-      <div className="datos">
-        {c.fecha && <div className="dato"><span>Fecha</span><b>{c.fecha}</b></div>}
-        {c.bultos && <div className="dato"><span>Bultos</span><b>{c.bultos}</b></div>}
-        {c.kilos && <div className="dato"><span>Kilos</span><b>{c.kilos}</b></div>}
-        {c.entrega && <div className="dato"><span>Entrega</span><b>{c.entrega}</b></div>}
-      </div>
-
-      {c.observaciones && <div className="envio-sub">📝 {c.observaciones}</div>}
-
-      <div className="pie">
-        <span className="envio-sub">Visto {haceCuanto(envio.visto_ultima)}</span>
-        <button className="enlace" onClick={()=>setAbierto(a=>!a)} aria-expanded={abierto}>
-          {abierto ? 'Ocultar detalle' : 'Ver detalle'}
-        </button>
       </div>
 
       {abierto && (
         <div className="detalle">
-          <div>
-            <div className="titulo-seccion">Todos los datos</div>
-            <div className="datos">
-              {Object.entries(c).filter(([k]) => !k.startsWith('extra:')).map(([k,v]) => (
-                <div className="dato" key={k}><span>{etiqueta(k)}</span><b>{v || '—'}</b></div>
-              ))}
-              {extras.map(([k,v]) => (
-                <div className="dato" key={k}><span>{k.slice(6)}</span><b>{v || '—'}</b></div>
-              ))}
-            </div>
-          </div>
           {recorrido.length > 0 && (
             <div>
               <div className="titulo-seccion">Recorrido en el portal</div>
@@ -810,6 +820,19 @@ function TarjetaEnvio({envio, historial}){
               </div>
             </div>
           )}
+
+          <div>
+            <div className="titulo-seccion">Todos los datos</div>
+            <div className="datos">
+              {Object.entries(c).filter(([k]) => !k.startsWith('extra:')).map(([k,v]) => (
+                <div className="dato" key={k}><span>{etiqueta(k)}</span><b>{v || '—'}</b></div>
+              ))}
+              {extras.map(([k,v]) => (
+                <div className="dato" key={k}><span>{k.slice(6)}</span><b>{v || '—'}</b></div>
+              ))}
+            </div>
+          </div>
+
           <div>
             <div className="titulo-seccion">Cambios detectados</div>
             <div className="hist">
@@ -1156,9 +1179,22 @@ function Novedades({eventos}){
 
 /* ─────────────────── panel ─────────────────── */
 function Panel({datos, onRecargar, onSalir, recargando}){
-  const [filtro, setFiltro] = useState('todos');
+  const [filtro, setFiltro] = useState('activos');
   const [busqueda, setBusqueda] = useState('');
   const [permiso, setPermiso] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'denied');
+  const [tema, setTema] = useState(() => leer(TEMA) || 'sistema');
+
+  /* Qué se está viendo AHORA, que no es lo mismo que qué se eligió: con el tema
+     del sistema en oscuro, «sistema» y «oscuro» se ven igual. Sin esto, el
+     primer clic en el botón parecía no hacer nada. */
+  const oscuroAhora = tema === 'oscuro' ||
+    (tema === 'sistema' && typeof matchMedia === 'function' &&
+     matchMedia('(prefers-color-scheme: dark)').matches);
+
+  useEffect(() => {
+    if (tema === 'sistema') { document.documentElement.removeAttribute('data-tema'); olvidar(TEMA); }
+    else { document.documentElement.setAttribute('data-tema', tema); guardar(TEMA, tema); }
+  }, [tema]);
 
   const meta = datos.meta || {};
   const eventos = datos.eventos || [];
@@ -1177,29 +1213,36 @@ function Panel({datos, onRecargar, onSalir, recargando}){
     (async () => {
       const reg = await navigator.serviceWorker?.getRegistration();
       nuevos.slice(0, 5).forEach(n => {
-        const o = {body:n.detalle, icon:'icono-192.png', badge:'icono-192.png', tag:'envio-'+n.envio_id};
+        const o = {body:n.detalle, icon:'icono-notificacion-192.png', badge:'icono-badge-96.png',
+                   tag:'envio-'+n.envio_id};
         reg ? reg.showNotification(n.titulo, o) : new Notification(n.titulo, o);
       });
     })();
   }, [eventos, permiso]);
 
-  const q = busqueda.trim().toLowerCase();
-  const visibles = envios.filter(e => {
-    const a = analizarEstado(e.campos.estado);
-    if (filtro === 'curso' && (a.paso === 3 || a.incidencia)) return false;
-    if (filtro === 'entregados' && (a.paso !== 3 || a.incidencia)) return false;
-    if (filtro === 'incidencias' && !a.incidencia) return false;
-    if (!q) return true;
-    return (e.id + ' ' + JSON.stringify(e.campos)).toLowerCase().includes(q);
-  });
-
   /* Un envío está «activo» mientras no esté entregado y sin problemas. Las
-     incidencias también son activas: son las que más urge mirar, así que van
-     arriba del todo dentro de su grupo. */
-  const activo = e => { const a = analizarEstado(e.campos.estado); return a.incidencia || a.paso !== 3; };
-  const pesoUrgencia = e => analizarEstado(e.campos.estado).incidencia ? 0 : 1;
-  const activos = visibles.filter(activo).sort((a, b) => pesoUrgencia(a) - pesoUrgencia(b));
-  const cerrados = visibles.filter(e => !activo(e));
+     incidencias son activas y van delante: son las que urge mirar. */
+  const grupo = e => {
+    const a = analizarEstado(e.campos.estado);
+    return a.incidencia ? 'incidencias' : (a.paso === PASOS.length - 1 ? 'entregados' : 'curso');
+  };
+  const cuenta = {curso:0, entregados:0, incidencias:0};
+  envios.forEach(e => cuenta[grupo(e)]++);
+  cuenta.activos = cuenta.curso + cuenta.incidencias;
+
+  const q = busqueda.trim().toLowerCase();
+  const coincide = e => !q || (e.id + ' ' + JSON.stringify(e.campos)).toLowerCase().includes(q);
+  const enFiltro = e => {
+    const g = grupo(e);
+    if (filtro === 'activos') return g !== 'entregados';
+    if (filtro === 'todos') return true;
+    return g === filtro;
+  };
+  const visibles = envios.filter(e => coincide(e) && enFiltro(e));
+  const orden = {incidencias:0, curso:1, entregados:2};
+  const principales = visibles.filter(e => grupo(e) !== 'entregados')
+                              .sort((a,b) => orden[grupo(a)] - orden[grupo(b)]);
+  const cerrados = visibles.filter(e => grupo(e) === 'entregados');
 
   const historialDe = id => eventos.filter(ev => ev.envio_id === id);
   const rejilla = lista => (
@@ -1207,11 +1250,11 @@ function Panel({datos, onRecargar, onSalir, recargando}){
       {lista.map(e => <TarjetaEnvio key={e.id} envio={e} historial={historialDe(e.id)} />)}
     </div>
   );
-  /* ¿Están los datos al día? La respuesta depende de la hora: a las once de la
-     noche es normal que la última comprobación sea de las 17:30, pero a media
-     mañana eso significa que algo se ha roto. El monitor estuvo un viernes
-     entero sin comprobar nada —GitHub dejó de disparar el cron— y no se notó
-     hasta días después, así que ahora el panel lo canta. */
+
+  /* ¿Están los datos al día? Depende de la hora: a las once de la noche es
+     normal que la última comprobación sea de las 17:30; a media mañana eso
+     significa que algo se ha roto. El monitor estuvo días sin comprobar y no se
+     notó, así que ahora el panel lo canta. */
   const desfase = meta.ultima_comprobacion
     ? Math.round((Date.now() - new Date(meta.ultima_comprobacion)) / 60000) : null;
   const enHorario = (() => {
@@ -1219,21 +1262,23 @@ function Panel({datos, onRecargar, onSalir, recargando}){
     const dia = ahora.getDay(), reloj = ahora.getHours() * 60 + ahora.getMinutes();
     return dia >= 1 && dia <= 5 && reloj >= 510 && reloj <= 1080;
   })();
-  // En horario laboral se comprueba como mucho cada hora: pasada hora y media
-  // sin noticias, algo va mal. Fuera de horario, basta con que sea de hoy.
   const margen = enHorario ? 90 : 20 * 60;
-  const frescura = desfase !== null && desfase <= margen;
   const paradoEnHorario = enHorario && desfase !== null && desfase > margen;
 
-  // Las cifras de la barra van sobre TODOS los envíos, no sobre los filtrados:
-  // son la foto general, y cambiarlas al buscar despistaba.
-  const resumen = envios.reduce((acc, e) => {
-    const a = analizarEstado(e.campos.estado);
-    if (a.incidencia) acc.incidencias++;
-    else if (a.paso === 3) acc.entregados++;
-    if (a.incidencia || a.paso !== 3) acc.activos++;
-    return acc;
-  }, {activos: 0, entregados: 0, incidencias: 0});
+  // El titular de la jornada: la respuesta a «¿tengo que mirar algo ahora?»
+  const tono = cuenta.incidencias ? 'alerta' : (cuenta.activos ? 'curso' : 'ok');
+  const titular = cuenta.incidencias
+      ? `${cuenta.incidencias} envío${cuenta.incidencias > 1 ? 's' : ''} con incidencia`
+      : cuenta.activos
+        ? `${cuenta.activos} envío${cuenta.activos > 1 ? 's' : ''} en camino`
+        : envios.length ? 'Todo entregado' : 'Todavía sin envíos';
+
+  const CIFRAS = [
+    ['activos',     'Activos',     cuenta.activos,     'curso'],
+    ['incidencias', 'Incidencias', cuenta.incidencias, 'alerta'],
+    ['entregados',  'Entregados',  cuenta.entregados,  'ok'],
+    ['todos',       'Vigilados',   envios.length,      ''],
+  ];
 
   return (
     <Fragment>
@@ -1243,20 +1288,13 @@ function Panel({datos, onRecargar, onSalir, recargando}){
             <img src="icono.svg" alt="" />
             <h1>ShipmentMonitor</h1>
           </div>
-          <div className="tira">
-            <span className="dato-tira"><b>{resumen.activos}</b> activos</span>
-            <span className="sep">·</span>
-            <span className="dato-tira" style={{color: resumen.incidencias ? 'var(--error)' : undefined}}>
-              <b>{resumen.incidencias}</b> incid.
-            </span>
-            <span className="sep">·</span>
-            <span className="dato-tira"><b>{resumen.entregados}</b> entregados</span>
-          </div>
           <div className="crece" />
           <div className="acciones">
-            <span className={'chip ' + (frescura ? 'on' : 'alerta')}>
-              {haceCuanto(meta.ultima_comprobacion)}
-            </span>
+            <button className="btn icono" aria-label={oscuroAhora ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+                    title={oscuroAhora ? 'Tema claro' : 'Tema oscuro'}
+                    onClick={() => setTema(oscuroAhora ? 'claro' : 'oscuro')}>
+              {oscuroAhora ? '☀' : '☾'}
+            </button>
             <button className="btn primario" onClick={onRecargar} disabled={recargando}>
               {recargando ? 'Actualizando…' : 'Actualizar'}
             </button>
@@ -1271,44 +1309,55 @@ function Panel({datos, onRecargar, onSalir, recargando}){
         {paradoEnHorario && (
           <div className="aviso mal">
             ⚠ <b>El monitor lleva {haceCuanto(meta.ultima_comprobacion).replace('hace ', '')} sin comprobar el portal</b>,
-            y a esta hora debería hacerlo cada hora como mucho. Puede que GitHub haya dejado de
-            lanzar las comprobaciones programadas.{' '}
+            y a esta hora debería hacerlo cada hora como mucho.{' '}
             {meta.repo && (
               <a className="enlace" target="_blank" rel="noopener"
                  href={`https://github.com/${meta.repo}/actions/workflows/monitor.yml`}>
-                Míralo en Actions y lánzala a mano
+                Míralo en Actions y lánzalo a mano
               </a>
             )}
           </div>
         )}
 
-        {/* La tarjeta de avisos solo aparece cuando hay algo que hacer con ella */}
-        <AvisosPush repo={meta.repo} meta={meta} />
+        {/* La cabecera del día: qué hay, y las cifras hacen de filtro */}
+        <section className="tarjeta jornada">
+          <div className="jornada-titular">
+            <span className={'faro ' + tono} />
+            <h2>{titular}</h2>
+            <span className="cuando">Comprobado {haceCuanto(meta.ultima_comprobacion)}</span>
+          </div>
 
-        <div className="filtros">
-          <div className="chips-filtro">
-            {[['todos','Todos'],['curso','En curso'],['entregados','Entregados'],['incidencias','Incidencias']].map(([k,l]) => (
-              <button key={k} className={'filtro-btn' + (filtro === k ? ' activo' : '')} onClick={()=>setFiltro(k)}>{l}</button>
+          <div className="cifras">
+            {CIFRAS.map(([clave, etq, valor, color]) => (
+              <button key={clave} className={'cifra ' + color + (filtro === clave ? ' activa' : '')}
+                      aria-pressed={filtro === clave} onClick={() => setFiltro(clave)}>
+                <b>{valor}</b><span>{etq}</span>
+              </button>
             ))}
           </div>
-          <div className="buscador">
-            <input type="search" value={busqueda} onChange={e=>setBusqueda(e.target.value)}
-                   placeholder="Buscar referencia, destinatario, localidad…" aria-label="Buscar" />
-          </div>
-        </div>
 
-        {/* 1º — los que siguen en movimiento: siempre abiertos y los primeros */}
-        <Seccion titulo="Envíos activos" cuenta={activos.length} primaria plegable={false}>
-          {activos.length === 0
+          <div className="buscador">
+            <span className="lupa">⌕</span>
+            <input type="search" value={busqueda} onChange={e => setBusqueda(e.target.value)}
+                   placeholder="Buscar destinatario, localidad o albarán…" aria-label="Buscar" />
+          </div>
+        </section>
+
+        <AvisosPush repo={meta.repo} meta={meta} />
+
+        {/* 1º — lo que se mueve, siempre a la vista */}
+        <Seccion titulo={filtro === 'entregados' ? 'Entregados' : 'En camino'}
+                 cuenta={principales.length || cerrados.length} primaria plegable={false}>
+          {principales.length === 0 && cerrados.length === 0
             ? <div className="tarjeta pad vacio">
-                {visibles.length ? 'Ninguno en movimiento ahora mismo.' : 'No hay envíos que coincidan.'}
+                {q ? `Ningún envío coincide con «${busqueda}».` : 'Nada por aquí ahora mismo.'}
               </div>
-            : rejilla(activos)}
+            : rejilla(principales.length ? principales : cerrados)}
         </Seccion>
 
-        {/* 2º — los ya cerrados: presentes, pero sin robar sitio */}
-        {cerrados.length > 0 && (
-          <Seccion titulo="Entregados" cuenta={cerrados.length} abiertaPorDefecto={activos.length === 0}>
+        {/* 2º — los cerrados, presentes pero sin robar sitio */}
+        {principales.length > 0 && cerrados.length > 0 && (
+          <Seccion titulo="Entregados" cuenta={cerrados.length} abiertaPorDefecto={false}>
             {rejilla(cerrados)}
           </Seccion>
         )}

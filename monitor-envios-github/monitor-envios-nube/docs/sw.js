@@ -7,7 +7,7 @@
  *      la pantalla del móvil, con la app cerrada. Es el motivo de que no haga
  *      falta ni Telegram ni email.
  */
-const CACHE = 'shipmentmonitor-v6';
+const CACHE = 'shipmentmonitor-v7';
 const BASICOS = [
   './', 'index.html', 'icono.svg', 'icono-192.png', 'icono-512.png',
   'icono-notificacion-192.png', 'icono-badge-96.png',
