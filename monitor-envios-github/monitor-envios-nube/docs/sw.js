@@ -7,7 +7,7 @@
  *      la pantalla del móvil, con la app cerrada. Es el motivo de que no haga
  *      falta ni Telegram ni email.
  */
-const CACHE = 'shipmentmonitor-v9';
+const CACHE = 'shipmentmonitor-v10';
 const BASICOS = [
   './', 'index.html', 'icono.svg', 'icono-192.png', 'icono-512.png',
   'icono-notificacion-192.png', 'icono-badge-96.png',
@@ -34,11 +34,23 @@ self.addEventListener('activate', e => {
   );
 });
 
+/* Solo se toca lo de casa. Antes esto se metía en TODAS las peticiones y, si
+   una fallaba, devolvía index.html con `ok: true`; el panel llamaba a la API de
+   GitHub, recibía una página HTML donde esperaba JSON y el error que salía
+   —«Unexpected token '<'»— no se parecía en nada a «no hay cobertura». Ahora lo
+   de fuera (api.github.com, el datos.json del repositorio) pasa de largo, y el
+   cascarón cacheado solo sustituye a una navegación. */
 self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
-  if (new URL(e.request.url).pathname.endsWith('/datos.json')) return;   // siempre fresco
+  const pet = e.request;
+  if (pet.method !== 'GET') return;
+  const url = new URL(pet.url);
+  if (url.origin !== self.location.origin) return;                 // nada de fuera
+  if (url.pathname.endsWith('/datos.json')) return;                // siempre fresco
+  if (url.pathname.endsWith('/disparo.json')) return;
   e.respondWith(
-    fetch(e.request).catch(() => caches.match(e.request).then(r => r || caches.match('index.html')))
+    fetch(pet).catch(() => caches.match(pet).then(
+      r => r || (pet.mode === 'navigate' ? caches.match('index.html') : Response.error())
+    ))
   );
 });
 

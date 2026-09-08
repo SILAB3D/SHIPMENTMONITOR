@@ -429,6 +429,29 @@ img{max-width:100%}
   body{padding-bottom:calc(4rem + env(safe-area-inset-bottom))}
 }
 
+/* ─────────────── el transcurso de la comprobación ───────────────
+   «Actualizar» ya no solo recarga: manda a GitHub comprobar el portal, y eso
+   tarda de veinte segundos a un par de minutos. Sin contarlo, el botón parecía
+   no hacer nada y se pulsaba tres veces. */
+.marcha{display:grid; gap:var(--sp-3); border-left:3px solid var(--marca)}
+.marcha.mal{border-left-color:var(--mal)}
+.marcha.bien{border-left-color:var(--ok)}
+.marcha-cab{display:flex; align-items:baseline; gap:var(--sp-2); flex-wrap:wrap}
+.marcha-cab b{font-size:.95rem; min-width:0}
+.marcha-cab .cuando{margin-left:auto; color:var(--tenue); font-size:.8rem;
+                    font-variant-numeric:tabular-nums; flex:none}
+.marcha-pasos{display:grid; grid-template-columns:repeat(4,1fr); gap:var(--sp-2)}
+.marcha-pasos .paso{display:grid; gap:6px; min-width:0; font-size:.72rem; color:var(--tenue)}
+.marcha-pasos .paso span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.marcha-pasos .paso.hecho,.marcha-pasos .paso.ahora{color:var(--texto)}
+.marcha-pasos .raya{height:4px; border-radius:2px; background:var(--borde)}
+.marcha-pasos .paso.hecho .raya{background:var(--marca)}
+.marcha-pasos .paso.ahora .raya{background:linear-gradient(90deg,var(--marca),var(--marca-viva),var(--marca));
+                                background-size:220% 100%; animation:marcha-late 1.2s linear infinite}
+@keyframes marcha-late{to{background-position:220% 0}}
+@media (max-width:560px){ .marcha-pasos{grid-template-columns:repeat(2,1fr)} }
+@media (prefers-reduced-motion:reduce){ .marcha-pasos .paso.ahora .raya{animation:none} }
+
 /* ─────────────── pantalla de arranque ───────────────
    Un segundo con el icono dibujándose solo. No es adorno: la PWA tarda un
    instante en descifrar los datos y, sin esto, se veía un fogonazo en blanco
@@ -685,13 +708,15 @@ async function cargarDisparo(password){
   return null;
 }
 
+const GH_REPO = 'https://api.github.com/repos/SILAB3D/SHIPMENTMONITOR';
+const cabecerasGH = token => ({'Authorization': 'Bearer ' + token,
+                               'Accept': 'application/vnd.github+json',
+                               'X-GitHub-Api-Version': '2022-11-28'});
+
 async function arrancarVigilancia(token){
-  const r = await fetch('https://api.github.com/repos/SILAB3D/SHIPMENTMONITOR'
-                      + '/actions/workflows/monitor.yml/dispatches', {
+  const r = await fetch(GH_REPO + '/actions/workflows/monitor.yml/dispatches', {
     method: 'POST',
-    headers: {'Authorization': 'Bearer ' + token,
-              'Accept': 'application/vnd.github+json',
-              'X-GitHub-Api-Version': '2022-11-28'},
+    headers: cabecerasGH(token),
     body: JSON.stringify({ref: 'main'}),
   });
   if (r.status === 204) { guardar(ULTIMO_DISPARO, String(Date.now())); return; }
@@ -699,6 +724,31 @@ async function arrancarVigilancia(token){
   try { detalle = (await r.json()).message || ''; } catch (_) {}
   throw new Error(`GitHub respondió ${r.status}${detalle ? ': ' + detalle : ''}`);
 }
+
+/* Seguir la ejecución para poder contarla. Sin esto, pulsar «Actualizar» era un
+   acto de fe: la orden salía, GitHub tardaba entre veinte segundos y dos
+   minutos en levantar la máquina, y el panel no decía nada. */
+const espera = ms => new Promise(r => setTimeout(r, ms));
+
+async function ultimaEjecucion(token){
+  const r = await fetch(GH_REPO + '/actions/workflows/monitor.yml/runs?per_page=1&t=' + Date.now(),
+                        {headers: cabecerasGH(token), cache: 'no-store'});
+  if (!r.ok) return null;
+  const datos = await r.json();
+  return (datos.workflow_runs || [])[0] || null;
+}
+
+async function verEjecucion(token, id){
+  const r = await fetch(`${GH_REPO}/actions/runs/${id}?t=` + Date.now(),
+                        {headers: cabecerasGH(token), cache: 'no-store'});
+  return r.ok ? await r.json() : null;
+}
+
+// Una ejecución «viva» es la que ya está cubriendo la jornada: si hay una, no
+// se pide otra —GitHub la encolaría detrás y no correría hasta dentro de horas—,
+// se sigue la que hay.
+const ejecucionViva = e => !!e && (e.status === 'queued' || e.status === 'in_progress'
+                                   || e.status === 'waiting' || e.status === 'requested');
 
 /* ─────────────────── utilidades ─────────────────── */
 const fmtFecha = iso => iso
@@ -1360,7 +1410,58 @@ function Novedades({eventos}){
 }
 
 /* ─────────────────── panel ─────────────────── */
-function Panel({datos, token, onRecargar, onSalir, recargando}){
+/* El recorrido de una comprobación, contado según pasa. Las cuatro fases son
+   las que de verdad se distinguen desde fuera: la orden sale, GitHub la encola,
+   la máquina lee el portal, y los datos ya son de ahora. */
+const FASES = [['pidiendo', 'Pidiendo turno'], ['encolada', 'En cola'],
+               ['comprobando', 'Leyendo el portal'], ['listo', 'Datos al día']];
+
+function Marcha({marcha}){
+  const [ahora, setAhora] = useState(() => Date.now());
+  const parada = !marcha || marcha.fase === 'listo' || marcha.fase === 'error';
+  useEffect(() => {
+    if (parada) return;
+    const t = setInterval(() => setAhora(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [parada]);
+
+  if (!marcha) return null;
+  const {fase, desde, url, detalle} = marcha;
+  const mal = fase === 'error', lenta = fase === 'lenta', listo = fase === 'listo';
+  const enCurso = listo ? FASES.length : lenta ? 2 : FASES.findIndex(([c]) => c === fase);
+  const seg = Math.max(0, Math.round(((parada ? marcha.fin || ahora : ahora) - desde) / 1000));
+
+  return (
+    <div className={'tarjeta pad marcha' + (mal || lenta ? ' mal' : listo ? ' bien' : '')}
+         role="status" aria-live="polite">
+      <div className="marcha-cab">
+        <b>{mal   ? 'No se pudo lanzar la comprobación'
+          : lenta ? 'La comprobación está tardando más de lo normal'
+          : listo ? 'Comprobado: los datos son de ahora mismo'
+                  : 'Comprobando el portal…'}</b>
+        <span className="cuando">{seg < 60 ? `${seg} s` : `${Math.floor(seg / 60)} min ${seg % 60} s`}</span>
+      </div>
+      {!mal && (
+        <div className="marcha-pasos">
+          {FASES.map(([clave, etq], i) => (
+            <div key={clave} className={'paso' + (i < enCurso ? ' hecho' : i === enCurso ? ' ahora' : '')}>
+              <div className="raya" />
+              <span>{etq}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {(detalle || url) && (
+        <div className="envio-sub">
+          {detalle}{detalle && url ? ' — ' : ''}
+          {url && <a href={url} target="_blank" rel="noopener">ver la ejecución en GitHub</a>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
   const [pestana, setPestana] = useState('inicio');
   const [filtro, setFiltro] = useState('todos');
   const [busqueda, setBusqueda] = useState('');
@@ -1467,20 +1568,12 @@ function Panel({datos, token, onRecargar, onSalir, recargando}){
      GitHub, que lleva días sin servir un solo disparo: si al abrir el panel en
      horario laboral resulta que no se ha comprobado nada, se arranca solo. Con
      abrir la app por la mañana, el día queda cubierto hasta las 17:30.
-     El candado de veinte minutos evita insistir mientras la ejecución anterior
-     todavía está arrancando. */
-  const [arranque, setArranque] = useState(null);   // null | 'yendo' | 'ok' | mensaje
+     El candado de veinte minutos (dentro de `onActualizar`) evita insistir
+     mientras la ejecución anterior todavía está arrancando. */
+  const enMarcha = !!marcha && ['pidiendo', 'encolada', 'comprobando'].includes(marcha.fase);
 
-  const arrancar = useCallback(async (automatico) => {
-    if (!token) return;
-    if (automatico && Date.now() - Number(leer(ULTIMO_DISPARO) || 0) < 20 * 60 * 1000) return;
-    setArranque('yendo');
-    try { await arrancarVigilancia(token); setArranque('ok'); setTimeout(onRecargar, 45000); }
-    catch (e) { setArranque(e.message); }
-  }, [token, onRecargar]);
-
-  useEffect(() => { if (token && paradoEnHorario) arrancar(true); },
-            [token, paradoEnHorario, arrancar]);
+  useEffect(() => { if (token && paradoEnHorario) onActualizar({automatico: true}); },
+            [token, paradoEnHorario, onActualizar]);
 
   // El titular de la jornada: la respuesta a «¿tengo que mirar algo ahora?»
   const tono = cuenta.incidencias ? 'alerta' : (cuenta.activos ? 'curso' : 'ok');
@@ -1536,14 +1629,12 @@ function Panel({datos, token, onRecargar, onSalir, recargando}){
                 </svg>
               )}
             </button>
-            {token && (
-              <button className="btn solo-ancho" onClick={() => arrancar(false)} disabled={arranque === 'yendo'}
-                      title="Comprueba el portal ahora y deja la vigilancia en marcha el resto del día">
-                {arranque === 'yendo' ? 'Arrancando…' : 'Comprobar ahora'}
-              </button>
-            )}
-            <button className="btn primario" onClick={onRecargar} disabled={recargando}>
-              {recargando ? 'Actualizando…' : 'Actualizar'}
+            <button className="btn primario" onClick={() => onActualizar()}
+                    disabled={recargando || enMarcha}
+                    title={token
+                      ? 'Recarga los datos y pone el monitor a comprobar el portal ahora mismo'
+                      : 'Vuelve a bajar los datos publicados'}>
+              {enMarcha ? 'Comprobando…' : recargando ? 'Actualizando…' : 'Actualizar'}
             </button>
           </div>
         </div>
@@ -1576,6 +1667,8 @@ function Panel({datos, token, onRecargar, onSalir, recargando}){
           al alcance del pulgar; en pantalla grande, bajo la cabecera. */}
 
       <main className="contenido">
+        <Marcha marcha={marcha} />
+
         {meta.error && <div className="aviso mal">⚠ La última comprobación falló: {meta.error}</div>}
 
         {paradoEnHorario && (
@@ -1583,15 +1676,12 @@ function Panel({datos, token, onRecargar, onSalir, recargando}){
             <div>
               ⚠ <b>El monitor lleva {haceCuanto(meta.ultima_comprobacion).replace('hace ', '')} sin comprobar el portal</b>,
               y a esta hora debería hacerlo cada hora como mucho.
-              {token && arranque === 'yendo' && ' Poniendo la vigilancia en marcha…'}
-              {token && arranque === 'ok' && ' Ya está en marcha: en un minuto tendrás datos nuevos.'}
-              {token && arranque && arranque !== 'yendo' && arranque !== 'ok'
-                && ` No se pudo arrancar — ${arranque}`}
+              {token && !enMarcha && ' Pulsa «Actualizar» y se pone en marcha.'}
             </div>
             <div className="acciones" style={{marginTop:'var(--sp-2)'}}>
               {token && (
-                <button className="btn" onClick={() => arrancar(false)} disabled={arranque === 'yendo'}>
-                  {arranque === 'yendo' ? 'Arrancando…' : 'Poner en marcha ahora'}
+                <button className="btn" onClick={() => onActualizar()} disabled={enMarcha}>
+                  {enMarcha ? 'Comprobando…' : 'Poner en marcha ahora'}
                 </button>
               )}
               {meta.repo && (
@@ -1694,13 +1784,13 @@ function Panel({datos, token, onRecargar, onSalir, recargando}){
                 <Metricas meta={meta} envios={envios} />
                 <div className="envio-sub">
                   Vigila de lunes a viernes: cada 15 minutos de 8:30 a 10:30 y cada hora hasta las 17:30.
-                  {token && ' Si al abrir la app ve que lleva parado, lo pone en marcha él solo.'}
+                  {token && ' El botón «Actualizar» de arriba recarga los datos y, de paso, manda comprobar'
+                          + ' el portal ahora mismo; si al abrir la app ve que lleva parado, lo hace él solo.'}
                 </div>
                 <div className="acciones">
                   {token && (
-                    <button className="btn primario" onClick={() => arrancar(false)}
-                            disabled={arranque === 'yendo'}>
-                      {arranque === 'yendo' ? 'Arrancando…' : 'Comprobar el portal ahora'}
+                    <button className="btn primario" onClick={() => onActualizar()} disabled={enMarcha}>
+                      {enMarcha ? 'Comprobando…' : 'Comprobar el portal ahora'}
                     </button>
                   )}
                   {meta.repo && (
@@ -1751,6 +1841,8 @@ function App(){
   const [datos, setDatos] = useState(null);
   const [error, setError] = useState('');
   const [recargando, setRecargando] = useState(false);
+  const [marcha, setMarcha] = useState(null);     // el transcurso de la comprobación
+  const siguiendo = useRef(false);
   const primeraCarga = useRef(true);
 
   const recargar = useCallback(async (password) => {
@@ -1758,8 +1850,10 @@ function App(){
     if (!pw && !primeraCarga.current) return;
     setRecargando(true);
     try{
-      setDatos(await cargarDatos(pw));
+      const frescos = await cargarDatos(pw);
+      setDatos(frescos);
       setError('');
+      return frescos;
     }catch(err){
       if (err.clave){ olvidar(CLAVE_GUARDADA); setClave(''); setDatos(null); }
       else setError(err.message);
@@ -1772,6 +1866,75 @@ function App(){
     const t = setInterval(() => recargar(clave), 5 * 60 * 1000);   // el workflow va cada 15 min / cada hora en horario laboral
     return () => clearInterval(t);
   }, [clave, recargar]);
+
+  /* ─── «Actualizar» ───
+     Antes solo volvía a bajar el fichero: si el monitor estaba parado, daba
+     igual cuántas veces se pulsara, los datos eran los mismos. Ahora recarga
+     Y pone en marcha la vigilancia, y cuenta el recorrido mientras pasa.
+
+     Lo primero es recargar, que es instantáneo. Después, si hay token: si ya
+     hay una ejecución viva se sigue esa —pedir otra solo la encolaría detrás—
+     y si no la hay, se lanza. Se da por terminado en cuanto el portal se ha
+     leído de verdad, que es cuando cambia `ultima_comprobacion`; en horario
+     laboral la ejecución sigue viva horas después, vigilando. */
+  const actualizar = useCallback(async (opciones) => {
+    const automatico = !!(opciones && opciones.automatico);
+    const antes = await recargar();
+    if (!token || siguiendo.current) return;
+    if (automatico && Date.now() - Number(leer(ULTIMO_DISPARO) || 0) < 20 * 60 * 1000) return;
+
+    siguiendo.current = true;
+    const desde = Date.now();
+    const marcaPrevia = antes && antes.meta ? antes.meta.ultima_comprobacion : null;
+    const paso = (fase, extra) => setMarcha(m => ({...(m || {}), desde, fase, ...extra}));
+    const rematar = (fase, extra) => {
+      paso(fase, {fin: Date.now(), ...(extra || {})});
+      if (fase === 'listo') setTimeout(() => setMarcha(null), 8000);
+    };
+
+    try {
+      paso('pidiendo', {url: null, detalle: null});
+      let ejecucion = await ultimaEjecucion(token);
+
+      if (!ejecucionViva(ejecucion)) {
+        const idPrevio = ejecucion ? ejecucion.id : 0;
+        await arrancarVigilancia(token);
+        for (let i = 0; i < 20; i++) {                 // GitHub tarda en crearla
+          await espera(3000);
+          ejecucion = await ultimaEjecucion(token);
+          if (ejecucion && ejecucion.id !== idPrevio) break;
+        }
+        if (!ejecucion || ejecucion.id === idPrevio) {
+          rematar('error', {detalle: 'GitHub aceptó la orden pero no ha creado la ejecución'});
+          return;
+        }
+      }
+
+      const url = ejecucion.html_url;
+      for (let vuelta = 0; vuelta < 90; vuelta++) {
+        const estado = vuelta === 0 ? ejecucion
+                     : (await verEjecucion(token, ejecucion.id)) || ejecucion;
+        const acabada = estado.status === 'completed';
+        if (acabada && estado.conclusion && estado.conclusion !== 'success') {
+          rematar('error', {url, detalle: `la ejecución terminó en «${estado.conclusion}»`});
+          return;
+        }
+        paso(estado.status === 'in_progress' ? 'comprobando' : 'encolada', {url});
+
+        if (acabada || vuelta % 3 === 2) {
+          const frescos = await recargar();
+          const marca = frescos && frescos.meta ? frescos.meta.ultima_comprobacion : null;
+          if (acabada || (marca && marca !== marcaPrevia)) { rematar('listo', {url}); return; }
+        }
+        await espera(5000);
+      }
+      rematar('lenta', {url});
+    } catch (e) {
+      rematar('error', {detalle: e.message});
+    } finally {
+      siguiendo.current = false;
+    }
+  }, [token, recargar]);
 
   const entrar = (password, datosIniciales) => { setClave(password); setDatos(datosIniciales); };
   const salir  = () => { olvidar(CLAVE_GUARDADA); setClave(''); setDatos(null); setToken(null); };
@@ -1793,7 +1956,8 @@ function App(){
       </Fragment>
     );
   }
-  return <Panel datos={datos} token={token} onRecargar={() => recargar()} onSalir={salir} recargando={recargando} />;
+  return <Panel datos={datos} token={token} onActualizar={actualizar} onSalir={salir}
+                recargando={recargando} marcha={marcha} />;
 }
 
 if ('serviceWorker' in navigator) {
