@@ -7,7 +7,7 @@
  *      la pantalla del móvil, con la app cerrada. Es el motivo de que no haga
  *      falta ni Telegram ni email.
  */
-const CACHE = 'shipmentmonitor-v7';
+const CACHE = 'shipmentmonitor-v9';
 const BASICOS = [
   './', 'index.html', 'icono.svg', 'icono-192.png', 'icono-512.png',
   'icono-notificacion-192.png', 'icono-badge-96.png',
@@ -40,6 +40,49 @@ self.addEventListener('fetch', e => {
   e.respondWith(
     fetch(e.request).catch(() => caches.match(e.request).then(r => r || caches.match('index.html')))
   );
+});
+
+/* ─────────────── recordatorio de que hay que arrancar ───────────────
+ *
+ * GitHub dejó de servir los disparos programados, así que la jornada la
+ * arranca el propio panel al abrirlo. Queda el hueco de las mañanas en que
+ * nadie lo abre: para eso está esto. Si el navegador nos despierta (solo lo
+ * hace con la app instalada, y cuando le parece) miramos cuándo fue la última
+ * comprobación y, si en plena jornada lleva horas parada, avisamos.
+ *
+ * Es un refuerzo, no una garantía: `periodicsync` es «cuando el navegador
+ * quiera». Lo que de verdad arranca el día es abrir la app.
+ */
+const DATOS_REPO = 'https://raw.githubusercontent.com/SILAB3D/SHIPMENTMONITOR/main/'
+                 + 'monitor-envios-github/monitor-envios-nube/docs/datos.json';
+
+async function avisarSiEstaParado(){
+  const ahora = new Date(new Date().toLocaleString('en-US', {timeZone: 'Europe/Madrid'}));
+  const dia = ahora.getDay(), reloj = ahora.getHours() * 60 + ahora.getMinutes();
+  if (dia < 1 || dia > 5 || reloj < 510 || reloj > 1080) return;   // fuera de jornada
+
+  let ts = null;
+  try {
+    const r = await fetch(DATOS_REPO + '?t=' + Date.now(), {cache: 'no-store'});
+    if (r.ok) ts = (await r.json()).ts;
+  } catch (_) { return; }
+  if (!ts) return;
+
+  const minutos = Math.round((Date.now() - new Date(ts)) / 60000);
+  if (minutos <= 90) return;                                        // va al día
+
+  const horas = Math.round(minutos / 60);
+  await self.registration.showNotification('El monitor está parado', {
+    body: `Lleva ${horas} h sin comprobar el portal. Abre ShipmentMonitor y se pone en marcha solo.`,
+    icon: 'icono-notificacion-192.png', badge: 'icono-badge-96.png',
+    tag: 'parado', renotify: false,
+    data: {url: './'},
+    actions: [{action: 'abrir', title: 'Abrir y arrancar'}],
+  });
+}
+
+self.addEventListener('periodicsync', e => {
+  if (e.tag === 'vigilancia') e.waitUntil(avisarSiEstaParado());
 });
 
 /* ─────────────────────────── avisos push ─────────────────────────── */

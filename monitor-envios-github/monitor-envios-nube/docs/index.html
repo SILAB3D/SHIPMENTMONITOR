@@ -157,8 +157,13 @@ img{max-width:100%}
 .recordar b{font-weight:650}
 
 /* ───────────────────────── esqueleto ───────────────────────── */
+/* La cabecera pegajosa envuelve la barra y las pestañas, para que se queden
+   arriba juntas y no se metan una debajo de otra al desplazar. Sin filtros ni
+   transformaciones: si los tuviera, la barra de pestañas del móvil —que va
+   `fixed` abajo— se posicionaría respecto a ella en vez de a la pantalla. */
+.cabecera{position:sticky; top:0; z-index:30}
 .barra{
-  position:sticky; top:0; z-index:30; background:color-mix(in srgb, var(--fondo) 88%, transparent);
+  background:color-mix(in srgb, var(--fondo) 88%, transparent);
   backdrop-filter:saturate(1.6) blur(12px); border-bottom:1px solid var(--borde);
 }
 .barra-int{max-width:var(--ancho); margin:0 auto; padding:var(--sp-3) var(--sp-4);
@@ -167,7 +172,8 @@ img{max-width:100%}
 .marca-app img{width:26px; height:26px; flex:none}
 .marca-app h1{font-size:1rem; font-weight:700; letter-spacing:-.025em; white-space:nowrap;
               overflow:hidden; text-overflow:ellipsis}
-.acciones{display:flex; gap:var(--sp-2); align-items:center; flex:none}
+.acciones{display:flex; gap:var(--sp-2); align-items:center; flex-wrap:wrap; min-width:0}
+.barra-int .acciones{flex-wrap:nowrap; flex:none}
 .contenido{max-width:var(--ancho); margin:0 auto; padding:var(--sp-4); display:grid; gap:var(--sp-4)}
 
 /* ─────────── cabecera del día: la respuesta de un vistazo ───────────
@@ -354,6 +360,9 @@ img{max-width:100%}
   .barra-int{padding:var(--sp-2) var(--sp-3); gap:var(--sp-2)}
   /* En 390 px la barra no daba de sí y los botones se comían el nombre. */
   .acciones .btn{padding:.34rem .7rem; font-size:.82rem}
+  /* En el móvil la barra solo lleva lo imprescindible: comprobar y salir ya
+     están en Ajustes, y con cuatro botones no cabía nada. */
+  .barra-int .solo-ancho{display:none}
   .btn.icono{width:1.95rem; height:1.95rem; padding:.3rem}
   .marca-app img{width:22px; height:22px}
   .marca-app h1{font-size:.94rem}
@@ -369,6 +378,57 @@ img{max-width:100%}
   *{animation-duration:.01ms !important; transition-duration:.01ms !important}
 }
 
+/* ───────────────────────── pestañas ─────────────────────────
+   En pantalla grande van bajo la cabecera, como pestañas de toda la vida. En
+   el móvil bajan al pie: es donde llega el pulgar, y así la mano no tapa lo
+   que se está mirando. */
+.pestanas{
+  display:flex; padding:0 var(--sp-4);
+  background:color-mix(in srgb, var(--fondo) 92%, transparent);
+  border-bottom:1px solid var(--borde);
+}
+.pestanas-int{display:flex; gap:var(--sp-1); max-width:var(--ancho); margin:0 auto; width:100%}
+.pestana{
+  display:flex; align-items:center; gap:.45rem; padding:.7rem .9rem; border:0; background:none;
+  color:var(--tenue); font-size:.86rem; font-weight:600; cursor:pointer; position:relative;
+  border-bottom:2px solid transparent; white-space:nowrap;
+  transition:color .15s ease, border-color .15s ease;
+}
+.pestana:hover{color:var(--suave)}
+.pestana.activa{color:var(--marca); border-bottom-color:var(--marca)}
+.pestana .globo{
+  min-width:1.15rem; height:1.15rem; padding:0 .3rem; border-radius:999px; font-size:.66rem;
+  font-weight:800; display:grid; place-items:center; background:var(--lienzo-2);
+  border:1px solid var(--borde); color:var(--suave); font-variant-numeric:tabular-nums;
+}
+.pestana.urgente .globo{background:var(--mal-fondo); border-color:var(--mal-borde); color:var(--mal)}
+.pestana.activa .globo{background:var(--marca-tenue); border-color:var(--marca-borde); color:var(--marca)}
+
+/* «y N más», el puente de Inicio al historial */
+.mas{
+  width:100%; padding:var(--sp-3); border:1px dashed var(--borde-fuerte); background:none;
+  border-radius:var(--r); color:var(--suave); font-size:.84rem; font-weight:600; cursor:pointer;
+}
+.mas:hover{border-color:var(--marca); color:var(--marca)}
+
+@media (max-width:640px){
+  .pestanas{
+    position:fixed; top:auto; bottom:0; left:0; right:0; max-width:none;
+    padding:0 var(--sp-1) env(safe-area-inset-bottom); gap:0;
+    border-top:1px solid var(--borde); background:color-mix(in srgb, var(--fondo) 94%, transparent);
+  }
+  .pestanas-int{gap:0}
+  .pestana{
+    flex:1 1 0; min-width:0; flex-direction:column; gap:.15rem; padding:.45rem .2rem .5rem;
+    border-bottom:0; border-top:2px solid transparent; font-size:.68rem;
+  }
+  .pestana.activa{border-top-color:var(--marca); border-bottom-color:transparent}
+  .pestana .etq{overflow:hidden; text-overflow:ellipsis; max-width:100%}
+  .pestana .globo{position:absolute; top:.2rem; left:50%; margin-left:.3rem}
+  /* hueco para que la barra de abajo no tape el final del contenido */
+  body{padding-bottom:calc(4rem + env(safe-area-inset-bottom))}
+}
+
 /* ─────────────── pantalla de arranque ───────────────
    Un segundo con el icono dibujándose solo. No es adorno: la PWA tarda un
    instante en descifrar los datos y, sin esto, se veía un fogonazo en blanco
@@ -380,17 +440,25 @@ img{max-width:100%}
 #arranque svg{width:104px; height:104px; overflow:visible}
 #arranque .nombre{font-size:.85rem; font-weight:700; letter-spacing:.16em; text-transform:uppercase;
                   color:var(--tenue); animation:arr-entra .5s .45s both}
-#arranque .trazo{fill:none; stroke:var(--marca); stroke-width:10; stroke-linecap:round; stroke-linejoin:round;
-                 stroke-dasharray:var(--largo); stroke-dashoffset:var(--largo);
-                 animation:arr-traza .78s cubic-bezier(.65,0,.35,1) forwards}
-#arranque .trazo.interior{animation-delay:.2s}
-#arranque .punto{transform-origin:150px 50px; animation:arr-punto .42s .58s cubic-bezier(.34,1.56,.64,1) both}
+#arranque .vidrio{fill:none; stroke:var(--marca); stroke-width:9; stroke-linecap:round;
+                  stroke-dasharray:var(--largo); stroke-dashoffset:var(--largo);
+                  animation:arr-traza .6s cubic-bezier(.65,0,.35,1) forwards}
+#arranque .tapon{fill:var(--marca); animation:arr-tapon .34s .06s cubic-bezier(.34,1.56,.64,1) both}
+/* El líquido subiendo es la barra de progreso: se llena mientras se descifra. */
+#arranque .muestra{fill:var(--marca); transform:translateY(48px);
+                   animation:arr-sube .5s .32s cubic-bezier(.33,1,.68,1) forwards}
+#arranque .burbuja{fill:var(--fondo)}
+#arranque .punto{transform-origin:152px 54px;
+                 animation:arr-punto .4s .52s cubic-bezier(.34,1.56,.64,1) both}
 @keyframes arr-traza{to{stroke-dashoffset:0}}
+@keyframes arr-tapon{from{opacity:0; transform:translateY(-10px)} to{opacity:1; transform:none}}
+@keyframes arr-sube{to{transform:translateY(0)}}
 @keyframes arr-punto{from{transform:scale(0)} to{transform:scale(1)}}
 @keyframes arr-entra{from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:none}}
 @media (prefers-reduced-motion:reduce){
-  #arranque .trazo{animation:none; stroke-dashoffset:0}
-  #arranque .punto,#arranque .nombre{animation:none}
+  #arranque .vidrio{animation:none; stroke-dashoffset:0}
+  #arranque .tapon,#arranque .punto,#arranque .nombre{animation:none}
+  #arranque .muestra{animation:none; transform:none}
 }
 </style>
 </head>
@@ -398,12 +466,22 @@ img{max-width:100%}
 <!-- Se pinta antes que React y se retira sola: ver #arranque en el <style>. -->
 <div id="arranque" role="status" aria-label="Abriendo ShipmentMonitor">
   <div class="marca">
-    <svg viewBox="0 0 192 192" aria-hidden="true">
-      <path class="trazo" style="--largo:352" d="M96 42 150 68v56L96 150 42 124V68z"/>
-      <path class="trazo interior" style="--largo:176" d="M42 68l54 26 54-26M96 94v56"/>
+    <svg viewBox="18 0 192 192" aria-hidden="true">
+      <defs>
+        <clipPath id="arr-tubo"><path d="M73.5 60h29v78a14.5 14.5 0 0 1-29 0z"/></clipPath>
+      </defs>
+      <path class="vidrio" style="--largo:218" d="M69 60v78a19 19 0 0 0 38 0V60"/>
+      <rect class="tapon" x="61" y="34" width="54" height="22" rx="7"/>
+      <g clip-path="url(#arr-tubo)">
+        <g class="muestra">
+          <path d="M73.5 104h29v34a14.5 14.5 0 0 1-29 0z"/>
+          <circle class="burbuja" cx="82" cy="121" r="3"/>
+          <circle class="burbuja" cx="94" cy="132" r="2.4"/>
+        </g>
+      </g>
       <g class="punto">
-        <circle cx="150" cy="50" r="17" fill="var(--naranja)"/>
-        <circle cx="150" cy="50" r="7" fill="var(--bg)"/>
+        <circle cx="152" cy="54" r="15" fill="var(--marca)"/>
+        <circle cx="152" cy="54" r="6" fill="var(--fondo)"/>
       </g>
     </svg>
     <div class="nombre">ShipmentMonitor</div>
@@ -576,6 +654,52 @@ async function cargarDatos(password){
   return descifrarTolerante(sobre, password);
 }
 
+/* ─────────────────── arrancar la vigilancia desde aquí ───────────────────
+ *
+ * GitHub dejó de servir los disparos programados: de los 22 que se le piden al
+ * día llegó a servir CERO. Como el bucle de vigilancia cubre la jornada entera
+ * en una sola ejecución, basta con arrancarlo una vez al día… pero algo tiene
+ * que arrancarlo. Ese algo pasa a ser esta pantalla.
+ *
+ * Para llamar a la API de GitHub hace falta un token, y el repositorio es
+ * público, así que el token NO puede ir en claro. Se publica cifrado con la
+ * misma contraseña que ya protege los envíos (docs/disparo.json, mismo sobre
+ * que docs/datos.json): quien sabe la contraseña del panel —solo tú— puede
+ * arrancar la vigilancia; quien no, ve un fichero ilegible. El token es de
+ * alcance mínimo: este repositorio y solo permiso de Actions.
+ */
+const DISPARO_URL = 'https://raw.githubusercontent.com/SILAB3D/SHIPMENTMONITOR/main/'
+                  + 'monitor-envios-github/monitor-envios-nube/docs/disparo.json';
+const ULTIMO_DISPARO = 'shipmentmonitor:ultimo-disparo';
+
+async function cargarDisparo(password){
+  for (const url of [DISPARO_URL, 'disparo.json']) {
+    try {
+      const r = await fetch(url + '?t=' + Date.now(), {cache:'no-store'});
+      if (!r.ok) continue;
+      const sobre = await r.json();
+      const {token} = await descifrarTolerante(sobre, password);
+      if (token) return token;
+    } catch (_) { /* sin token: el panel sigue funcionando, solo que sin botón */ }
+  }
+  return null;
+}
+
+async function arrancarVigilancia(token){
+  const r = await fetch('https://api.github.com/repos/SILAB3D/SHIPMENTMONITOR'
+                      + '/actions/workflows/monitor.yml/dispatches', {
+    method: 'POST',
+    headers: {'Authorization': 'Bearer ' + token,
+              'Accept': 'application/vnd.github+json',
+              'X-GitHub-Api-Version': '2022-11-28'},
+    body: JSON.stringify({ref: 'main'}),
+  });
+  if (r.status === 204) { guardar(ULTIMO_DISPARO, String(Date.now())); return; }
+  let detalle = '';
+  try { detalle = (await r.json()).message || ''; } catch (_) {}
+  throw new Error(`GitHub respondió ${r.status}${detalle ? ': ' + detalle : ''}`);
+}
+
 /* ─────────────────── utilidades ─────────────────── */
 const fmtFecha = iso => iso
   ? new Date(iso).toLocaleString('es-ES', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})
@@ -647,6 +771,30 @@ function horaCorta(marca){
   return m[2] ? `${m[1]} ${m[2]}` : m[1];
 }
 
+/** Las marcas del portal («27/08/26 08:20:25») como fecha de verdad.
+ *  Hace falta para saber si una entrega es de esta semana o de hace un mes, que
+ *  es lo que decide si un envío sigue en Inicio o se va al historial. */
+function fechaPortal(marca){
+  const m = String(marca || '').match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (!m) return null;
+  const anio = Number(m[3]) < 100 ? 2000 + Number(m[3]) : Number(m[3]);
+  const f = new Date(anio, Number(m[2]) - 1, Number(m[1]),
+                     Number(m[4] || 0), Number(m[5] || 0), Number(m[6] || 0));
+  return isNaN(f) ? null : f;
+}
+
+/* Un envío entregado sigue interesando unos días —por si hay reclamación o hay
+   que mirar quién lo recibió— y después estorba. Cinco días. */
+const DIAS_RECIENTE = 5;
+
+function diasDesdeLaEntrega(envio){
+  const c = envio.campos || {};
+  const f = fechaPortal(c.entrega) || fechaPortal(c.fecha_estado)
+            || (envio.visto_ultima ? new Date(envio.visto_ultima) : null);
+  return f ? (Date.now() - f) / 86400000 : Infinity;
+}
+
 /** Para cada paso del diagrama, cuándo se alcanzó por primera vez.
  *  `pasos` viene del portal en orden cronológico, así que la primera situación
  *  que cae en un paso es la que lo estrenó. */
@@ -684,7 +832,7 @@ function Acceso({onEntrar}){
         <div className="acceso-cabecera">
           <img src="icono.svg" alt="" />
           <h1>ShipmentMonitor</h1>
-          <p>Introduce la contraseña del panel para ver tus envíos</p>
+          <p>Introduce la contraseña del panel para ver tus envíos de muestras</p>
         </div>
         <form onSubmit={enviar}>
           <div className="campo">
@@ -1158,6 +1306,40 @@ function Metricas({meta, envios}){
   );
 }
 
+/* El buscador aparece en Inicio y en Historial; mismo trasto, un solo sitio. */
+function Buscador({valor, onCambio, texto = 'Buscar destinatario, localidad o albarán…'}){
+  return (
+    <div className="buscador">
+      <span className="lupa" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+             strokeWidth="2.2" strokeLinecap="round">
+          <circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.4 15.4 21 21" />
+        </svg>
+      </span>
+      <input type="search" value={valor} onChange={e => onCambio(e.target.value)}
+             placeholder={texto} aria-label="Buscar" />
+    </div>
+  );
+}
+
+/* Los iconos de las pestañas, en SVG y no en emoji: el emoji lo dibuja cada
+   sistema a su manera y en la barra saldrían de tamaños distintos. */
+const ICONOS = {
+  inicio:    <path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" />,
+  historial: <Fragment><circle cx="12" cy="12" r="8.2" /><path d="M12 7.4V12l3 1.8" /></Fragment>,
+  novedades: <path d="M18 15.5V11a6 6 0 1 0-12 0v4.5L4.5 18h15zM10 20.5h4" />,
+  ajustes:   <Fragment><circle cx="12" cy="12" r="3.2" />
+               <path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6" />
+             </Fragment>,
+};
+
+const IconoPestana = ({nombre}) => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+       strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {ICONOS[nombre]}
+  </svg>
+);
+
 function Novedades({eventos}){
   return (
     <section className="tarjeta pad">
@@ -1178,8 +1360,9 @@ function Novedades({eventos}){
 }
 
 /* ─────────────────── panel ─────────────────── */
-function Panel({datos, onRecargar, onSalir, recargando}){
-  const [filtro, setFiltro] = useState('activos');
+function Panel({datos, token, onRecargar, onSalir, recargando}){
+  const [pestana, setPestana] = useState('inicio');
+  const [filtro, setFiltro] = useState('todos');
   const [busqueda, setBusqueda] = useState('');
   const [permiso, setPermiso] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'denied');
   const [tema, setTema] = useState(() => leer(TEMA) || 'sistema');
@@ -1230,6 +1413,14 @@ function Panel({datos, onRecargar, onSalir, recargando}){
   envios.forEach(e => cuenta[grupo(e)]++);
   cuenta.activos = cuenta.curso + cuenta.incidencias;
 
+  /* Qué va en Inicio y qué se archiva. En Inicio está lo que sigue abierto y lo
+     entregado hace poco —por si hay que reclamar o ver quién lo recibió—; lo
+     demás se va al historial y deja de estorbar. */
+  const enInicio = e => grupo(e) !== 'entregados' || diasDesdeLaEntrega(e) <= DIAS_RECIENTE;
+  const deInicio  = envios.filter(enInicio);
+  const archivado = envios.filter(e => !enInicio(e));
+  cuenta.recientes = deInicio.filter(e => grupo(e) === 'entregados').length;
+
   const q = busqueda.trim().toLowerCase();
   const coincide = e => !q || (e.id + ' ' + JSON.stringify(e.campos)).toLowerCase().includes(q);
 
@@ -1243,11 +1434,13 @@ function Panel({datos, onRecargar, onSalir, recargando}){
     if (filtroReal === 'todos') return true;
     return g === filtroReal;
   };
-  const visibles = envios.filter(e => coincide(e) && enFiltro(e));
+  const visibles = deInicio.filter(e => coincide(e) && enFiltro(e));
   const orden = {incidencias:0, curso:1, entregados:2};
   const principales = visibles.filter(e => grupo(e) !== 'entregados')
                               .sort((a,b) => orden[grupo(a)] - orden[grupo(b)]);
   const cerrados = visibles.filter(e => grupo(e) === 'entregados');
+  const enHistorial = archivado.filter(coincide)
+                               .sort((a,b) => diasDesdeLaEntrega(a) - diasDesdeLaEntrega(b));
 
   const historialDe = id => eventos.filter(ev => ev.envio_id === id);
   const rejilla = lista => (
@@ -1270,6 +1463,25 @@ function Panel({datos, onRecargar, onSalir, recargando}){
   const margen = enHorario ? 90 : 20 * 60;
   const paradoEnHorario = enHorario && desfase !== null && desfase > margen;
 
+  /* Poner en marcha la jornada desde aquí. Es lo que sustituye al cron de
+     GitHub, que lleva días sin servir un solo disparo: si al abrir el panel en
+     horario laboral resulta que no se ha comprobado nada, se arranca solo. Con
+     abrir la app por la mañana, el día queda cubierto hasta las 17:30.
+     El candado de veinte minutos evita insistir mientras la ejecución anterior
+     todavía está arrancando. */
+  const [arranque, setArranque] = useState(null);   // null | 'yendo' | 'ok' | mensaje
+
+  const arrancar = useCallback(async (automatico) => {
+    if (!token) return;
+    if (automatico && Date.now() - Number(leer(ULTIMO_DISPARO) || 0) < 20 * 60 * 1000) return;
+    setArranque('yendo');
+    try { await arrancarVigilancia(token); setArranque('ok'); setTimeout(onRecargar, 45000); }
+    catch (e) { setArranque(e.message); }
+  }, [token, onRecargar]);
+
+  useEffect(() => { if (token && paradoEnHorario) arrancar(true); },
+            [token, paradoEnHorario, arrancar]);
+
   // El titular de la jornada: la respuesta a «¿tengo que mirar algo ahora?»
   const tono = cuenta.incidencias ? 'alerta' : (cuenta.activos ? 'curso' : 'ok');
   const titular = cuenta.incidencias
@@ -1277,6 +1489,16 @@ function Panel({datos, onRecargar, onSalir, recargando}){
       : cuenta.activos
         ? `${cuenta.activos} envío${cuenta.activos > 1 ? 's' : ''} en camino`
         : envios.length ? 'Todo entregado' : 'Todavía sin envíos';
+
+  /* Cuatro pestañas. Podrían ser cinco, pero no hay quinta cosa que merezca
+     una: separar «avisos» de «ajustes» sería inventar un sitio para dos
+     botones. */
+  const PESTANAS = [
+    ['inicio',    'Inicio'],
+    ['historial', 'Historial'],
+    ['novedades', 'Novedades'],
+    ['ajustes',   'Ajustes'],
+  ];
 
   const CIFRAS = [
     ['activos',     'Activos',     cuenta.activos,     'curso'],
@@ -1287,6 +1509,7 @@ function Panel({datos, onRecargar, onSalir, recargando}){
 
   return (
     <Fragment>
+      <div className="cabecera">
       <header className="barra">
         <div className="barra-int">
           <div className="marca-app">
@@ -1313,91 +1536,201 @@ function Panel({datos, onRecargar, onSalir, recargando}){
                 </svg>
               )}
             </button>
+            {token && (
+              <button className="btn solo-ancho" onClick={() => arrancar(false)} disabled={arranque === 'yendo'}
+                      title="Comprueba el portal ahora y deja la vigilancia en marcha el resto del día">
+                {arranque === 'yendo' ? 'Arrancando…' : 'Comprobar ahora'}
+              </button>
+            )}
             <button className="btn primario" onClick={onRecargar} disabled={recargando}>
               {recargando ? 'Actualizando…' : 'Actualizar'}
             </button>
-            <button className="btn" onClick={onSalir} title="Olvidar la contraseña en este dispositivo">Salir</button>
           </div>
         </div>
       </header>
+
+      <nav className="pestanas" role="tablist" aria-label="Secciones">
+        <div className="pestanas-int">
+        {PESTANAS.map(([clave, etq]) => {
+          const aviso = clave === 'inicio' ? cuenta.incidencias
+                      : clave === 'historial' ? archivado.length
+                      : clave === 'novedades' ? eventos.length : 0;
+          return (
+            <button key={clave} role="tab" aria-selected={pestana === clave}
+                    className={'pestana' + (pestana === clave ? ' activa' : '')
+                               + (clave === 'inicio' && cuenta.incidencias ? ' urgente' : '')}
+                    onClick={() => setPestana(clave)}>
+              <IconoPestana nombre={clave} />
+              <span className="etq">{etq}</span>
+              {aviso > 0 && <span className="globo">{aviso > 99 ? '99+' : aviso}</span>}
+            </button>
+          );
+        })}
+        </div>
+      </nav>
+      </div>
+
+      {/* ─── pestañas ───
+          Cuatro sitios, no una lista infinita hacia abajo: lo del día, lo
+          archivado, lo que ha cambiado y los ajustes. En el móvil van abajo,
+          al alcance del pulgar; en pantalla grande, bajo la cabecera. */}
 
       <main className="contenido">
         {meta.error && <div className="aviso mal">⚠ La última comprobación falló: {meta.error}</div>}
 
         {paradoEnHorario && (
           <div className="aviso mal">
-            ⚠ <b>El monitor lleva {haceCuanto(meta.ultima_comprobacion).replace('hace ', '')} sin comprobar el portal</b>,
-            y a esta hora debería hacerlo cada hora como mucho.{' '}
-            {meta.repo && (
-              <a className="enlace" target="_blank" rel="noopener"
-                 href={`https://github.com/${meta.repo}/actions/workflows/monitor.yml`}>
-                Míralo en Actions y lánzalo a mano
-              </a>
-            )}
+            <div>
+              ⚠ <b>El monitor lleva {haceCuanto(meta.ultima_comprobacion).replace('hace ', '')} sin comprobar el portal</b>,
+              y a esta hora debería hacerlo cada hora como mucho.
+              {token && arranque === 'yendo' && ' Poniendo la vigilancia en marcha…'}
+              {token && arranque === 'ok' && ' Ya está en marcha: en un minuto tendrás datos nuevos.'}
+              {token && arranque && arranque !== 'yendo' && arranque !== 'ok'
+                && ` No se pudo arrancar — ${arranque}`}
+            </div>
+            <div className="acciones" style={{marginTop:'var(--sp-2)'}}>
+              {token && (
+                <button className="btn" onClick={() => arrancar(false)} disabled={arranque === 'yendo'}>
+                  {arranque === 'yendo' ? 'Arrancando…' : 'Poner en marcha ahora'}
+                </button>
+              )}
+              {meta.repo && (
+                <a className="btn" target="_blank" rel="noopener"
+                   href={`https://github.com/${meta.repo}/actions/workflows/monitor.yml`}>Ver en Actions</a>
+              )}
+            </div>
           </div>
         )}
 
-        {/* La cabecera del día: qué hay, y las cifras hacen de filtro */}
-        <section className="tarjeta jornada">
-          <div className="jornada-titular">
-            <span className={'faro ' + tono} />
-            <h2>{titular}</h2>
-            <span className="cuando">Comprobado {haceCuanto(meta.ultima_comprobacion)}</span>
-          </div>
-
-          <div className="cifras">
-            {CIFRAS.map(([clave, etq, valor, color]) => (
-              <button key={clave} className={'cifra ' + color + (filtro === clave ? ' activa' : '')}
-                      aria-pressed={filtro === clave} onClick={() => setFiltro(clave)}>
-                <b>{valor}</b><span>{etq}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="buscador">
-            <span className="lupa" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
-                   strokeWidth="2.2" strokeLinecap="round">
-                <circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.4 15.4 21 21" />
-              </svg>
-            </span>
-            <input type="search" value={busqueda} onChange={e => setBusqueda(e.target.value)}
-                   placeholder="Buscar destinatario, localidad o albarán…" aria-label="Buscar" />
-          </div>
-        </section>
-
-        <AvisosPush repo={meta.repo} meta={meta} />
-
-        {/* 1º — lo que se mueve, siempre a la vista */}
-        <Seccion titulo={principales.length ? 'En camino' : 'Entregados'}
-                 cuenta={principales.length || cerrados.length} primaria plegable={false}>
-          {principales.length === 0 && cerrados.length === 0
-            ? <div className="tarjeta pad vacio">
-                {q ? `Ningún envío coincide con «${busqueda}».`
-                   : envios.length ? 'Ningún envío en este filtro.'
-                   : 'Todavía no hay envíos vigilados. Aparecerán aquí en cuanto el portal los dé de alta.'}
+        {/* ─────────────── INICIO ─────────────── */}
+        {pestana === 'inicio' && (
+          <Fragment>
+            <section className="tarjeta jornada">
+              <div className="jornada-titular">
+                <span className={'faro ' + tono} />
+                <h2>{titular}</h2>
+                <span className="cuando">Comprobado {haceCuanto(meta.ultima_comprobacion)}</span>
               </div>
-            : rejilla(principales.length ? principales : cerrados)}
-        </Seccion>
 
-        {/* 2º — los cerrados, presentes pero sin robar sitio */}
-        {principales.length > 0 && cerrados.length > 0 && (
-          <Seccion titulo="Entregados" cuenta={cerrados.length} abiertaPorDefecto={false}>
-            {rejilla(cerrados)}
+              <div className="cifras">
+                {CIFRAS.map(([clave, etq, valor, color]) => (
+                  <button key={clave} className={'cifra ' + color + (filtro === clave ? ' activa' : '')}
+                          aria-pressed={filtro === clave} onClick={() => setFiltro(clave)}>
+                    <b>{valor}</b><span>{etq}</span>
+                  </button>
+                ))}
+              </div>
+
+              <Buscador valor={busqueda} onCambio={setBusqueda} />
+            </section>
+
+            <AvisosPush repo={meta.repo} meta={meta} />
+
+            <Seccion titulo={principales.length ? 'En camino' : 'Entregados'}
+                     cuenta={principales.length || cerrados.length} primaria plegable={false}>
+              {principales.length === 0 && cerrados.length === 0
+                ? <div className="tarjeta pad vacio">
+                    {q ? `Ningún envío coincide con «${busqueda}».`
+                       : envios.length ? 'Ningún envío en este filtro.'
+                       : 'Todavía no hay envíos vigilados. Aparecerán aquí en cuanto el portal los dé de alta.'}
+                  </div>
+                : rejilla(principales.length ? principales : cerrados)}
+            </Seccion>
+
+            {principales.length > 0 && cerrados.length > 0 && (
+              <Seccion titulo="Entregados estos días" cuenta={cerrados.length}>
+                {rejilla(cerrados)}
+              </Seccion>
+            )}
+
+            {archivado.length > 0 && (
+              <button className="mas" onClick={() => setPestana('historial')}>
+                Y {archivado.length} envío{archivado.length > 1 ? 's' : ''} entregado
+                {archivado.length > 1 ? 's' : ''} hace más de {DIAS_RECIENTE} días → ver el historial
+              </button>
+            )}
+          </Fragment>
+        )}
+
+        {/* ─────────────── HISTORIAL ─────────────── */}
+        {pestana === 'historial' && (
+          <Fragment>
+            <section className="tarjeta pad" style={{display:'grid', gap:'var(--sp-3)'}}>
+              <div>
+                <div className="titulo-seccion">Historial de envíos</div>
+                <div className="envio-sub">
+                  Lo entregado hace más de {DIAS_RECIENTE} días. Se conserva todo lo que el monitor
+                  ha llegado a ver, con su recorrido completo.
+                </div>
+              </div>
+              <Buscador valor={busqueda} onCambio={setBusqueda} />
+            </section>
+
+            <Seccion titulo="Entregados" cuenta={enHistorial.length} primaria plegable={false}>
+              {enHistorial.length === 0
+                ? <div className="tarjeta pad vacio">
+                    {q ? `Nada en el historial coincide con «${busqueda}».`
+                       : 'El historial está vacío: todavía no hay entregas de hace más de ' + DIAS_RECIENTE + ' días.'}
+                  </div>
+                : rejilla(enHistorial)}
+            </Seccion>
+          </Fragment>
+        )}
+
+        {/* ─────────────── NOVEDADES ─────────────── */}
+        {pestana === 'novedades' && (
+          <Seccion titulo="Todo lo que ha cambiado" cuenta={eventos.length} primaria plegable={false}>
+            <div className="tarjeta pad">
+              <Novedades eventos={eventos} />
+            </div>
           </Seccion>
         )}
 
-        {/* 3º — el resto, plegado */}
-        <Seccion titulo="Novedades" cuenta={eventos.length} abiertaPorDefecto={false}>
-          <Novedades eventos={eventos} />
-        </Seccion>
+        {/* ─────────────── AJUSTES ─────────────── */}
+        {pestana === 'ajustes' && (
+          <Fragment>
+            <Seccion titulo="Cómo va el monitor" primaria plegable={false}>
+              <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-4)'}}>
+                <Metricas meta={meta} envios={envios} />
+                <div className="envio-sub">
+                  Vigila de lunes a viernes: cada 15 minutos de 8:30 a 10:30 y cada hora hasta las 17:30.
+                  {token && ' Si al abrir la app ve que lleva parado, lo pone en marcha él solo.'}
+                </div>
+                <div className="acciones">
+                  {token && (
+                    <button className="btn primario" onClick={() => arrancar(false)}
+                            disabled={arranque === 'yendo'}>
+                      {arranque === 'yendo' ? 'Arrancando…' : 'Comprobar el portal ahora'}
+                    </button>
+                  )}
+                  {meta.repo && (
+                    <a className="btn" target="_blank" rel="noopener"
+                       href={`https://github.com/${meta.repo}/actions`}>Ver ejecuciones</a>
+                  )}
+                </div>
+              </div>
+            </Seccion>
 
-        <Seccion titulo="Avisos y estado" abiertaPorDefecto={false}>
-          <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-4)'}}>
-            <Metricas meta={meta} envios={envios} />
-            <PruebaAvisos meta={meta} />
-          </div>
-        </Seccion>
+            <Seccion titulo="Avisos" primaria plegable={false}>
+              <div className="tarjeta pad">
+                <PruebaAvisos meta={meta} />
+              </div>
+            </Seccion>
+
+            <Seccion titulo="Este dispositivo" primaria plegable={false}>
+              <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-3)'}}>
+                <div className="envio-sub">
+                  Avisos activos por: {Object.entries(meta.canales || {}).filter(([,v]) => v)
+                    .map(([k]) => ({push:'push al dispositivo', telegram:'Telegram', email:'correo'}[k] || k))
+                    .join(', ') || 'ninguno — solo se ven en pantalla'}.
+                </div>
+                <div className="acciones">
+                  <button className="btn" onClick={onSalir}>Olvidar la contraseña en este dispositivo</button>
+                </div>
+              </div>
+            </Seccion>
+          </Fragment>
+        )}
       </main>
 
       <footer className="pie-app">
@@ -1414,6 +1747,7 @@ function Panel({datos, onRecargar, onSalir, recargando}){
 /* ─────────────────── app ─────────────────── */
 function App(){
   const [clave, setClave] = useState(() => leer(CLAVE_GUARDADA) || '');
+  const [token, setToken] = useState(null);       // permite arrancar la vigilancia
   const [datos, setDatos] = useState(null);
   const [error, setError] = useState('');
   const [recargando, setRecargando] = useState(false);
@@ -1440,7 +1774,16 @@ function App(){
   }, [clave, recargar]);
 
   const entrar = (password, datosIniciales) => { setClave(password); setDatos(datosIniciales); };
-  const salir  = () => { olvidar(CLAVE_GUARDADA); setClave(''); setDatos(null); };
+  const salir  = () => { olvidar(CLAVE_GUARDADA); setClave(''); setDatos(null); setToken(null); };
+
+  // El token de arranque va cifrado con la misma contraseña; si no está, el
+  // panel funciona igual, solo que sin poder poner en marcha la vigilancia.
+  useEffect(() => {
+    if (!clave) return;
+    let vivo = true;
+    cargarDisparo(clave).then(t => { if (vivo) setToken(t); }).catch(() => {});
+    return () => { vivo = false; };
+  }, [clave]);
 
   if (!clave || !datos) {
     return (
@@ -1450,10 +1793,22 @@ function App(){
       </Fragment>
     );
   }
-  return <Panel datos={datos} onRecargar={() => recargar()} onSalir={salir} recargando={recargando} />;
+  return <Panel datos={datos} token={token} onRecargar={() => recargar()} onSalir={salir} recargando={recargando} />;
 }
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').then(async reg => {
+    /* Recordatorio de que hay que arrancar la jornada, para las mañanas en que
+       nadie abre la app. Solo funciona con la app instalada y cuando el
+       navegador quiere despertarla; es un refuerzo, no una garantía. */
+    try {
+      if (!('periodicSync' in reg)) return;
+      const permiso = await navigator.permissions.query({name: 'periodic-background-sync'});
+      if (permiso.state !== 'granted') return;
+      await reg.periodicSync.register('vigilancia', {minInterval: 3 * 60 * 60 * 1000});
+    } catch (_) { /* el navegador no quiere: se vive igual */ }
+  }).catch(() => {});
+}
 ReactDOM.createRoot(document.getElementById('app')).render(<App />);
 // Ya hay algo que enseñar: la pantalla de arranque se va (nunca antes de 1 s).
 requestAnimationFrame(() => window.cerrarArranque && window.cerrarArranque());
