@@ -12,16 +12,19 @@ name: Monitor de envíos
 
 on:
   schedule:
-    # Una vez por hora, solo en horario laboral (08:00–18:00 de España).
+    # El cron ya no marca el ritmo: solo ARRANCA la jornada. Lo hace así porque
+    # GitHub dejó de cumplirlo —de las comprobaciones pedidas servía entre una y
+    # cuatro al día, a la hora que le parecía, se le pidieran 12 o 44—, y eso no
+    # lo arregla ninguna expresión de cron. La vigilancia de verdad la lleva
+    # herramientas/vigilar.sh, que se queda despierto y comprueba él mismo cada
+    # 15 min hasta las 10:30 y cada hora hasta las 17:30.
     #
-    # Los cron de GitHub van en UTC y no admiten zona horaria, así que aquí se
-    # cubre un rango de más —de 06:00 a 17:00 UTC, que en verano son las 08:00 a
-    # 19:00 y en invierno las 07:00 a 18:00— y luego el primer paso del job
-    # descarta las horas que se salgan, mirando ya la hora de Madrid. De ese modo
-    # el horario es exacto tanto en verano como en invierno, sin tocar nada al
-    # cambiar la hora. GitHub además retrasa los cron en horas punta, cosa que
-    # para vigilar envíos da igual.
-    - cron: '0 6-17 * * *'
+    # Se piden muchos disparos para que alguno caiga: con UNO por la mañana el
+    # día queda cubierto. Los que lleguen mientras hay una jornada en marcha se
+    # encolan (lo garantiza `concurrency`) y continúan cuando la anterior agota
+    # su tope de horas. Van al minuto :07 y :37 porque GitHub retrasa más los
+    # disparos que caen en punto.
+    - cron: '7,37 6-16 * * 1-5'
   workflow_dispatch:        # botón "Run workflow" para forzar una comprobación
     inputs:
       probar_avisos:
@@ -46,36 +49,16 @@ defaults:
 jobs:
   comprobar:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 350      # la jornada de vigilancia dura horas, no minutos
     environment:
       name: github-pages
       url: ${{ steps.pages.outputs.page_url }}
 
     steps:
-      # Los cron de GitHub son UTC y cubren un rango de más. Aquí decidimos con
-      # la hora real de Madrid, para que el horario sea el mismo en verano y en
-      # invierno. Lanzarlo a mano funciona siempre, sea la hora que sea.
-      - name: ¿Toca comprobar a esta hora?
-        id: horario
-        # Este paso corre ANTES del checkout, así que la carpeta del proyecto
-        # todavía no existe: hay que anular el working-directory por defecto.
-        working-directory: .
-        run: |
-          hora=$(TZ=Europe/Madrid date +%-H)
-          echo "Son las ${hora}:00 en España."
-          if [ "${{ github.event_name }}" != "schedule" ]; then
-            echo "Lanzada a mano: se comprueba igualmente."
-            echo "toca=si" >> "$GITHUB_OUTPUT"
-          elif [ "$hora" -ge 8 ] && [ "$hora" -le 18 ]; then
-            echo "Dentro del horario de vigilancia (08:00–18:00)."
-            echo "toca=si" >> "$GITHUB_OUTPUT"
-          else
-            echo "Fuera del horario de vigilancia (08:00–18:00): no se comprueba nada."
-            echo "toca=no" >> "$GITHUB_OUTPUT"
-          fi
-
+      # El checkout va lo primero porque para decidir si toca comprobar hay que
+      # saber cuánto hace de la última, y eso lo dice el fichero de datos. Son
+      # dos segundos; el resto del job sigue sin correr si no tocaba.
       - uses: actions/checkout@v4
-        if: steps.horario.outputs.toca == 'si'
         with:
           # Por defecto, checkout se queda en el commit que disparó la ejecución.
           # Aquí eso no vale: si dos comprobaciones se disparan seguidas, la
@@ -85,7 +68,6 @@ jobs:
           ref: ${{ github.ref_name }}
 
       - uses: actions/setup-python@v5
-        if: steps.horario.outputs.toca == 'si'
         with:
           python-version: '3.12'
           cache: pip
@@ -95,12 +77,11 @@ jobs:
       # hace falta instalar Chromium en cada ejecucion, que era lo mas lento de
       # todo el workflow.
       - name: Instalar dependencias
-        if: steps.horario.outputs.toca == 'si'
         run: pip install -r requirements.txt
 
       # ── Modo prueba: solo comprueba que el aviso llega al móvil ──
       - name: Enviar un aviso de prueba por cada canal
-        if: steps.horario.outputs.toca == 'si' && inputs.probar_avisos
+        if: ${{ inputs.probar_avisos }}
         env:
           VAPID_PRIVADA:      ${{ secrets.VAPID_PRIVADA }}
           VAPID_CONTACTO:     ${{ secrets.VAPID_CONTACTO }}
@@ -114,11 +95,12 @@ jobs:
           EMAIL_DESTINO:      ${{ secrets.EMAIL_DESTINO }}
         run: python -m monitor.ejecutar --probar-avisos
 
-      # ── Modo normal ──
-      - name: Consultar el portal
-        id: consulta
-        if: steps.horario.outputs.toca == 'si' && !inputs.probar_avisos
-        continue-on-error: true      # aunque falle, queremos guardar el estado y los avisos
+      # ── Modo normal: la jornada de vigilancia ──
+      # Una sola ejecución cubre horas: comprueba el portal, guarda y avisa, se
+      # duerme hasta la siguiente y vuelve. El porqué, en herramientas/vigilar.sh.
+      - name: Vigilar el portal durante la jornada
+        id: vigilancia
+        if: ${{ !inputs.probar_avisos }}
         env:
           DINAPAQ_USUARIO:       ${{ secrets.DINAPAQ_USUARIO }}
           DINAPAQ_AGENCIA:       ${{ secrets.DINAPAQ_AGENCIA }}
@@ -143,77 +125,38 @@ jobs:
           SMTP_USUARIO:          ${{ secrets.SMTP_USUARIO }}
           SMTP_PASSWORD:         ${{ secrets.SMTP_PASSWORD }}
           EMAIL_DESTINO:         ${{ secrets.EMAIL_DESTINO }}
-        run: python -m monitor.ejecutar
-
-      - name: Guardar los datos en el repositorio
-        if: steps.horario.outputs.toca == 'si' && !inputs.probar_avisos
         run: |
           git config user.name  "monitor-envios"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if [ ! -f docs/datos.json ]; then
-            echo "No se generó docs/datos.json; mira el paso anterior."
-            exit 0
-          fi
-          # datos.json es un volcado generado, no código: fusionarlo línea a
-          # línea no tiene sentido y acaba en un conflicto add/add en cuanto dos
-          # ejecuciones se solapan. En vez de rebasar, nos colocamos sobre la
-          # punta remota y escribimos nuestra versión encima, que es la lectura
-          # más reciente del portal. El bucle cubre que alguien nos adelante
-          # entre el fetch y el push.
-          for intento in 1 2 3; do
-            git fetch --quiet origin \
-              "+refs/heads/${GITHUB_REF_NAME}:refs/remotes/origin/${GITHUB_REF_NAME}"
-
-            # --mixed mueve HEAD y el índice a la punta remota SIN tocar el
-            # directorio de trabajo, así que nuestro datos.json sigue intacto.
-            # Y como después solo añadimos ese fichero, no revertimos nada de
-            # lo que hayan subido los demás.
-            git reset --quiet --mixed "origin/${GITHUB_REF_NAME}"
-
-            # -f a propósito: el .gitignore de la raíz esconde este fichero para
-            # que los datos de demostración generados en local no se suban por
-            # descuido. Aquí, en cambio, es justo lo que hay que guardar: es la
-            # memoria del monitor entre una ejecución y la siguiente.
-            git add -f docs/datos.json
-            if git diff --staged --quiet; then
-              echo "Sin cambios que guardar."
-              exit 0
-            fi
-
-            git commit --quiet -m "datos: $(date -u +%Y-%m-%dT%H:%MZ)"
-            if git push origin "HEAD:${GITHUB_REF_NAME}"; then
-              echo "Datos guardados."
-              exit 0
-            fi
-            echo "Otra ejecución se adelantó; reintento ${intento} de 3."
-          done
-          echo "::error::No se pudieron guardar los datos tras 3 intentos."
-          exit 1
+          bash herramientas/vigilar.sh
 
       # ── Publicar el panel en GitHub Pages ──
       # Requiere Settings → Pages → Source = "GitHub Actions". Si no lo has
       # puesto todavía, estos pasos avisan pero no tumban la comprobación.
       - name: Preparar Pages
-        if: steps.horario.outputs.toca == 'si' && !inputs.probar_avisos
+        if: ${{ !inputs.probar_avisos && steps.vigilancia.outputs.comprobaciones != '0' }}
         id: configurar-pages
         continue-on-error: true
         uses: actions/configure-pages@v5
 
       - name: Empaquetar el panel
-        if: "steps.horario.outputs.toca == 'si' && !inputs.probar_avisos && steps.configurar-pages.outcome == 'success'"
+        if: "!inputs.probar_avisos && steps.configurar-pages.outcome == 'success'"
         continue-on-error: true
         uses: actions/upload-pages-artifact@v3
         with:
           path: monitor-envios-github/monitor-envios-nube/docs
 
       - name: Publicar el panel
-        if: "steps.horario.outputs.toca == 'si' && !inputs.probar_avisos && steps.configurar-pages.outcome == 'success'"
+        if: "!inputs.probar_avisos && steps.configurar-pages.outcome == 'success'"
         id: pages
         continue-on-error: true
         uses: actions/deploy-pages@v4
 
-      - name: Marcar la ejecución como fallida si no se pudo consultar
-        if: steps.consulta.outcome == 'failure'
+      # Una comprobación suelta puede fallar y recuperarse en la siguiente; eso
+      # no merece un rojo. Lo que sí lo merece es cerrar la jornada sin poder
+      # leer el portal, que es cuando hay algo roto de verdad.
+      - name: Marcar la ejecución como fallida si el portal quedó ilegible
+        if: steps.vigilancia.outputs.fallos != '' && steps.vigilancia.outputs.fallos != '0'
         run: |
-          echo "::error::La comprobación falló; revisa el log del paso «Consultar el portal»."
+          echo "::error::La jornada terminó con ${{ steps.vigilancia.outputs.fallos }} comprobación(es) seguidas fallando; revisa el log."
           exit 1

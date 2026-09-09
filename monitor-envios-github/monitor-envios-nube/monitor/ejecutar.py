@@ -112,7 +112,7 @@ def main() -> int:
         return 1
 
     eventos = est.sincronizar(estado, envios)
-    est.sellar_meta(estado, envios_leidos=len(envios))
+    est.sellar_meta(estado, envios_leidos=len(envios), novedades=len(eventos))
     est.guardar(estado)
 
     log.info("%d envíos leídos, %d novedad(es)", len(envios), len(eventos))

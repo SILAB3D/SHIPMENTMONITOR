@@ -1,6 +1,7 @@
 """Configuración: todo llega por variables de entorno (los Secrets del repositorio)."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -55,8 +56,18 @@ PASSWORD = _texto("DINAPAQ_PASSWORD")
 SEL_USUARIO = _texto("DINAPAQ_SEL_USUARIO")
 SEL_CLIENTE = _texto("DINAPAQ_SEL_CLIENTE")
 SEL_PASSWORD = _texto("DINAPAQ_SEL_PASSWORD")
-DIAS_ATRAS = _int("DINAPAQ_DIAS_ATRAS", 7)
-HEADLESS = _bool("HEADLESS", True)
+# Cuántos días atrás se consulta. El portal se atraganta si el rango cruza de
+# mes (devuelve cero envíos sin dar error), pero eso ya lo resuelve el scraper
+# preguntando mes a mes, así que aquí la ventana puede ser todo lo larga que
+# haga falta. El tope solo evita que un dedazo dispare cientos de peticiones.
+MAX_DIAS_ATRAS = 90
+DIAS_ATRAS = max(1, min(_int("DINAPAQ_DIAS_ATRAS", 7), MAX_DIAS_ATRAS))
+
+# El recorrido de cada envío (fecha y hora de cada paso) vive en otra pantalla
+# del portal, una petición más por envío. Se puede apagar y limitar.
+LEER_DETALLE = _bool("DINAPAQ_LEER_DETALLE", True)
+MAX_DETALLES = _int("DINAPAQ_MAX_DETALLES", 120)
+HILOS_DETALLE = max(1, min(_int("DINAPAQ_HILOS_DETALLE", 6), 12))
 
 # --- Cifrado de los datos publicados ---
 # Al pegar la contraseña en la caja de Secrets de GitHub es facilísimo colar un
@@ -90,12 +101,18 @@ EMAIL_DESTINO = _texto("EMAIL_DESTINO")
 
 # --- Contexto del repositorio (lo rellena Actions solo) ---
 REPO = _texto("GITHUB_REPOSITORY")
-EJECUCION_URL = (
-    f"https://github.com/{REPO}/actions/runs/{os.environ.get('GITHUB_RUN_ID', '')}" if REPO else ""
-)
+EJECUCION_ID = _texto("GITHUB_RUN_ID")
+EJECUCION_URL = f"https://github.com/{REPO}/actions/runs/{EJECUCION_ID}" if REPO else ""
+# Qué disparó la ejecución: «schedule» (el cron) o «workflow_dispatch» (a mano).
+# El panel lo enseña en el historial: saber si una comprobación llegó sola o
+# porque alguien pulsó el botón explica muchos huecos del día.
+EJECUCION_EVENTO = _texto("GITHUB_EVENT_NAME")
 
 # Máximo de eventos que se conservan en el historial publicado
 MAX_EVENTOS = _int("MAX_EVENTOS", 300)
+# Máximo de comprobaciones que se conservan en el historial de ejecuciones.
+# Una jornada normal son unas 15, así que con 90 se ven los últimos días.
+MAX_EJECUCIONES = _int("MAX_EJECUCIONES", 90)
 
 
 def credenciales_ok() -> bool:
@@ -161,6 +178,23 @@ def suscripciones() -> list[dict]:
 
 def push_ok() -> bool:
     return bool(VAPID_PRIVADA and suscripciones())
+
+
+def huellas_suscripciones() -> list[str]:
+    """Huella corta de cada dispositivo suscrito a los avisos.
+
+    Va en los datos que publica el panel para que este pueda contestar a «¿este
+    móvil recibirá los avisos?» sin necesidad de ningún servidor: el navegador
+    calcula la huella de SU suscripción y mira si está en la lista.
+
+    Se publica la huella y no el endpoint porque el endpoint es la dirección a
+    la que se empujan los avisos y el repositorio es público. SHA-256 es de una
+    sola dirección: de la huella no se vuelve al endpoint.
+    """
+    return [
+        hashlib.sha256(s["endpoint"].encode("utf-8")).hexdigest()[:16]
+        for s in suscripciones()
+    ]
 
 
 def canales() -> dict[str, bool]:

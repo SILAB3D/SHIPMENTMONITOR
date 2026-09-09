@@ -6,13 +6,13 @@ en el teléfono y recibe notificaciones push: sin Telegram, sin correo y sin
 servidor de por medio.
 
 No se ejecuta en tu ordenador: **vive entero en GitHub**. Un workflow de GitHub
-Actions entra al portal cada hora en horario laboral y publica los datos; GitHub Pages sirve
+Actions entra al portal en horario laboral y publica los datos; GitHub Pages sirve
 el panel. No hay nada que instalar ni que dejar encendido.
 
 👉 **Para ponerlo en marcha: [INSTALACION.md](INSTALACION.md)** — 15 minutos, coste 0 €.
 
 ```
-   ⏱ cada hora, 8:00-18:00 (cron de GitHub Actions)
+   ⏱ L-V · cada 15 min de 8:30 a 10:30 y cada hora hasta las 17:30
         │
         ▼
 ┌──────────────────┐  HTTP + JSON   ┌──────────────┐
@@ -96,7 +96,7 @@ python -m http.server 8899 --directory docs      # abre http://localhost:8899
 
 | Dónde | Qué |
 |---|---|
-| `cron` en `monitor.yml` | frecuencia (por defecto, cada hora de 8 a 18) |
+| `cron` en `monitor.yml` | frecuencia (L-V: cada 15 min de 8:30 a 10:30, y cada hora hasta las 17:30) |
 | Variable `DINAPAQ_URL_LISTADO` | URL directa de la pantalla de consulta |
 | Variable `DINAPAQ_DIAS_ATRAS` | cuántos días de envíos pedir |
 | `SINONIMOS` en `parser.py` | nombres de columna que sabe reconocer |

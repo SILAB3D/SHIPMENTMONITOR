@@ -18,7 +18,7 @@ def ahora() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-VACIO = {"version": 1, "envios": {}, "eventos": [], "meta": {}}
+VACIO = {"version": 1, "envios": {}, "eventos": [], "ejecuciones": [], "meta": {}}
 
 
 def cargar(ruta: Path | None = None, password: str | None = None) -> dict:
@@ -88,12 +88,21 @@ def sincronizar(estado: dict, envios: list[dict]) -> list[dict]:
         nuevos.append(ev)
         eventos.insert(0, ev)
 
+    def foto(envio: dict) -> dict:
+        """Lo que se guarda de un envío. `pasos` e `hitos` pueden faltar si el
+        detalle del portal no se pudo leer: en ese caso no se pisa lo que ya
+        teníamos, que sigue siendo mejor que nada."""
+        datos = {"campos": envio["campos"], "hash": envio["hash"]}
+        for clave in ("pasos", "hitos", "guid"):
+            if envio.get(clave):
+                datos[clave] = envio[clave]
+        return datos
+
     for envio in envios:
         previo = conocidos.get(envio["id"])
         if previo is None:
             conocidos[envio["id"]] = {
-                "campos": envio["campos"],
-                "hash": envio["hash"],
+                **foto(envio),
                 "visto_primera": t,
                 "visto_ultima": t,
             }
@@ -107,22 +116,70 @@ def sincronizar(estado: dict, envios: list[dict]) -> list[dict]:
             continue
 
         cambios = diferencias(previo["campos"], envio["campos"])
-        previo["campos"] = envio["campos"]
-        previo["hash"] = envio["hash"]
+        pasos_antes = len(previo.get("pasos") or [])
+        previo.update(foto(envio))
+        pasos_ahora = len(envio.get("pasos") or [])
+
+        # Una lectura nueva en el recorrido (un escaneo en un hub, por ejemplo)
+        # puede no mover el «último estado» del listado y aun así ser la novedad
+        # que interesa. Se cuenta como cambio y se dice cuál ha sido.
+        if pasos_ahora > pasos_antes and envio.get("pasos"):
+            ultimo = envio["pasos"][-1]
+            lugar = f" ({ultimo['lugar']})" if ultimo.get("lugar") else ""
+            cambios.append(("recorrido", "", f"{ultimo.get('estado','')}{lugar} · {ultimo.get('ts','')}"))
+
         if cambios:
-            detalle = "; ".join(f"{c}: {a or '—'} → {b or '—'}" for c, a, b in cambios)
+            # Un cambio normal se cuenta «campo: antes → ahora». Los que no
+            # tienen «antes» —una lectura nueva en el recorrido— se cuentan sin
+            # flecha, que si no salía un «recorrido: — → TRANSITO» ilegible.
+            detalle = "; ".join(
+                f"{c}: {b or '—'}" if not a else f"{c}: {a} → {b or '—'}"
+                for c, a, b in cambios
+            )
             anotar("actualizado", envio["id"], f"Envío {envio['id']} actualizado", detalle, envio["campos"])
 
     del eventos[config.MAX_EVENTOS :]
     return nuevos
 
 
-def sellar_meta(estado: dict, error: str | None = None, envios_leidos: int = 0) -> None:
+def sellar_meta(estado: dict, error: str | None = None, envios_leidos: int = 0,
+                novedades: int = 0) -> None:
+    t = ahora()
     estado["meta"] = {
-        "ultima_comprobacion": ahora(),
+        "ultima_comprobacion": t,
         "envios_leidos": envios_leidos,
         "error": error,
         "repo": config.REPO,
         "ejecucion": config.EJECUCION_URL,
         "canales": config.canales(),
+        # Huellas de los dispositivos suscritos: el panel las usa para decirte
+        # si ESTE aparato está en la lista de los que reciben avisos.
+        "push_dispositivos": config.huellas_suscripciones(),
     }
+    _anotar_ejecucion(estado, t, error, envios_leidos, novedades)
+
+
+def _anotar_ejecucion(estado: dict, t: str, error: str | None,
+                      envios_leidos: int, novedades: int) -> None:
+    """Deja constancia de esta comprobación en el historial que ve el panel.
+
+    Sin esto, la única forma de saber si el monitor está corriendo —y cuándo
+    dejó de hacerlo— era abrir GitHub Actions. El historial viaja dentro de
+    `docs/datos.json`, cifrado como todo lo demás, y se recorta para que el
+    fichero no crezca sin fin.
+
+    Ojo: una ejecución del workflow hace muchas comprobaciones (la jornada
+    entera cabe en una), así que aquí hay una línea por comprobación y todas
+    las de un mismo día comparten `url`.
+    """
+    historial: list[dict] = estado.setdefault("ejecuciones", [])
+    historial.insert(0, {
+        "ts": t,
+        "ok": error is None,
+        "error": error,
+        "envios": envios_leidos,
+        "novedades": novedades,
+        "url": config.EJECUCION_URL,
+        "disparo": config.EJECUCION_EVENTO,
+    })
+    del historial[config.MAX_EJECUCIONES :]

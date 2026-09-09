@@ -3,18 +3,25 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Monitor de envíos</title>
+<title>ShipmentMonitor</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icono.svg" type="image/svg+xml">
 <link rel="icon" href="icono-192.png" sizes="192x192" type="image/png">
 <!-- iOS no lee el manifest para el icono de la pantalla de inicio -->
 <link rel="apple-touch-icon" href="icono-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Envíos">
+<meta name="apple-mobile-web-app-title" content="ShipmentMonitor">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#f6f6f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#08080a" media="(prefers-color-scheme: dark)">
 <!-- Clave pública VAPID: la necesita el navegador para suscribirse a los avisos -->
+<script>
+/* El tema elegido se aplica antes de que se pinte nada: si se hiciera desde
+   React, quien tenga el oscuro vería un destello en blanco al abrir. */
+try{ var _t = localStorage.getItem('shipmentmonitor:tema');
+     if (_t) document.documentElement.setAttribute('data-tema', _t); }catch(e){}
+</script>
 <script src="push-config.js"></script>
 <!-- Librerías servidas en local: la PWA funciona sin internet y sin depender de un CDN -->
 <script src="vendor/react.js"></script>
@@ -22,220 +29,451 @@
 <script src="vendor/babel.js"></script>
 <style>
 /* ───────────────────────── tipografía ─────────────────────────
-   Inter variable, servida en local (sin CDN ni Google Fonts). */
+   Inter servida en local: la PWA abre igual sin conexión y sin depender
+   de un CDN que algún día deje de estar. */
 @font-face{
-  font-family:'Inter var';
-  src:url('vendor/fuentes/inter-latin-wght-normal.woff2') format('woff2-variations');
-  font-weight:100 900; font-style:normal; font-display:swap;
+  font-family:'Inter var'; font-style:normal; font-weight:100 900; font-display:swap;
+  src:url('vendor/fuentes/inter-latin-wght-normal.woff2') format('woff2');
 }
-/* ───────────────────────── tokens ─────────────────────────
-   Tema único: negro con los detalles en naranja. No depende del tema del
-   sistema a propósito —antes había una versión clara y otra oscura—, así que
-   el panel se ve igual en el móvil, en el escritorio y en la app instalada. */
-:root{
-  color-scheme: dark;                       /* barras de scroll y controles oscuros */
 
-  --naranja:#f97316; --naranja-claro:#fb923c; --naranja-suave:#1c0e04; --naranja-borde:#7c2d12;
-  --bg:#000000; --panel:#0c0c0c; --panel-2:#141414; --borde:#272727;
-  --texto:#f5f5f4; --suave:#a1a1a0; --tenue:#6f6f6e;
-  --ok:#4ade80; --ok-bg:#0a2415; --error:#fb7185; --error-bg:#2a1015; --info:#7dd3fc;
-  --sombra:0 1px 2px rgba(0,0,0,.6), 0 12px 32px -20px rgba(0,0,0,1);
+/* ───────────────────────── el sistema ─────────────────────────
+   Dos temas de verdad, no uno oscuro y un apaño. El monitor se mira desde el
+   móvil en un almacén con sol y desde el ordenador a las ocho de la tarde: el
+   claro y el oscuro tienen que estar los dos bien. Se sigue al sistema salvo
+   que se elija a mano (se recuerda en este navegador).
+
+   El color dice algo en esta app y solo se usa para eso: naranja = en marcha,
+   verde = entregado, rojo = atención. El resto es gris. */
+:root{
+  --marca:#ea580c; --marca-viva:#f97316; --marca-tenue:#fff1e7; --marca-borde:#fdba8c;
+  --ok:#15803d;   --ok-fondo:#e9f7ee;  --ok-borde:#9ae6b4;
+  --mal:#dc2626;  --mal-fondo:#fdeceb; --mal-borde:#f7b4b0;
+
+  --fondo:#f6f6f7; --lienzo:#ffffff; --lienzo-2:#fafafa; --borde:#e6e6e9; --borde-fuerte:#d4d4d8;
+  --texto:#18181b; --suave:#52525b; --tenue:#8a8a93;
+  --sombra:0 1px 2px rgba(24,24,27,.05), 0 8px 24px -16px rgba(24,24,27,.25);
+  --sombra-alta:0 2px 6px rgba(24,24,27,.07), 0 18px 40px -22px rgba(24,24,27,.35);
 
   --fuente:'Inter var',system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
   --sp-1:.25rem; --sp-2:.5rem; --sp-3:.75rem; --sp-4:1rem; --sp-5:1.5rem; --sp-6:2rem;
-  --r-sm:8px; --r:12px; --r-lg:18px;
-  --ancho:1180px;
+  --r-sm:8px; --r:12px; --r-lg:16px; --r-xl:22px;
+  --ancho:1240px;
+  color-scheme:light;
 }
+@media (prefers-color-scheme:dark){
+  :root:not([data-tema="claro"]){ color-scheme:dark;
+    --marca:#f97316; --marca-viva:#fb923c; --marca-tenue:#26150a; --marca-borde:#7c3d15;
+    --ok:#4ade80; --ok-fondo:#0d2318; --ok-borde:#1f5136;
+    --mal:#fb7185; --mal-fondo:#2a1116; --mal-borde:#7a2a37;
+    --fondo:#08080a; --lienzo:#111113; --lienzo-2:#17171a; --borde:#26262b; --borde-fuerte:#34343b;
+    --texto:#f4f4f5; --suave:#a2a2ab; --tenue:#71717a;
+    --sombra:0 1px 2px rgba(0,0,0,.6), 0 10px 30px -20px rgba(0,0,0,1);
+    --sombra-alta:0 2px 8px rgba(0,0,0,.7), 0 24px 50px -26px rgba(0,0,0,1);
+  }
+}
+:root[data-tema="oscuro"]{ color-scheme:dark;
+  --marca:#f97316; --marca-viva:#fb923c; --marca-tenue:#26150a; --marca-borde:#7c3d15;
+  --ok:#4ade80; --ok-fondo:#0d2318; --ok-borde:#1f5136;
+  --mal:#fb7185; --mal-fondo:#2a1116; --mal-borde:#7a2a37;
+  --fondo:#08080a; --lienzo:#111113; --lienzo-2:#17171a; --borde:#26262b; --borde-fuerte:#34343b;
+  --texto:#f4f4f5; --suave:#a2a2ab; --tenue:#71717a;
+  --sombra:0 1px 2px rgba(0,0,0,.6), 0 10px 30px -20px rgba(0,0,0,1);
+  --sombra-alta:0 2px 8px rgba(0,0,0,.7), 0 24px 50px -26px rgba(0,0,0,1);
+}
+
 /* ───────────────────────── base ───────────────────────── */
-*,*::before,*::after{box-sizing:border-box}
+*{box-sizing:border-box}
 html,body{margin:0;padding:0}
 body{
-  background:var(--bg); color:var(--texto);
-  font:400 15px/1.55 var(--fuente);
-  font-feature-settings:'cv05' 1,'ss01' 1;   /* formas más limpias de la l y la a */
-  letter-spacing:-.006em;
-  -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
-  overflow-x:hidden;
+  background:var(--fondo); color:var(--texto); font-family:var(--fuente);
+  font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased;
+  padding-bottom:env(safe-area-inset-bottom);
 }
 h1,h2,h3,p{margin:0}
-button,input,select{font:inherit;color:inherit}
-:focus-visible{outline:2px solid var(--naranja);outline-offset:2px;border-radius:var(--r-sm)}
+button{font:inherit;color:inherit}
+a{color:var(--marca)}
+:focus-visible{outline:2px solid var(--marca); outline-offset:2px; border-radius:6px}
+img{max-width:100%}
 
 /* ───────────────────────── piezas ───────────────────────── */
-.btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:var(--sp-2);
-  border:1px solid var(--borde);background:var(--panel);border-radius:var(--r-sm);
-  padding:.5rem .9rem;cursor:pointer;font-weight:550;white-space:nowrap;
-  transition:border-color .15s,background .15s,transform .05s;
-}
-.btn:hover{border-color:var(--naranja);color:var(--naranja)}
-.btn:active{transform:translateY(1px)}
-.btn:disabled{opacity:.55;cursor:default;transform:none}
-.btn.primario{background:var(--naranja);border-color:var(--naranja);color:#0a0a0a}
-.btn.primario:hover{background:var(--naranja-claro);border-color:var(--naranja-claro);color:#1c1917}
-.btn.icono{padding:.5rem .6rem}
-.btn.bloque{width:100%;padding:.7rem 1rem}
+.tarjeta{background:var(--lienzo); border:1px solid var(--borde); border-radius:var(--r-lg); box-shadow:var(--sombra)}
+.pad{padding:var(--sp-4)}
+.crece{flex:1 1 auto; min-width:0}
+.vacio{color:var(--tenue); font-size:.88rem; text-align:center; padding:var(--sp-5) var(--sp-3)}
+.titulo-seccion{font-size:.68rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
+                color:var(--tenue); margin-bottom:var(--sp-2)}
 
-.campo{display:flex;flex-direction:column;gap:var(--sp-2)}
-.campo label{font-size:.8rem;font-weight:600;color:var(--suave)}
-.campo input{
-  width:100%;padding:.65rem .8rem;border:1px solid var(--borde);border-radius:var(--r-sm);
-  background:var(--panel-2);
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:.4rem;
+  border:1px solid var(--borde-fuerte); background:var(--lienzo); color:var(--texto);
+  border-radius:999px; padding:.42rem .9rem; font-size:.86rem; font-weight:600;
+  cursor:pointer; white-space:nowrap; text-decoration:none;
+  transition:background .15s ease, border-color .15s ease, transform .08s ease;
 }
-.campo input:focus{outline:none;border-color:var(--naranja);box-shadow:0 0 0 3px var(--naranja-suave)}
-.campo .pista{font-size:.75rem;color:var(--tenue)}
+.btn:hover{background:var(--lienzo-2); border-color:var(--tenue)}
+.btn:active{transform:translateY(1px)}
+.btn[disabled]{opacity:.55; cursor:default}
+.btn.primario{background:var(--marca); border-color:var(--marca); color:#fff}
+.btn.primario:hover{background:var(--marca-viva); border-color:var(--marca-viva)}
+.btn.bloque{width:100%}
+.btn.icono{padding:.42rem; width:2.15rem; height:2.15rem}
 
 .chip{
-  display:inline-flex;align-items:center;gap:.35rem;font-size:.75rem;font-weight:600;
-  padding:.2rem .6rem;border-radius:999px;border:1px solid var(--borde);color:var(--suave);
-  background:var(--panel);white-space:nowrap;
+  display:inline-flex; align-items:center; gap:.35rem; font-size:.72rem; font-weight:700;
+  border-radius:999px; padding:.2rem .6rem; border:1px solid var(--borde); color:var(--suave);
+  background:var(--lienzo-2); white-space:nowrap; max-width:min(58%,13rem); flex:none;
 }
-.chip.on{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent);background:var(--ok-bg)}
-.chip.alerta{color:var(--error);border-color:color-mix(in srgb,var(--error) 40%,transparent);background:var(--error-bg)}
-.chip.marca{color:var(--naranja);border-color:var(--naranja-borde);background:var(--naranja-suave)}
+.chip span{overflow:hidden; text-overflow:ellipsis}
+.chip .punto{width:.45rem; height:.45rem; border-radius:50%; background:currentColor; flex:none}
+.chip.curso{color:var(--marca); background:var(--marca-tenue); border-color:var(--marca-borde)}
+.chip.ok{color:var(--ok); background:var(--ok-fondo); border-color:var(--ok-borde)}
+.chip.alerta{color:var(--mal); background:var(--mal-fondo); border-color:var(--mal-borde)}
 
-.tarjeta{background:var(--panel);border:1px solid var(--borde);border-radius:var(--r-lg);box-shadow:var(--sombra)}
-.pad{padding:var(--sp-4)}
-.titulo-seccion{
-  font-size:.75rem;text-transform:uppercase;letter-spacing:.07em;color:var(--tenue);
-  font-weight:700;margin-bottom:var(--sp-3);
-}
+.aviso{border-radius:var(--r); padding:var(--sp-3) var(--sp-4); font-size:.88rem; line-height:1.55}
+.aviso.mal{background:var(--mal-fondo); border:1px solid var(--mal-borde); color:var(--mal)}
+.aviso.mal b{color:inherit}
+.enlace{background:none; border:0; padding:0; color:var(--marca); font-size:.85rem; font-weight:600; cursor:pointer}
 
 /* ───────────────────────── acceso ───────────────────────── */
-.acceso{min-height:100dvh;display:grid;place-items:center;padding:var(--sp-5) var(--sp-4)}
-.acceso-caja{width:min(100%,26rem);display:grid;gap:var(--sp-5);padding:var(--sp-6) var(--sp-5)}
-.acceso-cabecera{display:grid;gap:var(--sp-2);justify-items:center;text-align:center}
-.acceso-cabecera img{width:56px;height:56px}
-.acceso-cabecera h1{font-size:1.4rem;letter-spacing:-.03em;font-weight:650}
-.acceso-cabecera p{font-size:.9rem;color:var(--suave)}
-.acceso form{display:grid;gap:var(--sp-4)}
-.recordar{display:flex;gap:var(--sp-3);align-items:flex-start;cursor:pointer;
-          background:var(--panel-2);border:1px solid var(--borde);border-radius:var(--r);padding:var(--sp-3)}
-.recordar input{margin:.2rem 0 0;accent-color:var(--naranja);width:1.05rem;height:1.05rem;flex:none}
-.recordar b{display:block;font-size:.9rem}
-.recordar span{font-size:.78rem;color:var(--suave)}
-.aviso{border-radius:var(--r);padding:var(--sp-3);font-size:.87rem;border:1px solid}
-.aviso.mal{background:var(--error-bg);border-color:color-mix(in srgb,var(--error) 35%,transparent);color:var(--error)}
-.aviso.info{background:var(--naranja-suave);border-color:var(--naranja-borde);color:var(--naranja)}
+.acceso{min-height:100dvh; display:grid; place-items:center; padding:var(--sp-5)}
+.acceso-caja{width:min(26rem,100%); display:grid; gap:var(--sp-4)}
+.acceso-cabecera{display:grid; justify-items:center; gap:var(--sp-2); text-align:center; margin-bottom:var(--sp-2)}
+.acceso-cabecera img{width:56px; height:56px}
+.acceso-cabecera h1{font-size:1.5rem; font-weight:700; letter-spacing:-.03em}
+.acceso-cabecera p{color:var(--tenue); font-size:.9rem}
+.campo{display:grid; gap:var(--sp-2)}
+.campo label{font-size:.8rem; font-weight:700; color:var(--suave)}
+.campo input{
+  width:100%; padding:.65rem .85rem; border:1px solid var(--borde-fuerte); border-radius:var(--r);
+  background:var(--lienzo); color:var(--texto); font:inherit;
+}
+.campo input:focus{outline:none; border-color:var(--marca); box-shadow:0 0 0 3px var(--marca-tenue)}
+.pista{font-size:.78rem; color:var(--tenue); line-height:1.5}
+.pista code{font-family:var(--mono); font-size:.95em; background:var(--lienzo-2);
+            border:1px solid var(--borde); border-radius:5px; padding:0 .25rem}
+.recordar{display:flex; gap:var(--sp-2); align-items:flex-start; font-size:.85rem; cursor:pointer}
+.recordar span span{display:block; color:var(--tenue); font-size:.78rem; font-weight:400}
+.recordar b{font-weight:650}
 
-/* ───────────────────────── estructura ───────────────────────── */
+/* ───────────────────────── esqueleto ───────────────────────── */
 .barra{
-  position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--panel) 92%,transparent);
-  backdrop-filter:blur(10px);border-bottom:1px solid var(--borde);
+  position:sticky; top:0; z-index:30; background:color-mix(in srgb, var(--fondo) 88%, transparent);
+  backdrop-filter:saturate(1.6) blur(12px); border-bottom:1px solid var(--borde);
 }
-.barra-int{
-  max-width:var(--ancho);margin:0 auto;padding:var(--sp-3) var(--sp-4);
-  display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap;
+.barra-int{max-width:var(--ancho); margin:0 auto; padding:var(--sp-3) var(--sp-4);
+           display:flex; align-items:center; gap:var(--sp-3)}
+.marca-app{display:flex; align-items:center; gap:var(--sp-2); min-width:0; overflow:hidden}
+.marca-app img{width:26px; height:26px; flex:none}
+.marca-app h1{font-size:1rem; font-weight:700; letter-spacing:-.025em; white-space:nowrap;
+              overflow:hidden; text-overflow:ellipsis}
+.acciones{display:flex; gap:var(--sp-2); align-items:center; flex:none}
+.contenido{max-width:var(--ancho); margin:0 auto; padding:var(--sp-4); display:grid; gap:var(--sp-4)}
+
+/* ─────────── cabecera del día: la respuesta de un vistazo ───────────
+   Es lo primero y lo más grande porque es la pregunta que trae aquí a
+   cualquiera: ¿hay algo que mirar ahora mismo? */
+.jornada{display:grid; gap:var(--sp-4); padding:var(--sp-5) var(--sp-4)}
+.jornada-titular{display:flex; align-items:center; gap:var(--sp-3); flex-wrap:wrap}
+.faro{width:.85rem; height:.85rem; border-radius:50%; flex:none; background:var(--ok); position:relative}
+.faro::after{content:''; position:absolute; inset:-5px; border-radius:50%;
+             border:2px solid currentColor; opacity:.25}
+.faro.curso{background:var(--marca); color:var(--marca)}
+.faro.ok{background:var(--ok); color:var(--ok)}
+.faro.alerta{background:var(--mal); color:var(--mal); animation:latir 2s ease-in-out infinite}
+@keyframes latir{0%,100%{box-shadow:0 0 0 0 var(--mal-fondo)} 50%{box-shadow:0 0 0 7px transparent}}
+.jornada h2{font-size:1.4rem; font-weight:700; letter-spacing:-.03em; line-height:1.2}
+.jornada .cuando{margin-left:auto; font-size:.8rem; color:var(--tenue); white-space:nowrap}
+
+/* Las cifras son los filtros: se tocan, no solo se leen */
+.cifras{display:flex; gap:var(--sp-2); flex-wrap:wrap}
+.cifra{
+  flex:1 1 7rem; min-width:0; display:grid; gap:.1rem; text-align:left; cursor:pointer;
+  background:var(--lienzo-2); border:1px solid var(--borde); border-radius:var(--r);
+  padding:var(--sp-3); transition:border-color .15s ease, background .15s ease;
 }
-.marca-app{display:flex;align-items:center;gap:var(--sp-2);min-width:0}
-.marca-app img{width:28px;height:28px;flex:none}
-.marca-app h1{font-size:1.05rem;font-weight:650;letter-spacing:-.03em;white-space:nowrap}
-.crece{flex:1 1 auto;min-width:0}
-.acciones{display:flex;gap:var(--sp-2);align-items:center;flex-wrap:wrap}
+.cifra:hover{border-color:var(--borde-fuerte)}
+.cifra b{font-size:1.55rem; font-weight:750; letter-spacing:-.04em; font-variant-numeric:tabular-nums; line-height:1}
+.cifra span{font-size:.72rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--tenue)}
+.cifra.activa{background:var(--lienzo); border-color:var(--marca); box-shadow:0 0 0 3px var(--marca-tenue)}
+.cifra.curso b{color:var(--marca)} .cifra.ok b{color:var(--ok)} .cifra.alerta b{color:var(--mal)}
 
-.contenido{max-width:var(--ancho);margin:0 auto;padding:var(--sp-4);display:grid;gap:var(--sp-4)}
-.columnas{display:grid;gap:var(--sp-4);grid-template-columns:1fr}
-@media (min-width:1024px){
-  .columnas{grid-template-columns:minmax(0,2.4fr) minmax(17rem,1fr);align-items:start}
-  .lateral{position:sticky;top:5rem}
+.buscador{position:relative; display:flex; align-items:center}
+.buscador input{
+  width:100%; padding:.5rem .9rem .5rem 2.1rem; border:1px solid var(--borde);
+  border-radius:999px; background:var(--lienzo-2); color:var(--texto); font:inherit; font-size:.88rem;
 }
-.columnas>*{min-width:0}
+.buscador input:focus{outline:none; border-color:var(--marca); background:var(--lienzo)}
+.buscador .lupa{position:absolute; left:.8rem; color:var(--tenue); pointer-events:none; display:flex}
 
-.metricas{display:grid;gap:var(--sp-3);grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr))}
-.metrica{display:grid;gap:.1rem;padding:var(--sp-3);background:var(--panel-2);border-radius:var(--r);border:1px solid var(--borde)}
-.metrica span{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--tenue);font-weight:700}
-.metrica b{font-size:1.45rem;font-weight:700;letter-spacing:-.03em;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
-.metrica small{font-size:.75rem;color:var(--suave)}
+/* ───────────────────────── pestañas ─────────────────────────
+   Tres sitios en vez de una lista interminable: lo del día (inicio), lo que ha
+   cambiado (novedades) y lo que casi nunca se toca (ajustes).
 
-.filtros{display:flex;gap:var(--sp-2);align-items:center;flex-wrap:wrap}
-.filtros .buscador{flex:1 1 12rem;min-width:0;position:relative}
-.filtros .buscador input{width:100%;padding:.5rem .8rem;border:1px solid var(--borde);
-  border-radius:999px;background:var(--panel);}
-.filtros .buscador input:focus{outline:none;border-color:var(--naranja)}
-.filtro-btn{
-  border:1px solid var(--borde);background:var(--panel);border-radius:999px;
-  padding:.35rem .8rem;font-size:.83rem;font-weight:600;cursor:pointer;color:var(--suave);white-space:nowrap;
+   El número de una pestaña solo aparece cuando hay algo sin ver en ella, y se
+   apaga al entrar. Un contador permanente deja de decir nada a los dos días:
+   si está encendido es porque hay novedad de verdad. */
+.pestanas{max-width:var(--ancho); margin:0 auto; padding:0 var(--sp-4);
+          display:flex; gap:var(--sp-1); overflow-x:auto; scrollbar-width:none}
+.pestanas::-webkit-scrollbar{display:none}
+.pestana{
+  display:inline-flex; align-items:center; gap:.4rem; background:none; border:0;
+  border-bottom:2px solid transparent; padding:.5rem .7rem .55rem; cursor:pointer;
+  font-size:.88rem; font-weight:650; color:var(--tenue); white-space:nowrap;
+  transition:color .15s ease, border-color .15s ease;
 }
-.filtro-btn.activo{background:var(--naranja);border-color:var(--naranja);color:#0a0a0a}
+.pestana:hover{color:var(--texto)}
+.pestana.activa{color:var(--texto); border-bottom-color:var(--marca)}
+.senal{min-width:1.15rem; height:1.15rem; padding:0 .32rem; border-radius:999px;
+       background:var(--marca); color:#fff; font-size:.66rem; font-weight:800;
+       display:inline-grid; place-items:center; font-variant-numeric:tabular-nums}
 
-/* ───────────────────────── envíos ───────────────────────── */
-.rejilla{display:grid;gap:var(--sp-4);grid-template-columns:repeat(auto-fill,minmax(min(100%,19rem),1fr))}
-.envio{display:flex;flex-direction:column;gap:var(--sp-3);padding:var(--sp-4);min-width:0}
-.envio-cab{display:flex;gap:var(--sp-2);align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
-.envio-ref{font-size:1.05rem;font-weight:650;letter-spacing:-.02em;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
-.envio-sub{font-size:.82rem;color:var(--suave);overflow-wrap:anywhere}
-.datos{display:grid;grid-template-columns:repeat(auto-fit,minmax(5.4rem,1fr));gap:var(--sp-2) var(--sp-3)}
-.dato span{display:block;font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--tenue);font-weight:700}
-.dato b{font-weight:550;font-size:.88rem;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+/* ───────────────────────── ajustes ─────────────────────────
+   Por temas, y en el orden en que se necesitan: lo que hay que dejar puesto
+   una vez (avisos), lo que se consulta cuando algo huele mal (el monitor y su
+   historial) y al final lo que casi nunca se cambia. */
+.ajustes{display:grid; gap:var(--sp-5)}
+.grupo{display:grid; gap:var(--sp-3)}
+.grupo > h2{font-size:.72rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
+            color:var(--tenue); margin:0}
+.grupo-pie{font-size:.8rem; color:var(--tenue); line-height:1.55}
+.grupo-pie b{color:var(--suave)}
+.opciones{display:flex; gap:var(--sp-2); flex-wrap:wrap; align-items:center}
+.opciones .btn.elegido{background:var(--marca-tenue); border-color:var(--marca); color:var(--marca)}
 
-/* diagrama de pasos: flex puro, sin posicionamiento absoluto → nunca se solapa */
-.pasos{display:flex;align-items:flex-start;gap:.15rem;padding-top:var(--sp-1)}
-.paso{flex:1 1 0;min-width:2.6rem;max-width:5rem;display:grid;justify-items:center;gap:.3rem;text-align:center}
-.paso .bola{
-  width:1.65rem;height:1.65rem;border-radius:50%;display:grid;place-items:center;
-  border:2px solid var(--borde);background:var(--panel);font-size:.8rem;color:var(--tenue);flex:none;
+/* Historial de ejecuciones: una línea por comprobación, la última arriba */
+.ejecuciones{display:grid; margin:0; padding:0; list-style:none}
+.ejec{display:flex; align-items:baseline; gap:var(--sp-2); min-width:0;
+      padding:.4rem 0; border-bottom:1px solid var(--borde); font-size:.82rem}
+.ejec:last-child{border-bottom:0}
+.ejec time{flex:none; color:var(--suave); font-variant-numeric:tabular-nums}
+.ejec .res{flex:1 1 auto; min-width:0; color:var(--tenue); overflow-wrap:anywhere}
+.ejec .res b{color:var(--texto); font-weight:650}
+
+/* ───────────────────────── secciones ───────────────────────── */
+.seccion{display:grid; gap:var(--sp-3)}
+.seccion-cab{display:flex; align-items:center; gap:var(--sp-2); width:100%; text-align:left;
+             background:none; border:0; padding:0; cursor:pointer}
+.seccion-cab h2{font-size:.72rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--tenue)}
+.seccion.primaria .seccion-cab h2{color:var(--texto); font-size:.9rem; letter-spacing:.01em; text-transform:none}
+.cuenta{font-size:.72rem; font-weight:700; color:var(--suave); background:var(--lienzo-2);
+        border:1px solid var(--borde); border-radius:999px; padding:.05rem .5rem; font-variant-numeric:tabular-nums}
+.raya{flex:1 1 auto; height:1px; background:var(--borde); min-width:1rem}
+.flecha{color:var(--tenue); font-size:.65rem; transition:transform .18s ease}
+.seccion-cab[aria-expanded="true"] .flecha{transform:rotate(90deg)}
+
+/* ───────────────────────── tarjeta de envío ─────────────────────────
+   El titular es el DESTINATARIO, no el número de albarán: nadie reconoce
+   «0280010370017025111854», y a todo el mundo le dice algo «Hospital Severo
+   Ochoa». El número queda abajo, que es donde se busca cuando hace falta. */
+.rejilla{display:grid; gap:var(--sp-3); align-items:start;
+         grid-template-columns:repeat(auto-fill,minmax(min(100%,20rem),1fr))}
+.envio{
+  display:grid; align-content:start; gap:var(--sp-3); padding:var(--sp-4); min-width:0; text-align:left; width:100%;
+  background:var(--lienzo); border:1px solid var(--borde); border-radius:var(--r-lg);
+  box-shadow:var(--sombra); cursor:pointer; position:relative; overflow:hidden;
+  transition:box-shadow .18s ease, border-color .18s ease, transform .18s ease;
+  animation:entrar .3s ease both;
 }
-.paso .etq{font-size:.62rem;line-height:1.2;color:var(--tenue);font-weight:600;overflow-wrap:anywhere}
-.paso.hecho .bola{background:var(--naranja);border-color:var(--naranja);color:#0a0a0a}
-.paso.hecho .etq{color:var(--suave)}
-.paso.actual .bola{background:var(--panel);border-color:var(--naranja);color:var(--naranja);
-                   box-shadow:0 0 0 4px var(--naranja-suave)}
-.paso.actual .etq{color:var(--naranja)}
-.paso.final .bola{background:var(--ok);border-color:var(--ok);color:#0a0a0a;box-shadow:0 0 0 4px var(--ok-bg)}
-.paso.final .etq{color:var(--ok)}
-.paso.incidencia .bola{border-color:var(--error);color:var(--error);box-shadow:0 0 0 4px var(--error-bg)}
-.paso.incidencia .etq{color:var(--error)}
-.linea{flex:1 1 auto;height:2px;min-width:.25rem;margin-top:.8rem;background:var(--borde);border-radius:2px}
-.linea.hecha{background:var(--naranja)}
+@keyframes entrar{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+.envio:hover{box-shadow:var(--sombra-alta); border-color:var(--borde-fuerte)}
+.envio::before{content:''; position:absolute; inset:0 auto 0 0; width:3px; background:var(--borde-fuerte)}
+.envio.curso::before{background:var(--marca)}
+.envio.ok::before{background:var(--ok)}
+.envio.alerta::before{background:var(--mal)}
 
-.detalle{border-top:1px solid var(--borde);padding-top:var(--sp-3);display:grid;gap:var(--sp-3)}
-.hist{display:grid;gap:var(--sp-2)}
-.hist-item{display:flex;gap:var(--sp-2);font-size:.82rem}
-.hist-item time{color:var(--tenue);flex:none;font-variant-numeric:tabular-nums}
-.pie{display:flex;justify-content:space-between;align-items:center;gap:var(--sp-2);flex-wrap:wrap}
-.enlace{background:none;border:0;padding:0;color:var(--naranja);font-size:.82rem;font-weight:600;cursor:pointer}
+/* min-width:0 en cascada: sin esto, un destinatario largo estira la celda de la
+   rejilla y el contenido se sale de la tarjeta en pantallas intermedias. */
+.envio-cuerpo{display:grid; gap:var(--sp-3); min-width:0; text-align:left;
+              background:none; border:0; padding:0; cursor:pointer; color:inherit}
+.envio > *{min-width:0}
+.envio-cuerpo > *{min-width:0}
+.envio-cab{display:flex; gap:var(--sp-3); align-items:flex-start; justify-content:space-between; min-width:0}
+.envio-quien{min-width:0; display:grid; gap:.1rem}
+.envio-quien b{font-size:1rem; font-weight:650; letter-spacing:-.01em; line-height:1.3; overflow-wrap:anywhere}
+.envio-quien span{font-size:.8rem; color:var(--tenue)}
+
+/* Ruta: de dónde sale y a dónde va, en una línea que se lee de un golpe */
+.ruta{display:flex; align-items:center; gap:var(--sp-2); font-size:.78rem; color:var(--suave); min-width:0}
+.ruta i{font-style:normal; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0}
+.ruta .hacia{color:var(--tenue); flex:none}
+
+/* Progreso: una barra con sus hitos y la hora de cada uno */
+.pasos{display:grid; gap:.4rem}
+.via{display:flex; align-items:center; gap:0}
+.nodo{width:.7rem; height:.7rem; border-radius:50%; flex:none; background:var(--borde-fuerte);
+      border:2px solid var(--lienzo); box-shadow:0 0 0 1px var(--borde-fuerte)}
+.tramo{flex:1 1 auto; height:2px; background:var(--borde-fuerte); min-width:.5rem}
+.nodo.hecho{background:var(--marca); box-shadow:0 0 0 1px var(--marca)}
+.tramo.hecho{background:var(--marca)}
+.envio.ok .nodo.hecho{background:var(--ok); box-shadow:0 0 0 1px var(--ok)}
+.envio.ok .tramo.hecho{background:var(--ok)}
+.nodo.aqui{width:1rem; height:1rem; background:var(--lienzo); border:3px solid var(--marca);
+           box-shadow:0 0 0 3px var(--marca-tenue)}
+.envio.ok .nodo.aqui{border-color:var(--ok); box-shadow:0 0 0 3px var(--ok-fondo); background:var(--ok)}
+.envio.alerta .nodo.hecho{background:var(--mal); box-shadow:0 0 0 1px var(--mal)}
+.envio.alerta .tramo.hecho{background:var(--mal)}
+.envio.alerta .nodo.aqui{border-color:var(--mal); box-shadow:0 0 0 3px var(--mal-fondo); background:var(--lienzo)}
+.etiquetas{display:flex; justify-content:space-between; gap:.15rem}
+.etiquetas > div{flex:1 1 0; min-width:0; text-align:center; display:grid; gap:.05rem}
+.etiquetas > div:first-child{text-align:left} .etiquetas > div:last-child{text-align:right}
+.etiquetas .etq{font-size:.62rem; font-weight:700; color:var(--tenue); letter-spacing:.02em}
+.etiquetas .hora{font-size:.6rem; color:var(--tenue); font-variant-numeric:tabular-nums; opacity:.85}
+.etiquetas .marcado .etq{color:var(--suave)}
+
+.envio-pie{display:flex; align-items:center; gap:var(--sp-2); justify-content:space-between; min-width:0; flex-wrap:wrap;
+           border-top:1px solid var(--borde); padding-top:var(--sp-2); font-size:.75rem; color:var(--tenue)}
+.envio-ref{font-family:var(--mono); font-size:.7rem; letter-spacing:-.02em; overflow-wrap:anywhere}
+
+/* Detalle desplegado */
+.detalle{display:grid; gap:var(--sp-4); border-top:1px solid var(--borde); padding-top:var(--sp-3); min-width:0}
+.detalle > *{min-width:0}
+.datos{display:grid; grid-template-columns:repeat(auto-fit,minmax(6.5rem,1fr)); gap:var(--sp-2) var(--sp-3)}
+.dato span{display:block; font-size:.66rem; text-transform:uppercase; letter-spacing:.05em; color:var(--tenue); font-weight:700}
+.dato b{font-weight:550; font-size:.85rem; overflow-wrap:anywhere}
+.recorrido{display:grid; min-width:0}
+.recorrido-item{display:grid; grid-template-columns:auto 1fr; gap:var(--sp-3); min-width:0}
+.recorrido-hilo{display:grid; justify-items:center}
+.recorrido-punto{width:.5rem; height:.5rem; border-radius:50%; background:var(--borde-fuerte); margin-top:.35rem}
+.recorrido-item:first-child .recorrido-punto{background:var(--marca); box-shadow:0 0 0 3px var(--marca-tenue)}
+.recorrido-raya{width:2px; flex:1; min-height:1rem; background:var(--borde); justify-self:center}
+.recorrido-item:last-child .recorrido-raya{background:transparent}
+.recorrido-texto{padding-bottom:var(--sp-3); min-width:0}
+.recorrido-texto time{display:block; font-size:.68rem; color:var(--tenue); font-variant-numeric:tabular-nums}
+.recorrido-texto b{display:block; font-size:.82rem; font-weight:600; overflow-wrap:anywhere}
+.recorrido-texto span{font-size:.74rem; color:var(--tenue)}
+.hist{display:grid; gap:var(--sp-2)}
+.hist-item{display:flex; gap:var(--sp-2); font-size:.8rem; color:var(--suave)}
+.hist-item time{color:var(--tenue); flex:none; font-variant-numeric:tabular-nums}
 
 /* ───────────────────────── novedades ───────────────────────── */
-.novedad{display:flex;gap:var(--sp-3);padding:var(--sp-3) 0;border-bottom:1px solid var(--borde);min-width:0}
-.novedad:last-child{border-bottom:0;padding-bottom:0}
-.novedad .marca{width:1.9rem;height:1.9rem;border-radius:50%;display:grid;place-items:center;flex:none;
-  background:var(--naranja-suave);color:var(--naranja);font-size:.85rem;border:1px solid var(--naranja-borde)}
+.novedad{display:flex; gap:var(--sp-3); padding:var(--sp-3) 0; border-bottom:1px solid var(--borde); min-width:0}
+.novedad:last-child{border-bottom:0; padding-bottom:0}
+.novedad .marca{width:1.6rem; height:1.6rem; border-radius:50%; display:grid; place-items:center; flex:none;
+                background:var(--marca-tenue); color:var(--marca); font-weight:800; font-size:.8rem}
 .novedad .txt{min-width:0}
-.novedad b{font-size:.88rem;display:block;overflow-wrap:anywhere}
-.novedad p{font-size:.82rem;color:var(--suave);overflow-wrap:anywhere}
-.novedad time{font-size:.72rem;color:var(--tenue)}
-.vacio{color:var(--tenue);font-size:.87rem;padding:var(--sp-3) 0;text-align:center}
+.novedad .txt b{font-size:.85rem; font-weight:650; display:block; overflow-wrap:anywhere}
+.novedad .txt p{font-size:.8rem; color:var(--suave); margin:.1rem 0}
+.novedad .txt time{font-size:.72rem; color:var(--tenue)}
 
-/* ─────────── tarjeta de avisos push ─────────── */
-.push{margin-bottom:var(--sp-4)}
-.push h2{font-size:1rem;margin:0 0 var(--sp-2);display:flex;align-items:center;gap:var(--sp-2)}
-.push p{margin:0 0 var(--sp-3);font-size:.87rem;color:var(--suave);line-height:1.55}
-.push ol{margin:0 0 var(--sp-3);padding-left:1.15rem;font-size:.87rem;color:var(--suave);line-height:1.7}
-.push ol code{background:var(--panel-2);border:1px solid var(--borde);border-radius:6px;
-  padding:.05rem .35rem;font-size:.85em;color:var(--texto)}
-.push .acciones-push{display:flex;flex-wrap:wrap;gap:var(--sp-2);align-items:center}
-.push.hecho{display:flex;align-items:center;gap:var(--sp-2);font-size:.87rem;color:var(--suave)}
-.push.hecho .punto{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}
-.suscripcion{
-  width:100%;box-sizing:border-box;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
-  font-size:.72rem;line-height:1.5;background:var(--panel-2);color:var(--texto);
-  border:1px solid var(--borde);border-radius:var(--r);padding:var(--sp-3);
-  min-height:5.5rem;resize:vertical;margin-bottom:var(--sp-3);word-break:break-all;
+/* ─────────── avisos push ─────────── */
+.push{padding:var(--sp-3) var(--sp-4)}
+.push h2{font-size:.95rem; margin:0 0 var(--sp-2)}
+.push p{margin:0 0 var(--sp-3); font-size:.86rem; color:var(--suave); line-height:1.55}
+.push ol{margin:0 0 var(--sp-3); padding-left:1.15rem; font-size:.85rem; color:var(--suave); line-height:1.7}
+.push ol code{font-family:var(--mono); background:var(--lienzo-2); border:1px solid var(--borde);
+              border-radius:5px; padding:0 .25rem}
+.push-linea{display:flex; align-items:center; gap:var(--sp-3); flex-wrap:wrap}
+.push-txt{flex:1 1 14rem; min-width:0; font-size:.86rem; color:var(--suave); line-height:1.4}
+.push-txt b{color:var(--texto); font-weight:650}
+.push-txt small{display:block; font-size:.78rem; color:var(--tenue)}
+.push .acciones-push{display:flex; flex-wrap:wrap; gap:var(--sp-2); align-items:center}
+.push.hecho{display:flex; align-items:center; gap:var(--sp-2); font-size:.86rem; color:var(--suave)}
+.push.hecho .punto{width:8px; height:8px; border-radius:50%; background:var(--ok); flex:none}
+.suscripcion{width:100%; min-height:6rem; font-family:var(--mono); font-size:.7rem; padding:var(--sp-2);
+             border:1px solid var(--borde); border-radius:var(--r); background:var(--lienzo-2);
+             color:var(--suave); resize:vertical; margin-bottom:var(--sp-3)}
+
+/* ─────────── prueba de avisos ─────────── */
+.prueba{display:grid; gap:var(--sp-3)}
+.prueba-lista{display:grid; gap:.4rem; margin:0; padding:0; list-style:none}
+.prueba-lista li{display:grid; grid-template-columns:1.1rem 1fr; gap:var(--sp-2); font-size:.84rem; align-items:baseline}
+.prueba-lista .marca-ok{color:var(--ok); font-weight:800}
+.prueba-lista .marca-mal{color:var(--mal); font-weight:800}
+.prueba-lista .marca-esp{color:var(--tenue)}
+.prueba-lista small{display:block; color:var(--tenue); font-size:.76rem; overflow-wrap:anywhere}
+.metricas{display:grid; gap:var(--sp-2); grid-template-columns:repeat(auto-fit,minmax(7rem,1fr))}
+.metrica{display:grid; gap:.1rem; padding:var(--sp-3); background:var(--lienzo-2);
+         border:1px solid var(--borde); border-radius:var(--r)}
+.metrica span{font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; color:var(--tenue); font-weight:700}
+.metrica b{font-size:1.2rem; font-weight:700; font-variant-numeric:tabular-nums}
+.metrica small{font-size:.74rem; color:var(--suave)}
+.envio-sub{font-size:.82rem; color:var(--suave); overflow-wrap:anywhere}
+
+
+/* ───────────────────────── móvil ───────────────────────── */
+@media (max-width:640px){
+  .barra-int{padding:var(--sp-2) var(--sp-3); gap:var(--sp-2)}
+  /* En 390 px la barra no daba de sí y los botones se comían el nombre. */
+  .acciones .btn{padding:.34rem .7rem; font-size:.82rem}
+  .btn.icono{width:1.95rem; height:1.95rem; padding:.3rem}
+  .marca-app img{width:22px; height:22px}
+  .marca-app h1{font-size:.94rem}
+  .pestanas{padding:0 var(--sp-3)}
+  .pestana{padding:.45rem .6rem .5rem; font-size:.85rem}
+  .contenido{padding:var(--sp-3); gap:var(--sp-3)}
+  .ajustes{gap:var(--sp-4)}
+  .jornada{padding:var(--sp-4) var(--sp-3); gap:var(--sp-3)}
+  .jornada h2{font-size:1.15rem}
+  .jornada .cuando{margin-left:0; width:100%}
+  .cifra{flex:1 1 calc(50% - var(--sp-2)); padding:var(--sp-2) var(--sp-3)}
+  .cifra b{font-size:1.3rem}
+  .envio{padding:var(--sp-3)}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important; transition-duration:.01ms !important}
 }
 
-.pie-app{max-width:var(--ancho);margin:0 auto;padding:0 var(--sp-4) var(--sp-6);
-         font-size:.75rem;color:var(--tenue);display:flex;gap:var(--sp-3);flex-wrap:wrap}
-@media (max-width:520px){
-  .barra-int{padding:var(--sp-3)}
-  .contenido{padding:var(--sp-3)}
-  .acciones{width:100%}
-  .acciones .btn{flex:1 1 auto}
-  .marca-app h1{font-size:.95rem}
+/* ─────────────── pantalla de arranque ───────────────
+   Un segundo con el icono dibujándose solo. No es adorno: la PWA tarda un
+   instante en descifrar los datos y, sin esto, se veía un fogonazo en blanco
+   cada vez que se abría desde el icono del móvil. */
+#arranque{position:fixed; inset:0; z-index:200; display:grid; place-items:center;
+          background:var(--fondo); transition:opacity .32s ease}
+#arranque.fuera{opacity:0; pointer-events:none}
+#arranque .marca{display:grid; justify-items:center; gap:var(--sp-4)}
+#arranque svg{width:104px; height:104px; overflow:visible}
+#arranque .nombre{font-size:.85rem; font-weight:700; letter-spacing:.16em; text-transform:uppercase;
+                  color:var(--tenue); animation:arr-entra .5s .45s both}
+#arranque .trazo{fill:none; stroke:var(--marca); stroke-width:10; stroke-linecap:round; stroke-linejoin:round;
+                 stroke-dasharray:var(--largo); stroke-dashoffset:var(--largo);
+                 animation:arr-traza .78s cubic-bezier(.65,0,.35,1) forwards}
+#arranque .trazo.interior{animation-delay:.2s}
+#arranque .punto{transform-origin:150px 50px; animation:arr-punto .42s .58s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes arr-traza{to{stroke-dashoffset:0}}
+@keyframes arr-punto{from{transform:scale(0)} to{transform:scale(1)}}
+@keyframes arr-entra{from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:none}}
+@media (prefers-reduced-motion:reduce){
+  #arranque .trazo{animation:none; stroke-dashoffset:0}
+  #arranque .punto,#arranque .nombre{animation:none}
 }
 </style>
 </head>
 <body>
+<!-- Se pinta antes que React y se retira sola: ver #arranque en el <style>. -->
+<div id="arranque" role="status" aria-label="Abriendo ShipmentMonitor">
+  <div class="marca">
+    <svg viewBox="0 0 192 192" aria-hidden="true">
+      <path class="trazo" style="--largo:352" d="M96 42 150 68v56L96 150 42 124V68z"/>
+      <path class="trazo interior" style="--largo:176" d="M42 68l54 26 54-26M96 94v56"/>
+      <g class="punto">
+        <circle cx="150" cy="50" r="17" fill="var(--naranja)"/>
+        <circle cx="150" cy="50" r="7" fill="var(--bg)"/>
+      </g>
+    </svg>
+    <div class="nombre">ShipmentMonitor</div>
+  </div>
+</div>
 <div id="app"></div>
+<script>
+/* La animación dura 1 s justo. Si la app tarda más en montar, la pantalla se
+   queda puesta hasta que esté lista: nunca se ve el panel a medio hacer. */
+(function(){
+  var desde = Date.now(), listo = false;
+  window.cerrarArranque = function(){
+    if (listo) return;
+    listo = true;
+    setTimeout(function(){
+      var e = document.getElementById('arranque');
+      if (!e) return;
+      e.classList.add('fuera');
+      setTimeout(function(){ e.remove(); }, 400);
+    }, Math.max(0, 1000 - (Date.now() - desde)));
+  };
+  // Red de seguridad: si algo fallara al montar, no dejamos la pantalla clavada.
+  setTimeout(window.cerrarArranque, 6000);
+})();
+</script>
 <script type="text/babel">
 const {useState, useEffect, useCallback, useRef, Fragment} = React;
 
@@ -245,12 +483,31 @@ const {useState, useEffect, useCallback, useRef, Fragment} = React;
 
 const CLAVE_GUARDADA = 'monitor-envios:clave';
 const ULTIMO_VISTO   = 'monitor-envios:ultimo-evento';
+const TEMA           = 'shipmentmonitor:tema';
+
+/* Hasta dónde se ha visto cada pestaña. Se guarda una marca por pestaña —el
+   último evento para las dos primeras, la última comprobación para ajustes—
+   porque cada una cuenta una cosa distinta y entrar en una no debe apagar el
+   número de la otra. */
+const VISTO_INICIO    = 'shipmentmonitor:visto-inicio';
+const VISTO_NOVEDADES = 'shipmentmonitor:visto-novedades';
+const VISTO_AJUSTES   = 'shipmentmonitor:visto-ajustes';
 
 const guardar = (k, v) => { try { localStorage.setItem(k, v); } catch (_) {} };
 const leer    = k      => { try { return localStorage.getItem(k); } catch (_) { return null; } };
 const olvidar = k      => { try { localStorage.removeItem(k); } catch (_) {} };
 
 const deB64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+
+/* La primera visita no es «novedad»: si no hay marca guardada se sella la
+   actual y se empieza limpio. Sin esto, quien abriera el panel por primera vez
+   se encontraría las pestañas con el histórico entero marcado sin ver. */
+const marcaVista = (clave, actual) => {
+  const guardada = leer(clave);
+  if (guardada !== null) return guardada;
+  guardar(clave, String(actual));
+  return String(actual);
+};
 
 /* ─────────────────── avisos push ───────────────────
    El aviso llega desde GitHub Actions al servicio de push del propio navegador
@@ -352,10 +609,32 @@ async function descifrarTolerante(sobre, password){
   throw e;
 }
 
+/* De dónde se bajan los datos.
+ *
+ * Del repositorio, no de la copia que sirve GitHub Pages. Antes valía la copia
+ * de Pages porque el workflow desplegaba en cada comprobación; ahora una sola
+ * ejecución cubre horas —comprueba, guarda y se vuelve a dormir— y Pages solo
+ * se despliega al cerrar la jornada. Leyendo del repositorio, el panel ve cada
+ * comprobación en cuanto se guarda.
+ *
+ * Si el repositorio no contesta (sin conexión, o alguien que abre el panel de
+ * otra copia), se cae con elegancia a la copia local de siempre.
+ */
+const REPO_DATOS = 'https://raw.githubusercontent.com/SILAB3D/SHIPMENTMONITOR/main/'
+                 + 'monitor-envios-github/monitor-envios-nube/docs/datos.json';
+
+async function bajarSobre(){
+  for (const url of [REPO_DATOS, 'datos.json']) {
+    try {
+      const r = await fetch(url + '?t=' + Date.now(), {cache: 'no-store'});
+      if (r.ok) return await r.json();
+    } catch (_) { /* probamos el siguiente */ }
+  }
+  throw new Error('no se pudieron descargar los datos (¿ha corrido ya el workflow?)');
+}
+
 async function cargarDatos(password){
-  const r = await fetch('datos.json?t=' + Date.now(), {cache:'no-store'});
-  if (!r.ok) throw new Error('todavía no hay datos publicados (¿ha corrido ya el workflow?)');
-  const sobre = await r.json();
+  const sobre = await bajarSobre();
   if (!sobre.datos) return sobre;                 // fichero en claro (modo demo)
   return descifrarTolerante(sobre, password);
 }
@@ -377,6 +656,17 @@ function haceCuanto(iso){
 
 const sinAcentos = t => (t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
+/* Los campos se guardan con nombre de máquina para que el código sea estable;
+   aquí se traducen al enseñarlos. Lo que no esté en la tabla sale tal cual. */
+const ETIQUETAS = {
+  referencia:'Referencia', fecha:'Fecha de alta', estado:'Estado actual',
+  fecha_estado:'Último movimiento', destinatario:'Destinatario', localidad:'Población destino',
+  remitente:'Remitente', localidad_origen:'Población origen', cp_origen:'C.P. origen',
+  ref_cliente:'Tu referencia', bultos:'Bultos', kilos:'Kilos',
+  observaciones:'Observaciones', entrega:'Entregado el',
+};
+const etiqueta = k => ETIQUETAS[k] || k.replace(/_/g, ' ');
+
 const PASOS = [
   {etq:'Grabado',   icono:'1'},
   {etq:'Tránsito',  icono:'2'},
@@ -384,17 +674,52 @@ const PASOS = [
   {etq:'Entrega',   icono:'✓'},
 ];
 
-/** Traduce el texto de estado del portal a una posición del diagrama. */
+/** Traduce el texto de estado del portal a una posición del diagrama.
+ *
+ * El orden de las comprobaciones importa mucho, y no es el intuitivo:
+ * DinaPaqWeb llama «PENDIENTE DE ENTREGAR A TIPSA» al primer paso de todos.
+ * Buscar «entreg» lo primero colocaba ese estado —y el envío entero— en
+ * «Entregado» nada más grabarse. Por eso los estados iniciales se descartan
+ * antes que nada.
+ *
+ * Los textos que llegan son de dos sitios: el listado usa mayúsculas secas
+ * (TRANSITO, REPARTO, ENTREGADO) y el detalle nombres llanos (Documentado,
+ * En camino, En reparto, Entregado), además de las lecturas de almacén
+ * («LECTURA EN HUB MADRID», «LEIDO EN DESTINO»). Aquí caben todos.
+ */
 function analizarEstado(texto){
   const t = sinAcentos(texto);
-  const incidencia = /incid|ausen|rehus|devuel|falt|error|retenid|aduan|direccion erronea|no localiz/.test(t);
-  let paso = 0;
-  if (/entreg/.test(t)) paso = 3;
-  else if (/reparto|en entrega|salida a reparto|ultima milla/.test(t)) paso = 2;
-  else if (/transit|en ruta|almacen|recogid|salida|llegada|expedid|plataforma/.test(t)) paso = 1;
-  else if (/grabad|registrad|admitid|pendiente|alta|documentad/.test(t)) paso = 0;
+  // «Entrega parcial» cuenta como incidencia: ha llegado, pero no entero.
+  const incidencia = /incid|ausen|rehus|devuel|falt|error|retenid|aduan|direccion erronea|no localiz|extravi|siniestr|anulad|parcial|mal clasificad/.test(t);
+  let paso;
+  if (/pendiente de entregar|pendiente de recogida|grabad|registrad|documentad|admitid|preparad|\balta\b/.test(t)) paso = 0;
+  else if (/entregad|entrega realizada|entrega parcial/.test(t)) paso = 3;
+  else if (/reparto|en entrega|ultima milla/.test(t)) paso = 2;
+  else if (/transit|en camino|en ruta|\bhub\b|almacen|agencia|lectura|leido|recogid|salida|llegada|expedid|plataforma|delegacion/.test(t)) paso = 1;
   else if (incidencia) paso = 2;
+  else paso = 0;
   return {paso, incidencia, texto: texto || 'sin estado'};
+}
+
+/* El portal escribe las horas como «27/08/26 08:20:25». En el diagrama no cabe
+   tanto, así que se recorta a día y hora; en el recorrido se deja entera. */
+function horaCorta(marca){
+  if (!marca) return '';
+  const m = String(marca).match(/^(\d{1,2}\/\d{1,2})(?:\/\d{2,4})?(?:[ T](\d{1,2}:\d{2}))?/);
+  if (!m) return String(marca);
+  return m[2] ? `${m[1]} ${m[2]}` : m[1];
+}
+
+/** Para cada paso del diagrama, cuándo se alcanzó por primera vez.
+ *  `pasos` viene del portal en orden cronológico, así que la primera situación
+ *  que cae en un paso es la que lo estrenó. */
+function horasDePasos(pasos){
+  const horas = new Array(PASOS.length).fill(null);
+  for (const p of pasos || []){
+    const {paso} = analizarEstado(p.estado);
+    if (horas[paso] == null) horas[paso] = p.ts;
+  }
+  return horas;
 }
 
 /* ─────────────────── acceso ─────────────────── */
@@ -421,7 +746,7 @@ function Acceso({onEntrar}){
       <div className="tarjeta acceso-caja">
         <div className="acceso-cabecera">
           <img src="icono.svg" alt="" />
-          <h1>Monitor de envíos</h1>
+          <h1>ShipmentMonitor</h1>
           <p>Introduce la contraseña del panel para ver tus envíos</p>
         </div>
         <form onSubmit={enviar}>
@@ -452,83 +777,127 @@ function Acceso({onEntrar}){
   );
 }
 
-/* ─────────────────── diagrama ─────────────────── */
-function Diagrama({estado}){
+/* ─────────────────── progreso del envío ───────────────────
+   Cuatro hitos sobre una vía. Se ve de un vistazo por dónde va y, debajo de
+   cada uno alcanzado, cuándo pasó. El color lo pone el estado, no el diagrama:
+   naranja mientras se mueve, verde al entregar, rojo si hay incidencia. */
+const estadoCorto = e => (e || 'sin estado').replace(/^\s*incidencia\s*[:·-]\s*/i, '');
+
+function Progreso({estado, pasos}){
   const {paso, incidencia} = analizarEstado(estado);
+  const horas = horasDePasos(pasos);
+  const entregado = paso === PASOS.length - 1 && !incidencia;
   return (
     <div className="pasos" role="img" aria-label={`Estado: ${estado || 'desconocido'}`}>
-      {PASOS.map((p, i) => {
-        const entregado = paso === PASOS.length - 1 && !incidencia;
-        const hecho = i < paso || (i === paso && entregado);
-        const clases = ['paso'];
-        if (hecho) clases.push('hecho');
-        if (i === paso) clases.push('actual');
-        if (i === paso && entregado) clases.push('final');
-        if (i === paso && incidencia) clases.push('incidencia');
-        return (
+      <div className="via">
+        {PASOS.map((p, i) => (
           <Fragment key={p.etq}>
-            {i > 0 && <div className={'linea' + (i <= paso ? ' hecha' : '')} />}
-            <div className={clases.join(' ')}>
-              <div className="bola">{i === paso && incidencia ? '!' : (hecho ? '✓' : p.icono)}</div>
-              <div className="etq">{p.etq}</div>
-            </div>
+            {i > 0 && <div className={'tramo' + (i <= paso ? ' hecho' : '')} />}
+            <div className={'nodo' + (i < paso || entregado && i === paso ? ' hecho' : '')
+                                   + (i === paso ? ' aqui' : '')} />
           </Fragment>
-        );
-      })}
+        ))}
+      </div>
+      <div className="etiquetas">
+        {PASOS.map((p, i) => (
+          <div key={p.etq} className={i <= paso ? 'marcado' : ''}>
+            <div className="etq">{p.etq}</div>
+            {horas[i] && <div className="hora">{horaCorta(horas[i])}</div>}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
-/* ─────────────────── tarjeta de envío ─────────────────── */
+/* ─────────────────── tarjeta de envío ───────────────────
+   El titular es el DESTINATARIO. Nadie reconoce «0280010370017025111854»; a
+   cualquiera le dice algo «Hospital Severo Ochoa». El número baja al pie, que
+   es donde se busca cuando de verdad hace falta.
+   La tarjeta entera abre el detalle: un enlace de seis píxeles no es un objetivo
+   razonable en un móvil. */
 function TarjetaEnvio({envio, historial}){
   const [abierto, setAbierto] = useState(false);
   const c = envio.campos || {};
-  const {incidencia} = analizarEstado(c.estado);
+  const {paso, incidencia} = analizarEstado(c.estado);
+  const tono = incidencia ? 'alerta' : (paso === PASOS.length - 1 ? 'ok' : 'curso');
   const extras = Object.entries(c).filter(([k]) => k.startsWith('extra:'));
 
+  const procedencia = c.localidad_origen || c.cp_origen || '';
+  const recorrido = envio.pasos || [];
+  const pasosDelDiagrama = (envio.hitos && envio.hitos.length) ? envio.hitos : recorrido;
+  // Cuándo se movió por última vez, que es lo que de verdad se quiere saber
+  const ultimoMovimiento = recorrido.length ? recorrido[recorrido.length - 1].ts
+                                            : (c.fecha_estado || '');
+
   return (
-    <article className="tarjeta envio">
-      <header className="envio-cab">
-        <div style={{minWidth:0}}>
-          <div className="envio-ref">{envio.id}</div>
-          <div className="envio-sub">{c.destinatario || 'Sin destinatario'}{c.localidad ? ` · ${c.localidad}` : ''}</div>
+    <article className={'envio ' + tono}>
+      <div className="envio-cuerpo" role="button" tabIndex={0} aria-expanded={abierto}
+           onClick={() => setAbierto(a => !a)}
+           onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAbierto(a => !a); } }}>
+        <header className="envio-cab">
+          <div className="envio-quien">
+            <b>{c.destinatario || 'Sin destinatario'}</b>
+            <span>{c.localidad || 'destino sin indicar'}</span>
+          </div>
+          <span className={'chip ' + tono} title={c.estado}>
+              <i className="punto" /><span>{estadoCorto(c.estado)}</span>
+            </span>
+        </header>
+
+        {(c.remitente || procedencia) && (
+          <div className="ruta">
+            <i title={c.remitente}>{c.remitente || procedencia}</i>
+            <span className="hacia">→</span>
+            <i title={c.destinatario}>{c.localidad || '—'}</i>
+          </div>
+        )}
+
+        <Progreso estado={c.estado} pasos={pasosDelDiagrama} />
+
+        <div className="envio-pie">
+          <span className="envio-ref">{envio.id}</span>
+          <span>{ultimoMovimiento ? `movido ${horaCorta(ultimoMovimiento)}` : `visto ${haceCuanto(envio.visto_ultima)}`}</span>
         </div>
-        <span className={'chip ' + (incidencia ? 'alerta' : 'marca')}>{c.estado || 'sin estado'}</span>
-      </header>
-
-      <Diagrama estado={c.estado} />
-
-      <div className="datos">
-        {c.fecha && <div className="dato"><span>Fecha</span><b>{c.fecha}</b></div>}
-        {c.bultos && <div className="dato"><span>Bultos</span><b>{c.bultos}</b></div>}
-        {c.kilos && <div className="dato"><span>Kilos</span><b>{c.kilos}</b></div>}
-        {c.entrega && <div className="dato"><span>Entrega</span><b>{c.entrega}</b></div>}
-      </div>
-
-      {c.observaciones && <div className="envio-sub">📝 {c.observaciones}</div>}
-
-      <div className="pie">
-        <span className="envio-sub">Visto {haceCuanto(envio.visto_ultima)}</span>
-        <button className="enlace" onClick={()=>setAbierto(a=>!a)} aria-expanded={abierto}>
-          {abierto ? 'Ocultar detalle' : 'Ver detalle'}
-        </button>
       </div>
 
       {abierto && (
         <div className="detalle">
+          {recorrido.length > 0 && (
+            <div>
+              <div className="titulo-seccion">Recorrido en el portal</div>
+              <div className="recorrido">
+                {recorrido.slice().reverse().map((s, i) => (
+                  <div className="recorrido-item" key={`${s.ts}-${i}`}>
+                    <div className="recorrido-hilo">
+                      <div className="recorrido-punto" />
+                      <div className="recorrido-raya" />
+                    </div>
+                    <div className="recorrido-texto">
+                      <time>{s.ts}</time>
+                      <b>{s.estado}</b>
+                      {s.lugar && <span>{s.lugar}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div>
             <div className="titulo-seccion">Todos los datos</div>
             <div className="datos">
               {Object.entries(c).filter(([k]) => !k.startsWith('extra:')).map(([k,v]) => (
-                <div className="dato" key={k}><span>{k}</span><b>{v || '—'}</b></div>
+                <div className="dato" key={k}><span>{etiqueta(k)}</span><b>{v || '—'}</b></div>
               ))}
               {extras.map(([k,v]) => (
                 <div className="dato" key={k}><span>{k.slice(6)}</span><b>{v || '—'}</b></div>
               ))}
             </div>
           </div>
+
           <div>
-            <div className="titulo-seccion">Historial</div>
+            <div className="titulo-seccion">Cambios detectados</div>
             <div className="hist">
               {historial.length === 0 && <div className="envio-sub">Sin cambios registrados todavía.</div>}
               {historial.map(h => (
@@ -548,14 +917,28 @@ function TarjetaEnvio({envio, historial}){
 }
 
 /* ─────────────────── paneles ─────────────────── */
-/* ─────────────────── tarjeta de avisos push ─────────────────── */
-function AvisosPush({repo}){
+/* ─────────────────── tarjeta de avisos push ───────────────────
+   Vive en la pestaña de ajustes: es algo que se deja puesto una vez por
+   dispositivo, no algo que haya que mirar cada mañana. Por eso ya no se oculta
+   ni se pospone; siempre dice en qué punto está este aparato. */
+function AvisosPush({repo, meta}){
   const [sus, setSus]       = useState(null);      // suscripción viva en este navegador
   const [pegada, setPegada] = useState(() => leer(PUSH_PEGADA) || '');
   const [error, setError]   = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [copiado, setCopiado] = useState(false);
-  const [oculta, setOculta]   = useState(false);
+  // ¿El repositorio ya conoce a este dispositivo? Lo dicen las huellas que
+  // publica el monitor: si la nuestra está, no hay nada que pegar y la tarjeta
+  // sobra, aunque este navegador no recuerde haberlo hecho.
+  const [dadoDeAlta, setDadoDeAlta] = useState(false);
+
+  useEffect(() => {
+    const altas = meta && meta.push_dispositivos;
+    if (!sus || !Array.isArray(altas)) { setDadoDeAlta(false); return; }
+    let vivo = true;
+    huellaDe(sus.endpoint).then(h => { if (vivo) setDadoDeAlta(altas.includes(h)); }).catch(() => {});
+    return () => { vivo = false; };
+  }, [sus, meta]);
 
   useEffect(() => {
     suscripcionActual().then(setSus).catch(() => {});
@@ -575,7 +958,7 @@ function AvisosPush({repo}){
   };
 
   const texto = sus ? comoTexto(sus) : '';
-  const alDia = sus && pegada === sus.endpoint;
+  const alDia = sus && (dadoDeAlta || pegada === sus.endpoint);
   const urlSecrets = repo ? `https://github.com/${repo}/settings/secrets/actions` : null;
 
   /* iOS solo deja suscribirse si la app está instalada en la pantalla de inicio. */
@@ -605,41 +988,33 @@ function AvisosPush({repo}){
     );
   }
 
-  if (alDia && !oculta) {
+  if (alDia) {
     return (
       <div className="tarjeta pad push hecho">
         <span className="punto" />
         <span>Avisos activos en este dispositivo.</span>
         <div className="crece" />
-        <button className="btn" onClick={() => setOculta(true)}>Ocultar</button>
         <button className="btn" onClick={() => { olvidar(PUSH_PEGADA); setPegada(''); }}>
           Ver la suscripción
         </button>
       </div>
     );
   }
-  if (alDia) return null;
 
   return (
     <div className="tarjeta pad push">
       {!sus ? (
         <Fragment>
-          <h2>🔔 Recibe los avisos en este dispositivo</h2>
-          <p>
-            El monitor te avisará aquí mismo cuando aparezca un envío nuevo o cambie un estado,
-            con la aplicación cerrada. No hace falta Telegram ni correo.
-          </p>
-          {error && <div className="aviso mal" style={{marginBottom:'.75rem'}}>{error}</div>}
-          <div className="acciones-push">
+          <div className="push-linea">
+            <span className="push-txt">
+              🔔 <b>Recibe los avisos en este dispositivo</b>
+              <small>Te avisa de envíos nuevos y cambios de estado con la app cerrada.</small>
+            </span>
             <button className="btn primario" onClick={activar} disabled={ocupado}>
               {ocupado ? 'Activando…' : 'Activar avisos'}
             </button>
-            {!instalada() && (
-              <span style={{fontSize:'.82rem',color:'var(--tenue)'}}>
-                Consejo: instálalo como app para que los avisos sean más fiables.
-              </span>
-            )}
           </div>
+          {error && <div className="aviso mal" style={{marginTop:'.6rem'}}>{error}</div>}
         </Fragment>
       ) : (
         <Fragment>
@@ -676,6 +1051,151 @@ function AvisosPush({repo}){
   );
 }
 
+/* ─────────────────── secciones plegables ───────────────────
+   El panel tiene un orden de importancia: los envíos activos arriba y del todo
+   abiertos, los cerrados debajo, y lo demás plegado. Así lo que se mira todos
+   los días entra en pantalla sin desplazarse. */
+function Seccion({titulo, cuenta, primaria, abiertaPorDefecto = true, plegable = true, children}){
+  const [abierta, setAbierta] = useState(abiertaPorDefecto);
+  const cuerpo = <div>{children}</div>;
+  if (!plegable) {
+    return (
+      <section className={'seccion' + (primaria ? ' primaria' : '')}>
+        <div className="seccion-cab">
+          <h2>{titulo}</h2>
+          {cuenta != null && <span className="cuenta">{cuenta}</span>}
+          <span className="raya" />
+        </div>
+        {cuerpo}
+      </section>
+    );
+  }
+  return (
+    <section className={'seccion' + (primaria ? ' primaria' : '')}>
+      <button className="seccion-cab" aria-expanded={abierta} onClick={() => setAbierta(a => !a)}>
+        <h2>{titulo}</h2>
+        {cuenta != null && <span className="cuenta">{cuenta}</span>}
+        <span className="raya" />
+        <span className="flecha">▶</span>
+      </button>
+      {abierta && cuerpo}
+    </section>
+  );
+}
+
+/* ─────────────────── prueba de los avisos ───────────────────
+   Comprueba, uno por uno, los eslabones de la cadena que lleva un aviso desde
+   GitHub hasta esta pantalla. El único que no se puede probar desde aquí es el
+   propio envío desde GitHub Actions —haría falta una clave del repositorio, y
+   esta página es pública—, así que para ese se ofrece el enlace que lo lanza. */
+const PASOS_PRUEBA = [
+  ['permiso',  'Permiso de notificaciones'],
+  ['sw',       'Service worker activo'],
+  ['sub',      'Suscripción push válida'],
+  ['alta',     'Este dispositivo está dado de alta en el repositorio'],
+  ['pantalla', 'El aviso se ve en pantalla'],
+];
+
+async function huellaDe(endpoint){
+  const bytes = new TextEncoder().encode(endpoint);
+  const resumen = await crypto.subtle.digest('SHA-256', bytes);
+  return [...new Uint8Array(resumen)].map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 16);
+}
+
+function PruebaAvisos({meta}){
+  const [estado, setEstado] = useState(null);      // {clave: {ok, nota}}
+  const [probando, setProbando] = useState(false);
+
+  const probar = async () => {
+    setProbando(true);
+    const r = {};
+    const anota = (k, ok, nota) => { r[k] = {ok, nota}; setEstado({...r}); };
+    try {
+      if (typeof Notification === 'undefined') {
+        anota('permiso', false, 'Este navegador no admite notificaciones.');
+        setProbando(false); return;
+      }
+      let permiso = Notification.permission;
+      if (permiso === 'default') permiso = await Notification.requestPermission();
+      anota('permiso', permiso === 'granted',
+            permiso === 'granted' ? 'Concedido'
+            : permiso === 'denied' ? 'Bloqueado. Hay que permitirlo en los ajustes del sitio.'
+            : 'Sin responder.');
+      if (permiso !== 'granted') { setProbando(false); return; }
+
+      const reg = await navigator.serviceWorker?.getRegistration();
+      anota('sw', !!(reg && reg.active), reg ? 'Registrado' : 'No hay service worker: recarga la página.');
+      if (!reg) { setProbando(false); return; }
+
+      const sub = await reg.pushManager.getSubscription();
+      anota('sub', !!sub, sub ? new URL(sub.endpoint).host
+                              : 'Sin suscripción: pulsa «Activar avisos» más arriba.');
+
+      if (sub) {
+        const huella = await huellaDe(sub.endpoint);
+        const altas = meta?.push_dispositivos;
+        if (!Array.isArray(altas)) {
+          anota('alta', null, 'La última comprobación es anterior a esta versión; se sabrá en la siguiente.');
+        } else if (altas.includes(huella)) {
+          anota('alta', true, `Sí, entre los ${altas.length} dispositivo(s) del Secret PUSH_SUSCRIPCIONES.`);
+        } else {
+          anota('alta', false, 'No. Copia el texto de la suscripción en el Secret PUSH_SUSCRIPCIONES.');
+        }
+      }
+
+      await reg.showNotification('✅ Los avisos funcionan', {
+        body: 'Prueba lanzada desde el panel. Si estás leyendo esto en una notificación, este dispositivo está listo.',
+        icon: 'icono-notificacion-192.png', badge: 'icono-badge-96.png',
+        tag: 'prueba-panel', renotify: true,
+      });
+      anota('pantalla', true, 'Enviado. Debería haber aparecido ahora mismo.');
+    } catch (e) {
+      setEstado(es => ({...(es || {}), error: {ok: false, nota: String(e && e.message || e)}}));
+    }
+    setProbando(false);
+  };
+
+  const marca = v => v?.ok === true ? <span className="marca-ok">✓</span>
+                   : v?.ok === false ? <span className="marca-mal">✗</span>
+                   : <span className="marca-esp">·</span>;
+
+  return (
+    <div className="prueba">
+      <div className="envio-sub">
+        Comprueba de un vistazo los eslabones que llevan un aviso hasta esta pantalla.
+      </div>
+      <div className="acciones">
+        <button className="btn primario" onClick={probar} disabled={probando}>
+          {probando ? 'Probando…' : 'Probar los avisos'}
+        </button>
+        {meta?.repo && (
+          <a className="btn" target="_blank" rel="noopener"
+             href={`https://github.com/${meta.repo}/actions/workflows/monitor.yml`}>
+            Prueba completa desde GitHub
+          </a>
+        )}
+      </div>
+      {estado && (
+        <ul className="prueba-lista">
+          {PASOS_PRUEBA.map(([k, texto]) => (
+            <li key={k}>
+              {marca(estado[k])}
+              <div>{texto}{estado[k]?.nota && <small>{estado[k].nota}</small>}</div>
+            </li>
+          ))}
+          {estado.error && (
+            <li><span className="marca-mal">✗</span><div>Algo falló<small>{estado.error.nota}</small></div></li>
+          )}
+        </ul>
+      )}
+      <div className="envio-sub" style={{fontSize:'.75rem'}}>
+        El último eslabón —que GitHub Actions consiga empujar el aviso— solo se puede
+        probar desde el propio GitHub: usa «Run workflow» marcando la casilla de prueba.
+      </div>
+    </div>
+  );
+}
+
 function Metricas({meta, envios}){
   const analizados = envios.map(e => analizarEstado(e.campos.estado));
   const entregados = analizados.filter(a => a.paso === 3 && !a.incidencia).length;
@@ -684,9 +1204,9 @@ function Metricas({meta, envios}){
   return (
     <section className="metricas">
       <div className="metrica"><span>Vigilados</span><b>{envios.length}</b></div>
-      <div className="metrica"><span>En curso</span><b style={{color:'var(--naranja)'}}>{enCurso}</b></div>
+      <div className="metrica"><span>En curso</span><b style={{color:'var(--marca)'}}>{enCurso}</b></div>
       <div className="metrica"><span>Entregados</span><b style={{color:'var(--ok)'}}>{entregados}</b></div>
-      <div className="metrica"><span>Incidencias</span><b style={{color: incidencias ? 'var(--error)' : 'inherit'}}>{incidencias}</b></div>
+      <div className="metrica"><span>Incidencias</span><b style={{color: incidencias ? 'var(--mal)' : 'inherit'}}>{incidencias}</b></div>
       <div className="metrica">
         <span>Última comprobación</span>
         <b style={{fontSize:'1rem'}}>{haceCuanto(meta?.ultima_comprobacion)}</b>
@@ -697,11 +1217,12 @@ function Metricas({meta, envios}){
 }
 
 function Novedades({eventos}){
+  const [tope, setTope] = useState(25);
   return (
     <section className="tarjeta pad">
       <div className="titulo-seccion">Novedades</div>
       {eventos.length === 0 && <div className="vacio">Todo tranquilo por aquí.</div>}
-      {eventos.slice(0, 25).map(ev => (
+      {eventos.slice(0, tope).map(ev => (
         <div className="novedad" key={ev.id}>
           <div className="marca">{ev.tipo === 'nuevo' ? '+' : '↻'}</div>
           <div className="txt">
@@ -711,21 +1232,233 @@ function Novedades({eventos}){
           </div>
         </div>
       ))}
+      {tope < eventos.length && (
+        <div style={{paddingTop:'var(--sp-3)'}}>
+          <button className="btn" onClick={() => setTope(eventos.length)}>
+            Ver las {eventos.length} novedades
+          </button>
+        </div>
+      )}
     </section>
+  );
+}
+
+/* ─────────────────── historial de ejecuciones ───────────────────
+   Hasta ahora, saber si el monitor seguía vivo obligaba a abrir GitHub
+   Actions. Aquí está la misma respuesta sin salir del panel: una línea por
+   comprobación, la última arriba, con lo que leyó y si falló.
+
+   Ojo con el vocabulario: una ejecución del workflow cubre la jornada entera y
+   dentro hace muchas comprobaciones, así que varias líneas seguidas comparten
+   el mismo enlace al log. */
+function Ejecuciones({ejecuciones}){
+  const [tope, setTope] = useState(15);
+
+  if (!ejecuciones.length) {
+    return (
+      <div className="tarjeta pad vacio">
+        Todavía no hay comprobaciones registradas. Se irán apuntando aquí a partir de la próxima.
+      </div>
+    );
+  }
+
+  const fallos = ejecuciones.filter(e => !e.ok).length;
+  return (
+    <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-3)'}}>
+      <div className="envio-sub">
+        Últimas {ejecuciones.length} comprobaciones
+        {fallos ? `, ${fallos} con error` : ', todas correctas'}. La primera es la más reciente.
+      </div>
+      <ul className="ejecuciones">
+        {ejecuciones.slice(0, tope).map((e, i) => (
+          <li className="ejec" key={e.ts + '-' + i}>
+            {e.ok ? <span className="marca-ok">✓</span> : <span className="marca-mal">✗</span>}
+            <time>{fmtFecha(e.ts)}</time>
+            <span className="res">
+              {e.ok
+                ? <Fragment>
+                    <b>{e.envios}</b> envío{e.envios === 1 ? '' : 's'} leído{e.envios === 1 ? '' : 's'}
+                    {e.novedades ? ` · ${e.novedades} novedad${e.novedades === 1 ? '' : 'es'}` : ''}
+                    {e.disparo === 'workflow_dispatch' ? ' · a mano' : ''}
+                  </Fragment>
+                : <Fragment><b>Falló</b>{e.error ? ' · ' + e.error : ''}</Fragment>}
+            </span>
+            {e.url && <a className="enlace" href={e.url} target="_blank" rel="noopener">Log</a>}
+          </li>
+        ))}
+      </ul>
+      {tope < ejecuciones.length && (
+        <div>
+          <button className="btn" onClick={() => setTope(ejecuciones.length)}>
+            Ver las {ejecuciones.length}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─────────────────── ajustes ───────────────────
+   Todo lo que no es «qué está pasando con mis envíos», por temas y en el orden
+   en que se necesita: lo que hay que dejar puesto una vez, lo que se consulta
+   cuando algo huele mal, y lo que casi nunca se cambia. */
+const NOMBRES_CANAL = {
+  push:     ['Push a los dispositivos', 'El canal principal: llega al móvil con la app cerrada.'],
+  telegram: ['Telegram',                'Refuerzo por si el push no llega.'],
+  email:    ['Correo electrónico',      'Refuerzo por si el push no llega.'],
+};
+
+function Ajustes({meta, envios, ejecuciones, tema, setTema, onSalir}){
+  const canales = meta.canales || {};
+  const dispositivos = Array.isArray(meta.push_dispositivos) ? meta.push_dispositivos.length : null;
+  const enGitHub = ruta => meta.repo ? `https://github.com/${meta.repo}/${ruta}` : null;
+
+  return (
+    <div className="ajustes">
+
+      {/* 1 — lo que se configura una vez por aparato */}
+      <section className="grupo">
+        <h2>Avisos en este dispositivo</h2>
+        <AvisosPush repo={meta.repo} meta={meta} />
+        <div className="tarjeta pad"><PruebaAvisos meta={meta} /></div>
+      </section>
+
+      {/* 2 — por dónde salen los avisos, que se configura en el repositorio */}
+      <section className="grupo">
+        <h2>Canales de aviso</h2>
+        <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-3)'}}>
+          <ul className="prueba-lista">
+            {Object.keys(NOMBRES_CANAL).map(clave => {
+              const [nombre, nota] = NOMBRES_CANAL[clave];
+              const activo = !!canales[clave];
+              return (
+                <li key={clave}>
+                  {activo ? <span className="marca-ok">✓</span> : <span className="marca-esp">·</span>}
+                  <div>
+                    {nombre}
+                    <small>{activo ? nota : 'Sin configurar en el repositorio.'}</small>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="grupo-pie">
+            {dispositivos === null
+              ? 'Los dispositivos suscritos se sabrán en la próxima comprobación.'
+              : <Fragment><b>{dispositivos}</b> dispositivo{dispositivos === 1 ? '' : 's'} dado
+                  {dispositivos === 1 ? '' : 's'} de alta para recibir el push.</Fragment>}
+            {' '}Los canales se activan poniendo sus Secrets en el repositorio.
+          </div>
+        </div>
+      </section>
+
+      {/* 3 — el monitor: cuándo mira el portal y qué encontró la última vez */}
+      <section className="grupo">
+        <h2>El monitor</h2>
+        <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-4)'}}>
+          <Metricas meta={meta} envios={envios} />
+          <div className="grupo-pie">
+            Comprueba el portal de <b>lunes a viernes</b>: cada 15 min de 8:30 a 10:30 y cada hora
+            hasta las 17:30 (hora peninsular). Fuera de ese horario no se consulta nada, así que a
+            primera hora de la mañana es normal que la última comprobación sea de ayer por la tarde.
+          </div>
+          {meta.repo && (
+            <div className="opciones">
+              <a className="btn" target="_blank" rel="noopener" href={enGitHub('actions')}>
+                Ver ejecuciones en GitHub
+              </a>
+              <a className="btn" target="_blank" rel="noopener"
+                 href={enGitHub('actions/workflows/monitor.yml')}>
+                Lanzar una comprobación
+              </a>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* 4 — el historial, que es la prueba de que lo anterior se cumple */}
+      <section className="grupo">
+        <h2>Historial de ejecuciones</h2>
+        <Ejecuciones ejecuciones={ejecuciones} />
+      </section>
+
+      {/* 5 — lo que casi nunca se toca */}
+      <section className="grupo">
+        <h2>Apariencia</h2>
+        <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-3)'}}>
+          <div className="opciones">
+            {[['sistema','Como el sistema'], ['claro','Claro'], ['oscuro','Oscuro']].map(([clave, etq]) => (
+              <button key={clave} className={'btn' + (tema === clave ? ' elegido' : '')}
+                      aria-pressed={tema === clave} onClick={() => setTema(clave)}>{etq}</button>
+            ))}
+          </div>
+          <div className="grupo-pie">Se recuerda solo en este navegador.</div>
+        </div>
+      </section>
+
+      <section className="grupo">
+        <h2>Acceso</h2>
+        <div className="tarjeta pad">
+          <div className="push-linea">
+            <span className="push-txt">
+              <b>Contraseña del panel</b>
+              <small>Guardada en este dispositivo para no tener que escribirla cada vez.
+                     Los datos se descifran aquí, en tu navegador.</small>
+            </span>
+            <button className="btn" onClick={onSalir}>Salir y olvidarla</button>
+          </div>
+        </div>
+      </section>
+
+    </div>
   );
 }
 
 /* ─────────────────── panel ─────────────────── */
 function Panel({datos, onRecargar, onSalir, recargando}){
-  const [filtro, setFiltro] = useState('todos');
-  const [busqueda, setBusqueda] = useState('');
-  const [permiso, setPermiso] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'denied');
-
-  const meta = datos.meta || {};
-  const eventos = datos.eventos || [];
+  const meta        = datos.meta || {};
+  const eventos     = datos.eventos || [];
+  const ejecuciones = datos.ejecuciones || [];
   const envios = Object.entries(datos.envios || {})
     .map(([id, e]) => ({id, ...e}))
     .sort((a, b) => (b.visto_primera || '').localeCompare(a.visto_primera || ''));
+
+  const ultimoEvento    = eventos.reduce((m, e) => Math.max(m, e.id), 0);
+  const ultimaEjecucion = ejecuciones.length ? ejecuciones[0].ts : '';
+
+  const [pestana, setPestana] = useState('inicio');
+  const [filtro, setFiltro] = useState('activos');
+  const [busqueda, setBusqueda] = useState('');
+  const [permiso, setPermiso] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'denied');
+  const [tema, setTema] = useState(() => leer(TEMA) || 'sistema');
+
+  /* Hasta dónde ha visto cada pestaña. Entrar en una la deja al día: el número
+     no es un contador de lo que hay, es un aviso de lo que falta por mirar. */
+  const [vistoInicio,    setVistoInicio]    = useState(() => marcaVista(VISTO_INICIO, ultimoEvento));
+  const [vistoNovedades, setVistoNovedades] = useState(() => marcaVista(VISTO_NOVEDADES, ultimoEvento));
+  const [vistoAjustes,   setVistoAjustes]   = useState(() => marcaVista(VISTO_AJUSTES, ultimaEjecucion));
+
+  useEffect(() => {
+    if (pestana === 'inicio') {
+      guardar(VISTO_INICIO, String(ultimoEvento)); setVistoInicio(String(ultimoEvento));
+    } else if (pestana === 'novedades') {
+      guardar(VISTO_NOVEDADES, String(ultimoEvento)); setVistoNovedades(String(ultimoEvento));
+    } else if (pestana === 'ajustes' && ultimaEjecucion) {
+      guardar(VISTO_AJUSTES, ultimaEjecucion); setVistoAjustes(ultimaEjecucion);
+    }
+  }, [pestana, ultimoEvento, ultimaEjecucion]);
+
+  /* Qué se está viendo AHORA, que no es lo mismo que qué se eligió: con el tema
+     del sistema en oscuro, «sistema» y «oscuro» se ven igual. Sin esto, el
+     primer clic en el botón parecía no hacer nada. */
+  const oscuroAhora = tema === 'oscuro' ||
+    (tema === 'sistema' && typeof matchMedia === 'function' &&
+     matchMedia('(prefers-color-scheme: dark)').matches);
+
+  useEffect(() => {
+    if (tema === 'sistema') { document.documentElement.removeAttribute('data-tema'); olvidar(TEMA); }
+    else { document.documentElement.setAttribute('data-tema', tema); guardar(TEMA, tema); }
+  }, [tema]);
 
   // Red de seguridad: si el panel está abierto y ve novedades que el push no
   // llegó a entregar, las enseña igualmente. El «tag» evita duplicados.
@@ -738,24 +1471,92 @@ function Panel({datos, onRecargar, onSalir, recargando}){
     (async () => {
       const reg = await navigator.serviceWorker?.getRegistration();
       nuevos.slice(0, 5).forEach(n => {
-        const o = {body:n.detalle, icon:'icono-192.png', badge:'icono-192.png', tag:'envio-'+n.envio_id};
+        const o = {body:n.detalle, icon:'icono-notificacion-192.png', badge:'icono-badge-96.png',
+                   tag:'envio-'+n.envio_id};
         reg ? reg.showNotification(n.titulo, o) : new Notification(n.titulo, o);
       });
     })();
   }, [eventos, permiso]);
 
-  const q = busqueda.trim().toLowerCase();
-  const visibles = envios.filter(e => {
+  /* Un envío está «activo» mientras no esté entregado y sin problemas. Las
+     incidencias son activas y van delante: son las que urge mirar. */
+  const grupo = e => {
     const a = analizarEstado(e.campos.estado);
-    if (filtro === 'curso' && (a.paso === 3 || a.incidencia)) return false;
-    if (filtro === 'entregados' && (a.paso !== 3 || a.incidencia)) return false;
-    if (filtro === 'incidencias' && !a.incidencia) return false;
-    if (!q) return true;
-    return (e.id + ' ' + JSON.stringify(e.campos)).toLowerCase().includes(q);
-  });
+    return a.incidencia ? 'incidencias' : (a.paso === PASOS.length - 1 ? 'entregados' : 'curso');
+  };
+  const cuenta = {curso:0, entregados:0, incidencias:0};
+  envios.forEach(e => cuenta[grupo(e)]++);
+  cuenta.activos = cuenta.curso + cuenta.incidencias;
+
+  const q = busqueda.trim().toLowerCase();
+  const coincide = e => !q || (e.id + ' ' + JSON.stringify(e.campos)).toLowerCase().includes(q);
+
+  /* Si no queda nada en marcha, «Activos» enseñaría una pantalla vacía teniendo
+     envíos delante. En ese caso se muestran los recientes: es lo único que hay
+     que ver, y una pantalla en blanco no informa de nada. */
+  const filtroReal = (filtro === 'activos' && cuenta.activos === 0) ? 'todos' : filtro;
+  const enFiltro = e => {
+    const g = grupo(e);
+    if (filtroReal === 'activos') return g !== 'entregados';
+    if (filtroReal === 'todos') return true;
+    return g === filtroReal;
+  };
+  const visibles = envios.filter(e => coincide(e) && enFiltro(e));
+  const orden = {incidencias:0, curso:1, entregados:2};
+  const principales = visibles.filter(e => grupo(e) !== 'entregados')
+                              .sort((a,b) => orden[grupo(a)] - orden[grupo(b)]);
+  const cerrados = visibles.filter(e => grupo(e) === 'entregados');
+
   const historialDe = id => eventos.filter(ev => ev.envio_id === id);
-  const frescura = meta.ultima_comprobacion &&
-    (Date.now() - new Date(meta.ultima_comprobacion)) < 3 * 3600 * 1000;
+  const rejilla = lista => (
+    <div className="rejilla">
+      {lista.map(e => <TarjetaEnvio key={e.id} envio={e} historial={historialDe(e.id)} />)}
+    </div>
+  );
+
+  /* ¿Están los datos al día? Depende de la hora: a las once de la noche es
+     normal que la última comprobación sea de las 17:30; a media mañana eso
+     significa que algo se ha roto. El monitor estuvo días sin comprobar y no se
+     notó, así que ahora el panel lo canta. */
+  const desfase = meta.ultima_comprobacion
+    ? Math.round((Date.now() - new Date(meta.ultima_comprobacion)) / 60000) : null;
+  const enHorario = (() => {
+    const ahora = new Date(new Date().toLocaleString('en-US', {timeZone: 'Europe/Madrid'}));
+    const dia = ahora.getDay(), reloj = ahora.getHours() * 60 + ahora.getMinutes();
+    return dia >= 1 && dia <= 5 && reloj >= 510 && reloj <= 1080;
+  })();
+  const margen = enHorario ? 90 : 20 * 60;
+  const paradoEnHorario = enHorario && desfase !== null && desfase > margen;
+
+  // El titular de la jornada: la respuesta a «¿tengo que mirar algo ahora?»
+  const tono = cuenta.incidencias ? 'alerta' : (cuenta.activos ? 'curso' : 'ok');
+  const titular = cuenta.incidencias
+      ? `${cuenta.incidencias} envío${cuenta.incidencias > 1 ? 's' : ''} con incidencia`
+      : cuenta.activos
+        ? `${cuenta.activos} envío${cuenta.activos > 1 ? 's' : ''} en camino`
+        : envios.length ? 'Todo entregado' : 'Todavía sin envíos';
+
+  const CIFRAS = [
+    ['activos',     'Activos',     cuenta.activos,     'curso'],
+    ['incidencias', 'Incidencias', cuenta.incidencias, 'alerta'],
+    ['entregados',  'Recientes',   cuenta.entregados,  'ok'],
+    ['todos',       'Vigilados',   envios.length,      ''],
+  ];
+
+  /* El número de cada pestaña: solo lo que queda por mirar ahí dentro. En
+     inicio, cuántos ENVÍOS se han movido (no cuántos apuntes: tres cambios del
+     mismo envío son una sola tarjeta que mirar); en novedades, los apuntes; en
+     ajustes, las comprobaciones que han fallado desde la última visita. */
+  const sinVerInicio = new Set(
+    eventos.filter(e => e.id > Number(vistoInicio)).map(e => e.envio_id)).size;
+  const sinVerNovedades = eventos.filter(e => e.id > Number(vistoNovedades)).length;
+  const sinVerAjustes = ejecuciones.filter(e => !e.ok && e.ts > vistoAjustes).length;
+
+  const PESTANAS = [
+    ['inicio',    'Inicio',    sinVerInicio],
+    ['novedades', 'Novedades', sinVerNovedades],
+    ['ajustes',   'Ajustes',   sinVerAjustes],
+  ];
 
   return (
     <Fragment>
@@ -763,57 +1564,123 @@ function Panel({datos, onRecargar, onSalir, recargando}){
         <div className="barra-int">
           <div className="marca-app">
             <img src="icono.svg" alt="" />
-            <h1>Monitor de envíos</h1>
+            <h1>ShipmentMonitor</h1>
           </div>
           <div className="crece" />
           <div className="acciones">
-            <span className={'chip ' + (frescura ? 'on' : 'alerta')}>
-              {haceCuanto(meta.ultima_comprobacion)}
-            </span>
+            <button className="btn icono" aria-label={oscuroAhora ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+                    title={oscuroAhora ? 'Tema claro' : 'Tema oscuro'}
+                    onClick={() => setTema(oscuroAhora ? 'claro' : 'oscuro')}>
+              {/* En SVG y no con «☀»/«☾»: esos caracteres los dibuja cada
+                  sistema como quiere, y en Windows salía un aspa. */}
+              {oscuroAhora ? (
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+                     strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="4.2" />
+                  <path d="M12 2.6v2M12 19.4v2M2.6 12h2M19.4 12h2M5.4 5.4l1.4 1.4M17.2 17.2l1.4 1.4M18.6 5.4l-1.4 1.4M6.8 17.2l-1.4 1.4" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor"
+                     strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M20 14.2A8.2 8.2 0 1 1 9.8 4a6.6 6.6 0 0 0 10.2 10.2z" />
+                </svg>
+              )}
+            </button>
             <button className="btn primario" onClick={onRecargar} disabled={recargando}>
               {recargando ? 'Actualizando…' : 'Actualizar'}
             </button>
-            <button className="btn" onClick={onSalir} title="Olvidar la contraseña en este dispositivo">Salir</button>
           </div>
         </div>
+
+        {/* Las tres puertas del panel. El número solo aparece si hay algo sin
+            ver ahí dentro; entrar lo apaga. */}
+        <nav className="pestanas" role="tablist" aria-label="Secciones del panel">
+          {PESTANAS.map(([clave, etq, sinVer]) => (
+            <button key={clave} role="tab" aria-selected={pestana === clave}
+                    className={'pestana' + (pestana === clave ? ' activa' : '')}
+                    onClick={() => setPestana(clave)}>
+              {etq}
+              {sinVer > 0 && <span className="senal" aria-label={sinVer + ' sin ver'}>{sinVer}</span>}
+            </button>
+          ))}
+        </nav>
       </header>
 
       <main className="contenido">
-        {meta.error && <div className="aviso mal">⚠ La última comprobación falló: {meta.error}</div>}
+        {pestana === 'inicio' && (
+          <Fragment>
+            {meta.error && <div className="aviso mal">⚠ La última comprobación falló: {meta.error}</div>}
 
-        <AvisosPush repo={meta.repo} />
+            {paradoEnHorario && (
+              <div className="aviso mal">
+                ⚠ <b>El monitor lleva {haceCuanto(meta.ultima_comprobacion).replace('hace ', '')} sin comprobar el portal</b>,
+                y a esta hora debería hacerlo cada hora como mucho.{' '}
+                {meta.repo && (
+                  <a className="enlace" target="_blank" rel="noopener"
+                     href={`https://github.com/${meta.repo}/actions/workflows/monitor.yml`}>
+                    Míralo en Actions y lánzalo a mano
+                  </a>
+                )}
+              </div>
+            )}
 
-        <Metricas meta={meta} envios={envios} />
+            {/* La cabecera del día: qué hay, y las cifras hacen de filtro */}
+            <section className="tarjeta jornada">
+              <div className="jornada-titular">
+                <span className={'faro ' + tono} />
+                <h2>{titular}</h2>
+                <span className="cuando">Comprobado {haceCuanto(meta.ultima_comprobacion)}</span>
+              </div>
 
-        <div className="filtros">
-          {[['todos','Todos'],['curso','En curso'],['entregados','Entregados'],['incidencias','Incidencias']].map(([k,l]) => (
-            <button key={k} className={'filtro-btn' + (filtro === k ? ' activo' : '')} onClick={()=>setFiltro(k)}>{l}</button>
-          ))}
-          <div className="buscador">
-            <input type="search" value={busqueda} onChange={e=>setBusqueda(e.target.value)}
-                   placeholder="Buscar referencia, destinatario, localidad…" aria-label="Buscar" />
-          </div>
-        </div>
+              <div className="cifras">
+                {CIFRAS.map(([clave, etq, valor, color]) => (
+                  <button key={clave} className={'cifra ' + color + (filtro === clave ? ' activa' : '')}
+                          aria-pressed={filtro === clave} onClick={() => setFiltro(clave)}>
+                    <b>{valor}</b><span>{etq}</span>
+                  </button>
+                ))}
+              </div>
 
-        <div className="columnas">
-          <div>
-            {visibles.length === 0
-              ? <div className="tarjeta pad vacio">No hay envíos que coincidan.</div>
-              : <div className="rejilla">
-                  {visibles.map(e => <TarjetaEnvio key={e.id} envio={e} historial={historialDe(e.id)} />)}
-                </div>}
-          </div>
-          <aside className="lateral"><Novedades eventos={eventos} /></aside>
-        </div>
+              <div className="buscador">
+                <span className="lupa" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+                       strokeWidth="2.2" strokeLinecap="round">
+                    <circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.4 15.4 21 21" />
+                  </svg>
+                </span>
+                <input type="search" value={busqueda} onChange={e => setBusqueda(e.target.value)}
+                       placeholder="Buscar destinatario, localidad o albarán…" aria-label="Buscar" />
+              </div>
+            </section>
+
+            {/* 1º — lo que se mueve, siempre a la vista */}
+            <Seccion titulo={principales.length ? 'En camino' : 'Envíos recientes'}
+                     cuenta={principales.length || cerrados.length} primaria plegable={false}>
+              {principales.length === 0 && cerrados.length === 0
+                ? <div className="tarjeta pad vacio">
+                    {q ? `Ningún envío coincide con «${busqueda}».`
+                       : envios.length ? 'Ningún envío en este filtro.'
+                       : 'Todavía no hay envíos vigilados. Aparecerán aquí en cuanto el portal los dé de alta.'}
+                  </div>
+                : rejilla(principales.length ? principales : cerrados)}
+            </Seccion>
+
+            {/* 2º — los que ya han llegado: presentes, pero sin robar sitio */}
+            {principales.length > 0 && cerrados.length > 0 && (
+              <Seccion titulo="Envíos recientes" cuenta={cerrados.length} abiertaPorDefecto={false}>
+                {rejilla(cerrados)}
+              </Seccion>
+            )}
+          </Fragment>
+        )}
+
+        {pestana === 'novedades' && <Novedades eventos={eventos} />}
+
+        {pestana === 'ajustes' && (
+          <Ajustes meta={meta} envios={envios} ejecuciones={ejecuciones}
+                   tema={tema} setTema={setTema} onSalir={onSalir} />
+        )}
       </main>
-
-      <footer className="pie-app">
-        <span>Comprueba el portal cada hora, de 8:00 a 18:00</span>
-        {meta.repo && <a className="enlace" href={`https://github.com/${meta.repo}/actions`} target="_blank" rel="noopener">Ver ejecuciones</a>}
-        <span>Avisos: {Object.entries(meta.canales || {}).filter(([,v])=>v)
-          .map(([k]) => ({push:'push al dispositivo', telegram:'Telegram', email:'email'}[k] || k))
-          .join(', ') || 'solo en pantalla'}</span>
-      </footer>
     </Fragment>
   );
 }
@@ -842,7 +1709,7 @@ function App(){
   useEffect(() => {
     if (!clave) return;
     recargar(clave);
-    const t = setInterval(() => recargar(clave), 5 * 60 * 1000);   // el workflow va cada hora en horario laboral
+    const t = setInterval(() => recargar(clave), 5 * 60 * 1000);   // el workflow va cada 15 min / cada hora en horario laboral
     return () => clearInterval(t);
   }, [clave, recargar]);
 
@@ -862,6 +1729,8 @@ function App(){
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 ReactDOM.createRoot(document.getElementById('app')).render(<App />);
+// Ya hay algo que enseñar: la pantalla de arranque se va (nunca antes de 1 s).
+requestAnimationFrame(() => window.cerrarArranque && window.cerrarArranque());
 </script>
 </body>
 </html>

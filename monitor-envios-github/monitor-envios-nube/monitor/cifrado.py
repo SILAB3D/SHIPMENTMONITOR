@@ -15,6 +15,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+from datetime import datetime, timezone
 
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -40,6 +41,12 @@ def cifrar(objeto, password: str) -> dict:
         "v": 1,
         "kdf": "PBKDF2-SHA256",
         "iter": ITERACIONES,
+        # Cuándo se escribió, EN CLARO y a propósito. Lo necesita el workflow
+        # para saber cuánto hace de la última comprobación sin tener que
+        # descifrar nada, que es como decide si toca comprobar otra vez. No
+        # descubre nada: la hora de cada comprobación ya está a la vista en la
+        # fecha de los commits del repositorio.
+        "ts": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "salt": _b64(salt),
         "iv": _b64(iv),
         "datos": _b64(cifrado),
