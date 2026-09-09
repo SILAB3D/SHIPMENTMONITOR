@@ -1,7 +1,7 @@
-# Monitor de envíos TIPSA / DinaPaqWeb
+# ShipmentMonitor — envíos de muestras biológicas (TIPSA / DinaPaqWeb)
 
-Vigila el portal DinaPaqWeb, detecta **envíos nuevos** y **cambios en los que ya
-seguías**, y te avisa **directamente en el móvil**. El panel es una PWA que se instala
+Vigila el portal DinaPaqWeb, detecta **envíos nuevos** de muestras y **cambios en
+los que ya seguías**, y te avisa **directamente en el móvil**. El panel es una PWA que se instala
 en el teléfono y recibe notificaciones push: sin Telegram, sin correo y sin
 servidor de por medio.
 

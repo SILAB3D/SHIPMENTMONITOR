@@ -213,12 +213,34 @@ def test_manda_los_filtros_que_espera_el_portal(portal):
     assert consulta["fechaini"][2] == "/" and consulta["fechafin"][5] == "/"
 
 
+<<<<<<< HEAD
 def test_pagina_hasta_traerlos_todos(portal):
+=======
+def test_pagina_hasta_traerlos_todos(portal, monkeypatch):
+    """Con la ventana dentro de un mismo mes: 120 envíos en tandas de 50.
+
+    El reloj se fija a mitad de mes a propósito. Sin eso, la prueba fallaba los
+    días 1 al 7 de cada mes —cuando la ventana de una semana cruza de mes y el
+    scraper pregunta por tramos— y el fallo no tenía nada que ver con lo que
+    aquí se comprueba.
+    """
+    import monitor.scraper as sc
+
+    class FechaFalsa(sc.datetime):
+        @classmethod
+        def now(cls):
+            return sc.datetime(2026, 5, 20, 10, 0)
+
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
     # 120 envíos DISTINTOS: el albarán es lo que los identifica
     portal.filas = [dict(FILAS[0], V_ALBARAN=f"{7000000 + i}") for i in range(120)]
     portal.por_pagina = 50
     _configurar(DINAPAQ_URL_LOGIN=portal.url, DINAPAQ_USUARIO=USUARIO_BUENO,
                 DINAPAQ_PASSWORD=PASSWORD_BUENA, DINAPAQ_LEER_DETALLE="false")
+<<<<<<< HEAD
+=======
+    monkeypatch.setattr(sc, "datetime", FechaFalsa)
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
     envios = _entrar()
     consultas = [p for p in portal.peticiones if "consulta" in p["ruta"]]
     assert len(consultas) == 3          # 50 + 50 + 20

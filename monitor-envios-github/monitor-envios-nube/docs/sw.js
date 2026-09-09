@@ -7,7 +7,11 @@
  *      la pantalla del móvil, con la app cerrada. Es el motivo de que no haga
  *      falta ni Telegram ni email.
  */
+<<<<<<< HEAD
 const CACHE = 'shipmentmonitor-v7';
+=======
+const CACHE = 'shipmentmonitor-v10';
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
 const BASICOS = [
   './', 'index.html', 'icono.svg', 'icono-192.png', 'icono-512.png',
   'icono-notificacion-192.png', 'icono-badge-96.png',
@@ -34,12 +38,67 @@ self.addEventListener('activate', e => {
   );
 });
 
+/* Solo se toca lo de casa. Antes esto se metía en TODAS las peticiones y, si
+   una fallaba, devolvía index.html con `ok: true`; el panel llamaba a la API de
+   GitHub, recibía una página HTML donde esperaba JSON y el error que salía
+   —«Unexpected token '<'»— no se parecía en nada a «no hay cobertura». Ahora lo
+   de fuera (api.github.com, el datos.json del repositorio) pasa de largo, y el
+   cascarón cacheado solo sustituye a una navegación. */
 self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
-  if (new URL(e.request.url).pathname.endsWith('/datos.json')) return;   // siempre fresco
+  const pet = e.request;
+  if (pet.method !== 'GET') return;
+  const url = new URL(pet.url);
+  if (url.origin !== self.location.origin) return;                 // nada de fuera
+  if (url.pathname.endsWith('/datos.json')) return;                // siempre fresco
+  if (url.pathname.endsWith('/disparo.json')) return;
   e.respondWith(
-    fetch(e.request).catch(() => caches.match(e.request).then(r => r || caches.match('index.html')))
+    fetch(pet).catch(() => caches.match(pet).then(
+      r => r || (pet.mode === 'navigate' ? caches.match('index.html') : Response.error())
+    ))
   );
+});
+
+/* ─────────────── recordatorio de que hay que arrancar ───────────────
+ *
+ * GitHub dejó de servir los disparos programados, así que la jornada la
+ * arranca el propio panel al abrirlo. Queda el hueco de las mañanas en que
+ * nadie lo abre: para eso está esto. Si el navegador nos despierta (solo lo
+ * hace con la app instalada, y cuando le parece) miramos cuándo fue la última
+ * comprobación y, si en plena jornada lleva horas parada, avisamos.
+ *
+ * Es un refuerzo, no una garantía: `periodicsync` es «cuando el navegador
+ * quiera». Lo que de verdad arranca el día es abrir la app.
+ */
+const DATOS_REPO = 'https://raw.githubusercontent.com/SILAB3D/SHIPMENTMONITOR/main/'
+                 + 'monitor-envios-github/monitor-envios-nube/docs/datos.json';
+
+async function avisarSiEstaParado(){
+  const ahora = new Date(new Date().toLocaleString('en-US', {timeZone: 'Europe/Madrid'}));
+  const dia = ahora.getDay(), reloj = ahora.getHours() * 60 + ahora.getMinutes();
+  if (dia < 1 || dia > 5 || reloj < 510 || reloj > 1080) return;   // fuera de jornada
+
+  let ts = null;
+  try {
+    const r = await fetch(DATOS_REPO + '?t=' + Date.now(), {cache: 'no-store'});
+    if (r.ok) ts = (await r.json()).ts;
+  } catch (_) { return; }
+  if (!ts) return;
+
+  const minutos = Math.round((Date.now() - new Date(ts)) / 60000);
+  if (minutos <= 90) return;                                        // va al día
+
+  const horas = Math.round(minutos / 60);
+  await self.registration.showNotification('El monitor está parado', {
+    body: `Lleva ${horas} h sin comprobar el portal. Abre ShipmentMonitor y se pone en marcha solo.`,
+    icon: 'icono-notificacion-192.png', badge: 'icono-badge-96.png',
+    tag: 'parado', renotify: false,
+    data: {url: './'},
+    actions: [{action: 'abrir', title: 'Abrir y arrancar'}],
+  });
+}
+
+self.addEventListener('periodicsync', e => {
+  if (e.tag === 'vigilancia') e.waitUntil(avisarSiEstaParado());
 });
 
 /* ─────────────────────────── avisos push ─────────────────────────── */

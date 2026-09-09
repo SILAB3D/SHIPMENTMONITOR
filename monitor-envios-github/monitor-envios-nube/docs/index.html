@@ -157,8 +157,18 @@ img{max-width:100%}
 .recordar b{font-weight:650}
 
 /* ───────────────────────── esqueleto ───────────────────────── */
+<<<<<<< HEAD
 .barra{
   position:sticky; top:0; z-index:30; background:color-mix(in srgb, var(--fondo) 88%, transparent);
+=======
+/* La cabecera pegajosa envuelve la barra y las pestañas, para que se queden
+   arriba juntas y no se metan una debajo de otra al desplazar. Sin filtros ni
+   transformaciones: si los tuviera, la barra de pestañas del móvil —que va
+   `fixed` abajo— se posicionaría respecto a ella en vez de a la pantalla. */
+.cabecera{position:sticky; top:0; z-index:30}
+.barra{
+  background:color-mix(in srgb, var(--fondo) 88%, transparent);
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
   backdrop-filter:saturate(1.6) blur(12px); border-bottom:1px solid var(--borde);
 }
 .barra-int{max-width:var(--ancho); margin:0 auto; padding:var(--sp-3) var(--sp-4);
@@ -167,7 +177,12 @@ img{max-width:100%}
 .marca-app img{width:26px; height:26px; flex:none}
 .marca-app h1{font-size:1rem; font-weight:700; letter-spacing:-.025em; white-space:nowrap;
               overflow:hidden; text-overflow:ellipsis}
+<<<<<<< HEAD
 .acciones{display:flex; gap:var(--sp-2); align-items:center; flex:none}
+=======
+.acciones{display:flex; gap:var(--sp-2); align-items:center; flex-wrap:wrap; min-width:0}
+.barra-int .acciones{flex-wrap:nowrap; flex:none}
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
 .contenido{max-width:var(--ancho); margin:0 auto; padding:var(--sp-4); display:grid; gap:var(--sp-4)}
 
 /* ─────────── cabecera del día: la respuesta de un vistazo ───────────
@@ -206,6 +221,7 @@ img{max-width:100%}
 .buscador input:focus{outline:none; border-color:var(--marca); background:var(--lienzo)}
 .buscador .lupa{position:absolute; left:.8rem; color:var(--tenue); pointer-events:none; display:flex}
 
+<<<<<<< HEAD
 /* ───────────────────────── pestañas ─────────────────────────
    Tres sitios en vez de una lista interminable: lo del día (inicio), lo que ha
    cambiado (novedades) y lo que casi nunca se toca (ajustes).
@@ -298,6 +314,56 @@ img{max-width:100%}
 .ruta i{font-style:normal; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0}
 .ruta .hacia{color:var(--tenue); flex:none}
 
+=======
+/* ───────────────────────── secciones ───────────────────────── */
+.seccion{display:grid; gap:var(--sp-3)}
+.seccion-cab{display:flex; align-items:center; gap:var(--sp-2); width:100%; text-align:left;
+             background:none; border:0; padding:0; cursor:pointer}
+.seccion-cab h2{font-size:.72rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--tenue)}
+.seccion.primaria .seccion-cab h2{color:var(--texto); font-size:.9rem; letter-spacing:.01em; text-transform:none}
+.cuenta{font-size:.72rem; font-weight:700; color:var(--suave); background:var(--lienzo-2);
+        border:1px solid var(--borde); border-radius:999px; padding:.05rem .5rem; font-variant-numeric:tabular-nums}
+.raya{flex:1 1 auto; height:1px; background:var(--borde); min-width:1rem}
+.flecha{color:var(--tenue); font-size:.65rem; transition:transform .18s ease}
+.seccion-cab[aria-expanded="true"] .flecha{transform:rotate(90deg)}
+
+/* ───────────────────────── tarjeta de envío ─────────────────────────
+   El titular es el DESTINATARIO, no el número de albarán: nadie reconoce
+   «0280010370017025111854», y a todo el mundo le dice algo «Hospital Severo
+   Ochoa». El número queda abajo, que es donde se busca cuando hace falta. */
+.rejilla{display:grid; gap:var(--sp-3); align-items:start;
+         grid-template-columns:repeat(auto-fill,minmax(min(100%,20rem),1fr))}
+.envio{
+  display:grid; align-content:start; gap:var(--sp-3); padding:var(--sp-4); min-width:0; text-align:left; width:100%;
+  background:var(--lienzo); border:1px solid var(--borde); border-radius:var(--r-lg);
+  box-shadow:var(--sombra); cursor:pointer; position:relative; overflow:hidden;
+  transition:box-shadow .18s ease, border-color .18s ease, transform .18s ease;
+  animation:entrar .3s ease both;
+}
+@keyframes entrar{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+.envio:hover{box-shadow:var(--sombra-alta); border-color:var(--borde-fuerte)}
+.envio::before{content:''; position:absolute; inset:0 auto 0 0; width:3px; background:var(--borde-fuerte)}
+.envio.curso::before{background:var(--marca)}
+.envio.ok::before{background:var(--ok)}
+.envio.alerta::before{background:var(--mal)}
+
+/* min-width:0 en cascada: sin esto, un destinatario largo estira la celda de la
+   rejilla y el contenido se sale de la tarjeta en pantallas intermedias. */
+.envio-cuerpo{display:grid; gap:var(--sp-3); min-width:0; text-align:left;
+              background:none; border:0; padding:0; cursor:pointer; color:inherit}
+.envio > *{min-width:0}
+.envio-cuerpo > *{min-width:0}
+.envio-cab{display:flex; gap:var(--sp-3); align-items:flex-start; justify-content:space-between; min-width:0}
+.envio-quien{min-width:0; display:grid; gap:.1rem}
+.envio-quien b{font-size:1rem; font-weight:650; letter-spacing:-.01em; line-height:1.3; overflow-wrap:anywhere}
+.envio-quien span{font-size:.8rem; color:var(--tenue)}
+
+/* Ruta: de dónde sale y a dónde va, en una línea que se lee de un golpe */
+.ruta{display:flex; align-items:center; gap:var(--sp-2); font-size:.78rem; color:var(--suave); min-width:0}
+.ruta i{font-style:normal; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0}
+.ruta .hacia{color:var(--tenue); flex:none}
+
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
 /* Progreso: una barra con sus hitos y la hora de cada uno */
 .pasos{display:grid; gap:.4rem}
 .via{display:flex; align-items:center; gap:0}
@@ -390,12 +456,18 @@ img{max-width:100%}
 .metrica small{font-size:.74rem; color:var(--suave)}
 .envio-sub{font-size:.82rem; color:var(--suave); overflow-wrap:anywhere}
 
+<<<<<<< HEAD
+=======
+.pie-app{max-width:var(--ancho); margin:0 auto; padding:0 var(--sp-4) var(--sp-6);
+         display:flex; gap:var(--sp-3); flex-wrap:wrap; font-size:.76rem; color:var(--tenue)}
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
 
 /* ───────────────────────── móvil ───────────────────────── */
 @media (max-width:640px){
   .barra-int{padding:var(--sp-2) var(--sp-3); gap:var(--sp-2)}
   /* En 390 px la barra no daba de sí y los botones se comían el nombre. */
   .acciones .btn{padding:.34rem .7rem; font-size:.82rem}
+<<<<<<< HEAD
   .btn.icono{width:1.95rem; height:1.95rem; padding:.3rem}
   .marca-app img{width:22px; height:22px}
   .marca-app h1{font-size:.94rem}
@@ -403,6 +475,15 @@ img{max-width:100%}
   .pestana{padding:.45rem .6rem .5rem; font-size:.85rem}
   .contenido{padding:var(--sp-3); gap:var(--sp-3)}
   .ajustes{gap:var(--sp-4)}
+=======
+  /* En el móvil la barra solo lleva lo imprescindible: comprobar y salir ya
+     están en Ajustes, y con cuatro botones no cabía nada. */
+  .barra-int .solo-ancho{display:none}
+  .btn.icono{width:1.95rem; height:1.95rem; padding:.3rem}
+  .marca-app img{width:22px; height:22px}
+  .marca-app h1{font-size:.94rem}
+  .contenido{padding:var(--sp-3); gap:var(--sp-3)}
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
   .jornada{padding:var(--sp-4) var(--sp-3); gap:var(--sp-3)}
   .jornada h2{font-size:1.15rem}
   .jornada .cuando{margin-left:0; width:100%}
@@ -414,6 +495,83 @@ img{max-width:100%}
   *{animation-duration:.01ms !important; transition-duration:.01ms !important}
 }
 
+<<<<<<< HEAD
+=======
+/* ───────────────────────── pestañas ─────────────────────────
+   En pantalla grande van bajo la cabecera, como pestañas de toda la vida. En
+   el móvil bajan al pie: es donde llega el pulgar, y así la mano no tapa lo
+   que se está mirando. */
+.pestanas{
+  display:flex; padding:0 var(--sp-4);
+  background:color-mix(in srgb, var(--fondo) 92%, transparent);
+  border-bottom:1px solid var(--borde);
+}
+.pestanas-int{display:flex; gap:var(--sp-1); max-width:var(--ancho); margin:0 auto; width:100%}
+.pestana{
+  display:flex; align-items:center; gap:.45rem; padding:.7rem .9rem; border:0; background:none;
+  color:var(--tenue); font-size:.86rem; font-weight:600; cursor:pointer; position:relative;
+  border-bottom:2px solid transparent; white-space:nowrap;
+  transition:color .15s ease, border-color .15s ease;
+}
+.pestana:hover{color:var(--suave)}
+.pestana.activa{color:var(--marca); border-bottom-color:var(--marca)}
+.pestana .globo{
+  min-width:1.15rem; height:1.15rem; padding:0 .3rem; border-radius:999px; font-size:.66rem;
+  font-weight:800; display:grid; place-items:center; background:var(--lienzo-2);
+  border:1px solid var(--borde); color:var(--suave); font-variant-numeric:tabular-nums;
+}
+.pestana.urgente .globo{background:var(--mal-fondo); border-color:var(--mal-borde); color:var(--mal)}
+.pestana.activa .globo{background:var(--marca-tenue); border-color:var(--marca-borde); color:var(--marca)}
+
+/* «y N más», el puente de Inicio al historial */
+.mas{
+  width:100%; padding:var(--sp-3); border:1px dashed var(--borde-fuerte); background:none;
+  border-radius:var(--r); color:var(--suave); font-size:.84rem; font-weight:600; cursor:pointer;
+}
+.mas:hover{border-color:var(--marca); color:var(--marca)}
+
+@media (max-width:640px){
+  .pestanas{
+    position:fixed; top:auto; bottom:0; left:0; right:0; max-width:none;
+    padding:0 var(--sp-1) env(safe-area-inset-bottom); gap:0;
+    border-top:1px solid var(--borde); background:color-mix(in srgb, var(--fondo) 94%, transparent);
+  }
+  .pestanas-int{gap:0}
+  .pestana{
+    flex:1 1 0; min-width:0; flex-direction:column; gap:.15rem; padding:.45rem .2rem .5rem;
+    border-bottom:0; border-top:2px solid transparent; font-size:.68rem;
+  }
+  .pestana.activa{border-top-color:var(--marca); border-bottom-color:transparent}
+  .pestana .etq{overflow:hidden; text-overflow:ellipsis; max-width:100%}
+  .pestana .globo{position:absolute; top:.2rem; left:50%; margin-left:.3rem}
+  /* hueco para que la barra de abajo no tape el final del contenido */
+  body{padding-bottom:calc(4rem + env(safe-area-inset-bottom))}
+}
+
+/* ─────────────── el transcurso de la comprobación ───────────────
+   «Actualizar» ya no solo recarga: manda a GitHub comprobar el portal, y eso
+   tarda de veinte segundos a un par de minutos. Sin contarlo, el botón parecía
+   no hacer nada y se pulsaba tres veces. */
+.marcha{display:grid; gap:var(--sp-3); border-left:3px solid var(--marca)}
+.marcha.mal{border-left-color:var(--mal)}
+.marcha.bien{border-left-color:var(--ok)}
+.marcha-cab{display:flex; align-items:baseline; gap:var(--sp-2); flex-wrap:wrap}
+.marcha-cab b{font-size:.95rem; min-width:0}
+.marcha-cab .cuando{margin-left:auto; color:var(--tenue); font-size:.8rem;
+                    font-variant-numeric:tabular-nums; flex:none}
+.marcha-pasos{display:grid; grid-template-columns:repeat(4,1fr); gap:var(--sp-2)}
+.marcha-pasos .paso{display:grid; gap:6px; min-width:0; font-size:.72rem; color:var(--tenue)}
+.marcha-pasos .paso span{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.marcha-pasos .paso.hecho,.marcha-pasos .paso.ahora{color:var(--texto)}
+.marcha-pasos .raya{height:4px; border-radius:2px; background:var(--borde)}
+.marcha-pasos .paso.hecho .raya{background:var(--marca)}
+.marcha-pasos .paso.ahora .raya{background:linear-gradient(90deg,var(--marca),var(--marca-viva),var(--marca));
+                                background-size:220% 100%; animation:marcha-late 1.2s linear infinite}
+@keyframes marcha-late{to{background-position:220% 0}}
+@media (max-width:560px){ .marcha-pasos{grid-template-columns:repeat(2,1fr)} }
+@media (prefers-reduced-motion:reduce){ .marcha-pasos .paso.ahora .raya{animation:none} }
+
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
 /* ─────────────── pantalla de arranque ───────────────
    Un segundo con el icono dibujándose solo. No es adorno: la PWA tarda un
    instante en descifrar los datos y, sin esto, se veía un fogonazo en blanco
@@ -425,6 +583,7 @@ img{max-width:100%}
 #arranque svg{width:104px; height:104px; overflow:visible}
 #arranque .nombre{font-size:.85rem; font-weight:700; letter-spacing:.16em; text-transform:uppercase;
                   color:var(--tenue); animation:arr-entra .5s .45s both}
+<<<<<<< HEAD
 #arranque .trazo{fill:none; stroke:var(--marca); stroke-width:10; stroke-linecap:round; stroke-linejoin:round;
                  stroke-dasharray:var(--largo); stroke-dashoffset:var(--largo);
                  animation:arr-traza .78s cubic-bezier(.65,0,.35,1) forwards}
@@ -436,6 +595,27 @@ img{max-width:100%}
 @media (prefers-reduced-motion:reduce){
   #arranque .trazo{animation:none; stroke-dashoffset:0}
   #arranque .punto,#arranque .nombre{animation:none}
+=======
+#arranque .vidrio{fill:none; stroke:var(--marca); stroke-width:9; stroke-linecap:round;
+                  stroke-dasharray:var(--largo); stroke-dashoffset:var(--largo);
+                  animation:arr-traza .6s cubic-bezier(.65,0,.35,1) forwards}
+#arranque .tapon{fill:var(--marca); animation:arr-tapon .34s .06s cubic-bezier(.34,1.56,.64,1) both}
+/* El líquido subiendo es la barra de progreso: se llena mientras se descifra. */
+#arranque .muestra{fill:var(--marca); transform:translateY(48px);
+                   animation:arr-sube .5s .32s cubic-bezier(.33,1,.68,1) forwards}
+#arranque .burbuja{fill:var(--fondo)}
+#arranque .punto{transform-origin:152px 54px;
+                 animation:arr-punto .4s .52s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes arr-traza{to{stroke-dashoffset:0}}
+@keyframes arr-tapon{from{opacity:0; transform:translateY(-10px)} to{opacity:1; transform:none}}
+@keyframes arr-sube{to{transform:translateY(0)}}
+@keyframes arr-punto{from{transform:scale(0)} to{transform:scale(1)}}
+@keyframes arr-entra{from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:none}}
+@media (prefers-reduced-motion:reduce){
+  #arranque .vidrio{animation:none; stroke-dashoffset:0}
+  #arranque .tapon,#arranque .punto,#arranque .nombre{animation:none}
+  #arranque .muestra{animation:none; transform:none}
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
 }
 </style>
 </head>
@@ -443,12 +623,31 @@ img{max-width:100%}
 <!-- Se pinta antes que React y se retira sola: ver #arranque en el <style>. -->
 <div id="arranque" role="status" aria-label="Abriendo ShipmentMonitor">
   <div class="marca">
+<<<<<<< HEAD
     <svg viewBox="0 0 192 192" aria-hidden="true">
       <path class="trazo" style="--largo:352" d="M96 42 150 68v56L96 150 42 124V68z"/>
       <path class="trazo interior" style="--largo:176" d="M42 68l54 26 54-26M96 94v56"/>
       <g class="punto">
         <circle cx="150" cy="50" r="17" fill="var(--naranja)"/>
         <circle cx="150" cy="50" r="7" fill="var(--bg)"/>
+=======
+    <svg viewBox="18 0 192 192" aria-hidden="true">
+      <defs>
+        <clipPath id="arr-tubo"><path d="M73.5 60h29v78a14.5 14.5 0 0 1-29 0z"/></clipPath>
+      </defs>
+      <path class="vidrio" style="--largo:218" d="M69 60v78a19 19 0 0 0 38 0V60"/>
+      <rect class="tapon" x="61" y="34" width="54" height="22" rx="7"/>
+      <g clip-path="url(#arr-tubo)">
+        <g class="muestra">
+          <path d="M73.5 104h29v34a14.5 14.5 0 0 1-29 0z"/>
+          <circle class="burbuja" cx="82" cy="121" r="3"/>
+          <circle class="burbuja" cx="94" cy="132" r="2.4"/>
+        </g>
+      </g>
+      <g class="punto">
+        <circle cx="152" cy="54" r="15" fill="var(--marca)"/>
+        <circle cx="152" cy="54" r="6" fill="var(--fondo)"/>
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
       </g>
     </svg>
     <div class="nombre">ShipmentMonitor</div>
@@ -484,6 +683,7 @@ const {useState, useEffect, useCallback, useRef, Fragment} = React;
 const CLAVE_GUARDADA = 'monitor-envios:clave';
 const ULTIMO_VISTO   = 'monitor-envios:ultimo-evento';
 const TEMA           = 'shipmentmonitor:tema';
+<<<<<<< HEAD
 
 /* Hasta dónde se ha visto cada pestaña. Se guarda una marca por pestaña —el
    último evento para las dos primeras, la última comprobación para ajustes—
@@ -492,6 +692,8 @@ const TEMA           = 'shipmentmonitor:tema';
 const VISTO_INICIO    = 'shipmentmonitor:visto-inicio';
 const VISTO_NOVEDADES = 'shipmentmonitor:visto-novedades';
 const VISTO_AJUSTES   = 'shipmentmonitor:visto-ajustes';
+=======
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
 
 const guardar = (k, v) => { try { localStorage.setItem(k, v); } catch (_) {} };
 const leer    = k      => { try { return localStorage.getItem(k); } catch (_) { return null; } };
@@ -639,6 +841,79 @@ async function cargarDatos(password){
   return descifrarTolerante(sobre, password);
 }
 
+/* ─────────────────── arrancar la vigilancia desde aquí ───────────────────
+ *
+ * GitHub dejó de servir los disparos programados: de los 22 que se le piden al
+ * día llegó a servir CERO. Como el bucle de vigilancia cubre la jornada entera
+ * en una sola ejecución, basta con arrancarlo una vez al día… pero algo tiene
+ * que arrancarlo. Ese algo pasa a ser esta pantalla.
+ *
+ * Para llamar a la API de GitHub hace falta un token, y el repositorio es
+ * público, así que el token NO puede ir en claro. Se publica cifrado con la
+ * misma contraseña que ya protege los envíos (docs/disparo.json, mismo sobre
+ * que docs/datos.json): quien sabe la contraseña del panel —solo tú— puede
+ * arrancar la vigilancia; quien no, ve un fichero ilegible. El token es de
+ * alcance mínimo: este repositorio y solo permiso de Actions.
+ */
+const DISPARO_URL = 'https://raw.githubusercontent.com/SILAB3D/SHIPMENTMONITOR/main/'
+                  + 'monitor-envios-github/monitor-envios-nube/docs/disparo.json';
+const ULTIMO_DISPARO = 'shipmentmonitor:ultimo-disparo';
+
+async function cargarDisparo(password){
+  for (const url of [DISPARO_URL, 'disparo.json']) {
+    try {
+      const r = await fetch(url + '?t=' + Date.now(), {cache:'no-store'});
+      if (!r.ok) continue;
+      const sobre = await r.json();
+      const {token} = await descifrarTolerante(sobre, password);
+      if (token) return token;
+    } catch (_) { /* sin token: el panel sigue funcionando, solo que sin botón */ }
+  }
+  return null;
+}
+
+const GH_REPO = 'https://api.github.com/repos/SILAB3D/SHIPMENTMONITOR';
+const cabecerasGH = token => ({'Authorization': 'Bearer ' + token,
+                               'Accept': 'application/vnd.github+json',
+                               'X-GitHub-Api-Version': '2022-11-28'});
+
+async function arrancarVigilancia(token){
+  const r = await fetch(GH_REPO + '/actions/workflows/monitor.yml/dispatches', {
+    method: 'POST',
+    headers: cabecerasGH(token),
+    body: JSON.stringify({ref: 'main'}),
+  });
+  if (r.status === 204) { guardar(ULTIMO_DISPARO, String(Date.now())); return; }
+  let detalle = '';
+  try { detalle = (await r.json()).message || ''; } catch (_) {}
+  throw new Error(`GitHub respondió ${r.status}${detalle ? ': ' + detalle : ''}`);
+}
+
+/* Seguir la ejecución para poder contarla. Sin esto, pulsar «Actualizar» era un
+   acto de fe: la orden salía, GitHub tardaba entre veinte segundos y dos
+   minutos en levantar la máquina, y el panel no decía nada. */
+const espera = ms => new Promise(r => setTimeout(r, ms));
+
+async function ultimaEjecucion(token){
+  const r = await fetch(GH_REPO + '/actions/workflows/monitor.yml/runs?per_page=1&t=' + Date.now(),
+                        {headers: cabecerasGH(token), cache: 'no-store'});
+  if (!r.ok) return null;
+  const datos = await r.json();
+  return (datos.workflow_runs || [])[0] || null;
+}
+
+async function verEjecucion(token, id){
+  const r = await fetch(`${GH_REPO}/actions/runs/${id}?t=` + Date.now(),
+                        {headers: cabecerasGH(token), cache: 'no-store'});
+  return r.ok ? await r.json() : null;
+}
+
+// Una ejecución «viva» es la que ya está cubriendo la jornada: si hay una, no
+// se pide otra —GitHub la encolaría detrás y no correría hasta dentro de horas—,
+// se sigue la que hay.
+const ejecucionViva = e => !!e && (e.status === 'queued' || e.status === 'in_progress'
+                                   || e.status === 'waiting' || e.status === 'requested');
+
 /* ─────────────────── utilidades ─────────────────── */
 const fmtFecha = iso => iso
   ? new Date(iso).toLocaleString('es-ES', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'})
@@ -710,6 +985,33 @@ function horaCorta(marca){
   return m[2] ? `${m[1]} ${m[2]}` : m[1];
 }
 
+<<<<<<< HEAD
+=======
+/** Las marcas del portal («27/08/26 08:20:25») como fecha de verdad.
+ *  Hace falta para saber si una entrega es de esta semana o de hace un mes, que
+ *  es lo que decide si un envío sigue en Inicio o se va al historial. */
+function fechaPortal(marca){
+  const m = String(marca || '').match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (!m) return null;
+  const anio = Number(m[3]) < 100 ? 2000 + Number(m[3]) : Number(m[3]);
+  const f = new Date(anio, Number(m[2]) - 1, Number(m[1]),
+                     Number(m[4] || 0), Number(m[5] || 0), Number(m[6] || 0));
+  return isNaN(f) ? null : f;
+}
+
+/* Un envío entregado sigue interesando unos días —por si hay reclamación o hay
+   que mirar quién lo recibió— y después estorba. Cinco días. */
+const DIAS_RECIENTE = 5;
+
+function diasDesdeLaEntrega(envio){
+  const c = envio.campos || {};
+  const f = fechaPortal(c.entrega) || fechaPortal(c.fecha_estado)
+            || (envio.visto_ultima ? new Date(envio.visto_ultima) : null);
+  return f ? (Date.now() - f) / 86400000 : Infinity;
+}
+
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
 /** Para cada paso del diagrama, cuándo se alcanzó por primera vez.
  *  `pasos` viene del portal en orden cronológico, así que la primera situación
  *  que cae en un paso es la que lo estrenó. */
@@ -747,7 +1049,11 @@ function Acceso({onEntrar}){
         <div className="acceso-cabecera">
           <img src="icono.svg" alt="" />
           <h1>ShipmentMonitor</h1>
+<<<<<<< HEAD
           <p>Introduce la contraseña del panel para ver tus envíos</p>
+=======
+          <p>Introduce la contraseña del panel para ver tus envíos de muestras</p>
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
         </div>
         <form onSubmit={enviar}>
           <div className="campo">
@@ -917,16 +1223,24 @@ function TarjetaEnvio({envio, historial}){
 }
 
 /* ─────────────────── paneles ─────────────────── */
+<<<<<<< HEAD
 /* ─────────────────── tarjeta de avisos push ───────────────────
    Vive en la pestaña de ajustes: es algo que se deja puesto una vez por
    dispositivo, no algo que haya que mirar cada mañana. Por eso ya no se oculta
    ni se pospone; siempre dice en qué punto está este aparato. */
+=======
+/* ─────────────────── tarjeta de avisos push ─────────────────── */
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
 function AvisosPush({repo, meta}){
   const [sus, setSus]       = useState(null);      // suscripción viva en este navegador
   const [pegada, setPegada] = useState(() => leer(PUSH_PEGADA) || '');
   const [error, setError]   = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [copiado, setCopiado] = useState(false);
+<<<<<<< HEAD
+=======
+  const [oculta, setOculta]   = useState(false);
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
   // ¿El repositorio ya conoce a este dispositivo? Lo dicen las huellas que
   // publica el monitor: si la nuestra está, no hay nada que pegar y la tarjeta
   // sobra, aunque este navegador no recuerde haberlo hecho.
@@ -1000,11 +1314,20 @@ function AvisosPush({repo, meta}){
       </div>
     );
   }
+<<<<<<< HEAD
+=======
+  if (alDia || oculta) return null;
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
 
   return (
     <div className="tarjeta pad push">
       {!sus ? (
         <Fragment>
+<<<<<<< HEAD
+=======
+          {/* Una sola línea: esta tarjeta no puede empujar los envíos fuera de
+              la pantalla, que es a lo que se viene. */}
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
           <div className="push-linea">
             <span className="push-txt">
               🔔 <b>Recibe los avisos en este dispositivo</b>
@@ -1013,6 +1336,12 @@ function AvisosPush({repo, meta}){
             <button className="btn primario" onClick={activar} disabled={ocupado}>
               {ocupado ? 'Activando…' : 'Activar avisos'}
             </button>
+<<<<<<< HEAD
+=======
+            <button className="enlace" onClick={() => setOculta(true)} title="Ocultar hasta la próxima visita">
+              Ahora no
+            </button>
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
           </div>
           {error && <div className="aviso mal" style={{marginTop:'.6rem'}}>{error}</div>}
         </Fragment>
@@ -1216,6 +1545,40 @@ function Metricas({meta, envios}){
   );
 }
 
+/* El buscador aparece en Inicio y en Historial; mismo trasto, un solo sitio. */
+function Buscador({valor, onCambio, texto = 'Buscar destinatario, localidad o albarán…'}){
+  return (
+    <div className="buscador">
+      <span className="lupa" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
+             strokeWidth="2.2" strokeLinecap="round">
+          <circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.4 15.4 21 21" />
+        </svg>
+      </span>
+      <input type="search" value={valor} onChange={e => onCambio(e.target.value)}
+             placeholder={texto} aria-label="Buscar" />
+    </div>
+  );
+}
+
+/* Los iconos de las pestañas, en SVG y no en emoji: el emoji lo dibuja cada
+   sistema a su manera y en la barra saldrían de tamaños distintos. */
+const ICONOS = {
+  inicio:    <path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z" />,
+  historial: <Fragment><circle cx="12" cy="12" r="8.2" /><path d="M12 7.4V12l3 1.8" /></Fragment>,
+  novedades: <path d="M18 15.5V11a6 6 0 1 0-12 0v4.5L4.5 18h15zM10 20.5h4" />,
+  ajustes:   <Fragment><circle cx="12" cy="12" r="3.2" />
+               <path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6" />
+             </Fragment>,
+};
+
+const IconoPestana = ({nombre}) => (
+  <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
+       strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {ICONOS[nombre]}
+  </svg>
+);
+
 function Novedades({eventos}){
   const [tope, setTope] = useState(25);
   return (
@@ -1415,10 +1778,85 @@ function Ajustes({meta, envios, ejecuciones, tema, setTema, onSalir}){
 }
 
 /* ─────────────────── panel ─────────────────── */
+<<<<<<< HEAD
 function Panel({datos, onRecargar, onSalir, recargando}){
   const meta        = datos.meta || {};
   const eventos     = datos.eventos || [];
   const ejecuciones = datos.ejecuciones || [];
+=======
+/* El recorrido de una comprobación, contado según pasa. Las cuatro fases son
+   las que de verdad se distinguen desde fuera: la orden sale, GitHub la encola,
+   la máquina lee el portal, y los datos ya son de ahora. */
+const FASES = [['pidiendo', 'Pidiendo turno'], ['encolada', 'En cola'],
+               ['comprobando', 'Leyendo el portal'], ['listo', 'Datos al día']];
+
+function Marcha({marcha}){
+  const [ahora, setAhora] = useState(() => Date.now());
+  const parada = !marcha || marcha.fase === 'listo' || marcha.fase === 'error';
+  useEffect(() => {
+    if (parada) return;
+    const t = setInterval(() => setAhora(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [parada]);
+
+  if (!marcha) return null;
+  const {fase, desde, url, detalle} = marcha;
+  const mal = fase === 'error', lenta = fase === 'lenta', listo = fase === 'listo';
+  const enCurso = listo ? FASES.length : lenta ? 2 : FASES.findIndex(([c]) => c === fase);
+  const seg = Math.max(0, Math.round(((parada ? marcha.fin || ahora : ahora) - desde) / 1000));
+
+  return (
+    <div className={'tarjeta pad marcha' + (mal || lenta ? ' mal' : listo ? ' bien' : '')}
+         role="status" aria-live="polite">
+      <div className="marcha-cab">
+        <b>{mal   ? 'No se pudo lanzar la comprobación'
+          : lenta ? 'La comprobación está tardando más de lo normal'
+          : listo ? 'Comprobado: los datos son de ahora mismo'
+                  : 'Comprobando el portal…'}</b>
+        <span className="cuando">{seg < 60 ? `${seg} s` : `${Math.floor(seg / 60)} min ${seg % 60} s`}</span>
+      </div>
+      {!mal && (
+        <div className="marcha-pasos">
+          {FASES.map(([clave, etq], i) => (
+            <div key={clave} className={'paso' + (i < enCurso ? ' hecho' : i === enCurso ? ' ahora' : '')}>
+              <div className="raya" />
+              <span>{etq}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {(detalle || url) && (
+        <div className="envio-sub">
+          {detalle}{detalle && url ? ' — ' : ''}
+          {url && <a href={url} target="_blank" rel="noopener">ver la ejecución en GitHub</a>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
+  const [pestana, setPestana] = useState('inicio');
+  const [filtro, setFiltro] = useState('todos');
+  const [busqueda, setBusqueda] = useState('');
+  const [permiso, setPermiso] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'denied');
+  const [tema, setTema] = useState(() => leer(TEMA) || 'sistema');
+
+  /* Qué se está viendo AHORA, que no es lo mismo que qué se eligió: con el tema
+     del sistema en oscuro, «sistema» y «oscuro» se ven igual. Sin esto, el
+     primer clic en el botón parecía no hacer nada. */
+  const oscuroAhora = tema === 'oscuro' ||
+    (tema === 'sistema' && typeof matchMedia === 'function' &&
+     matchMedia('(prefers-color-scheme: dark)').matches);
+
+  useEffect(() => {
+    if (tema === 'sistema') { document.documentElement.removeAttribute('data-tema'); olvidar(TEMA); }
+    else { document.documentElement.setAttribute('data-tema', tema); guardar(TEMA, tema); }
+  }, [tema]);
+
+  const meta = datos.meta || {};
+  const eventos = datos.eventos || [];
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
   const envios = Object.entries(datos.envios || {})
     .map(([id, e]) => ({id, ...e}))
     .sort((a, b) => (b.visto_primera || '').localeCompare(a.visto_primera || ''));
@@ -1488,11 +1926,26 @@ function Panel({datos, onRecargar, onSalir, recargando}){
   envios.forEach(e => cuenta[grupo(e)]++);
   cuenta.activos = cuenta.curso + cuenta.incidencias;
 
+<<<<<<< HEAD
+=======
+  /* Qué va en Inicio y qué se archiva. En Inicio está lo que sigue abierto y lo
+     entregado hace poco —por si hay que reclamar o ver quién lo recibió—; lo
+     demás se va al historial y deja de estorbar. */
+  const enInicio = e => grupo(e) !== 'entregados' || diasDesdeLaEntrega(e) <= DIAS_RECIENTE;
+  const deInicio  = envios.filter(enInicio);
+  const archivado = envios.filter(e => !enInicio(e));
+  cuenta.recientes = deInicio.filter(e => grupo(e) === 'entregados').length;
+
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
   const q = busqueda.trim().toLowerCase();
   const coincide = e => !q || (e.id + ' ' + JSON.stringify(e.campos)).toLowerCase().includes(q);
 
   /* Si no queda nada en marcha, «Activos» enseñaría una pantalla vacía teniendo
+<<<<<<< HEAD
      envíos delante. En ese caso se muestran los recientes: es lo único que hay
+=======
+     envíos delante. En ese caso se muestran los entregados: es lo único que hay
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
      que ver, y una pantalla en blanco no informa de nada. */
   const filtroReal = (filtro === 'activos' && cuenta.activos === 0) ? 'todos' : filtro;
   const enFiltro = e => {
@@ -1501,11 +1954,20 @@ function Panel({datos, onRecargar, onSalir, recargando}){
     if (filtroReal === 'todos') return true;
     return g === filtroReal;
   };
+<<<<<<< HEAD
   const visibles = envios.filter(e => coincide(e) && enFiltro(e));
+=======
+  const visibles = deInicio.filter(e => coincide(e) && enFiltro(e));
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
   const orden = {incidencias:0, curso:1, entregados:2};
   const principales = visibles.filter(e => grupo(e) !== 'entregados')
                               .sort((a,b) => orden[grupo(a)] - orden[grupo(b)]);
   const cerrados = visibles.filter(e => grupo(e) === 'entregados');
+<<<<<<< HEAD
+=======
+  const enHistorial = archivado.filter(coincide)
+                               .sort((a,b) => diasDesdeLaEntrega(a) - diasDesdeLaEntrega(b));
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
 
   const historialDe = id => eventos.filter(ev => ev.envio_id === id);
   const rejilla = lista => (
@@ -1528,6 +1990,20 @@ function Panel({datos, onRecargar, onSalir, recargando}){
   const margen = enHorario ? 90 : 20 * 60;
   const paradoEnHorario = enHorario && desfase !== null && desfase > margen;
 
+<<<<<<< HEAD
+=======
+  /* Poner en marcha la jornada desde aquí. Es lo que sustituye al cron de
+     GitHub, que lleva días sin servir un solo disparo: si al abrir el panel en
+     horario laboral resulta que no se ha comprobado nada, se arranca solo. Con
+     abrir la app por la mañana, el día queda cubierto hasta las 17:30.
+     El candado de veinte minutos (dentro de `onActualizar`) evita insistir
+     mientras la ejecución anterior todavía está arrancando. */
+  const enMarcha = !!marcha && ['pidiendo', 'encolada', 'comprobando'].includes(marcha.fase);
+
+  useEffect(() => { if (token && paradoEnHorario) onActualizar({automatico: true}); },
+            [token, paradoEnHorario, onActualizar]);
+
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
   // El titular de la jornada: la respuesta a «¿tengo que mirar algo ahora?»
   const tono = cuenta.incidencias ? 'alerta' : (cuenta.activos ? 'curso' : 'ok');
   const titular = cuenta.incidencias
@@ -1536,6 +2012,7 @@ function Panel({datos, onRecargar, onSalir, recargando}){
         ? `${cuenta.activos} envío${cuenta.activos > 1 ? 's' : ''} en camino`
         : envios.length ? 'Todo entregado' : 'Todavía sin envíos';
 
+<<<<<<< HEAD
   const CIFRAS = [
     ['activos',     'Activos',     cuenta.activos,     'curso'],
     ['incidencias', 'Incidencias', cuenta.incidencias, 'alerta'],
@@ -1557,9 +2034,28 @@ function Panel({datos, onRecargar, onSalir, recargando}){
     ['novedades', 'Novedades', sinVerNovedades],
     ['ajustes',   'Ajustes',   sinVerAjustes],
   ];
+=======
+  /* Cuatro pestañas. Podrían ser cinco, pero no hay quinta cosa que merezca
+     una: separar «avisos» de «ajustes» sería inventar un sitio para dos
+     botones. */
+  const PESTANAS = [
+    ['inicio',    'Inicio'],
+    ['historial', 'Historial'],
+    ['novedades', 'Novedades'],
+    ['ajustes',   'Ajustes'],
+  ];
+
+  const CIFRAS = [
+    ['activos',     'Activos',     cuenta.activos,     'curso'],
+    ['incidencias', 'Incidencias', cuenta.incidencias, 'alerta'],
+    ['entregados',  'Entregados',  cuenta.entregados,  'ok'],
+    ['todos',       'Vigilados',   envios.length,      ''],
+  ];
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
 
   return (
     <Fragment>
+      <div className="cabecera">
       <header className="barra">
         <div className="barra-int">
           <div className="marca-app">
@@ -1586,8 +2082,17 @@ function Panel({datos, onRecargar, onSalir, recargando}){
                 </svg>
               )}
             </button>
+<<<<<<< HEAD
             <button className="btn primario" onClick={onRecargar} disabled={recargando}>
               {recargando ? 'Actualizando…' : 'Actualizar'}
+=======
+            <button className="btn primario" onClick={() => onActualizar()}
+                    disabled={recargando || enMarcha}
+                    title={token
+                      ? 'Recarga los datos y pone el monitor a comprobar el portal ahora mismo'
+                      : 'Vuelve a bajar los datos publicados'}>
+              {enMarcha ? 'Comprobando…' : recargando ? 'Actualizando…' : 'Actualizar'}
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
             </button>
           </div>
         </div>
@@ -1606,7 +2111,34 @@ function Panel({datos, onRecargar, onSalir, recargando}){
         </nav>
       </header>
 
+      <nav className="pestanas" role="tablist" aria-label="Secciones">
+        <div className="pestanas-int">
+        {PESTANAS.map(([clave, etq]) => {
+          const aviso = clave === 'inicio' ? cuenta.incidencias
+                      : clave === 'historial' ? archivado.length
+                      : clave === 'novedades' ? eventos.length : 0;
+          return (
+            <button key={clave} role="tab" aria-selected={pestana === clave}
+                    className={'pestana' + (pestana === clave ? ' activa' : '')
+                               + (clave === 'inicio' && cuenta.incidencias ? ' urgente' : '')}
+                    onClick={() => setPestana(clave)}>
+              <IconoPestana nombre={clave} />
+              <span className="etq">{etq}</span>
+              {aviso > 0 && <span className="globo">{aviso > 99 ? '99+' : aviso}</span>}
+            </button>
+          );
+        })}
+        </div>
+      </nav>
+      </div>
+
+      {/* ─── pestañas ───
+          Cuatro sitios, no una lista infinita hacia abajo: lo del día, lo
+          archivado, lo que ha cambiado y los ajustes. En el móvil van abajo,
+          al alcance del pulgar; en pantalla grande, bajo la cabecera. */}
+
       <main className="contenido">
+<<<<<<< HEAD
         {pestana === 'inicio' && (
           <Fragment>
             {meta.error && <div className="aviso mal">⚠ La última comprobación falló: {meta.error}</div>}
@@ -1655,6 +2187,58 @@ function Panel({datos, onRecargar, onSalir, recargando}){
 
             {/* 1º — lo que se mueve, siempre a la vista */}
             <Seccion titulo={principales.length ? 'En camino' : 'Envíos recientes'}
+=======
+        <Marcha marcha={marcha} />
+
+        {meta.error && <div className="aviso mal">⚠ La última comprobación falló: {meta.error}</div>}
+
+        {paradoEnHorario && (
+          <div className="aviso mal">
+            <div>
+              ⚠ <b>El monitor lleva {haceCuanto(meta.ultima_comprobacion).replace('hace ', '')} sin comprobar el portal</b>,
+              y a esta hora debería hacerlo cada hora como mucho.
+              {token && !enMarcha && ' Pulsa «Actualizar» y se pone en marcha.'}
+            </div>
+            <div className="acciones" style={{marginTop:'var(--sp-2)'}}>
+              {token && (
+                <button className="btn" onClick={() => onActualizar()} disabled={enMarcha}>
+                  {enMarcha ? 'Comprobando…' : 'Poner en marcha ahora'}
+                </button>
+              )}
+              {meta.repo && (
+                <a className="btn" target="_blank" rel="noopener"
+                   href={`https://github.com/${meta.repo}/actions/workflows/monitor.yml`}>Ver en Actions</a>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ─────────────── INICIO ─────────────── */}
+        {pestana === 'inicio' && (
+          <Fragment>
+            <section className="tarjeta jornada">
+              <div className="jornada-titular">
+                <span className={'faro ' + tono} />
+                <h2>{titular}</h2>
+                <span className="cuando">Comprobado {haceCuanto(meta.ultima_comprobacion)}</span>
+              </div>
+
+              <div className="cifras">
+                {CIFRAS.map(([clave, etq, valor, color]) => (
+                  <button key={clave} className={'cifra ' + color + (filtro === clave ? ' activa' : '')}
+                          aria-pressed={filtro === clave} onClick={() => setFiltro(clave)}>
+                    <b>{valor}</b><span>{etq}</span>
+                  </button>
+                ))}
+              </div>
+
+              <Buscador valor={busqueda} onCambio={setBusqueda} />
+            </section>
+
+            <AvisosPush repo={meta.repo} meta={meta} />
+
+            <Seccion titulo={principales.length ? 'En camino' : 'Entregados'}
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
                      cuenta={principales.length || cerrados.length} primaria plegable={false}>
               {principales.length === 0 && cerrados.length === 0
                 ? <div className="tarjeta pad vacio">
@@ -1665,6 +2249,7 @@ function Panel({datos, onRecargar, onSalir, recargando}){
                 : rejilla(principales.length ? principales : cerrados)}
             </Seccion>
 
+<<<<<<< HEAD
             {/* 2º — los que ya han llegado: presentes, pero sin robar sitio */}
             {principales.length > 0 && cerrados.length > 0 && (
               <Seccion titulo="Envíos recientes" cuenta={cerrados.length} abiertaPorDefecto={false}>
@@ -1681,6 +2266,111 @@ function Panel({datos, onRecargar, onSalir, recargando}){
                    tema={tema} setTema={setTema} onSalir={onSalir} />
         )}
       </main>
+=======
+            {principales.length > 0 && cerrados.length > 0 && (
+              <Seccion titulo="Entregados estos días" cuenta={cerrados.length}>
+                {rejilla(cerrados)}
+              </Seccion>
+            )}
+
+            {archivado.length > 0 && (
+              <button className="mas" onClick={() => setPestana('historial')}>
+                Y {archivado.length} envío{archivado.length > 1 ? 's' : ''} entregado
+                {archivado.length > 1 ? 's' : ''} hace más de {DIAS_RECIENTE} días → ver el historial
+              </button>
+            )}
+          </Fragment>
+        )}
+
+        {/* ─────────────── HISTORIAL ─────────────── */}
+        {pestana === 'historial' && (
+          <Fragment>
+            <section className="tarjeta pad" style={{display:'grid', gap:'var(--sp-3)'}}>
+              <div>
+                <div className="titulo-seccion">Historial de envíos</div>
+                <div className="envio-sub">
+                  Lo entregado hace más de {DIAS_RECIENTE} días. Se conserva todo lo que el monitor
+                  ha llegado a ver, con su recorrido completo.
+                </div>
+              </div>
+              <Buscador valor={busqueda} onCambio={setBusqueda} />
+            </section>
+
+            <Seccion titulo="Entregados" cuenta={enHistorial.length} primaria plegable={false}>
+              {enHistorial.length === 0
+                ? <div className="tarjeta pad vacio">
+                    {q ? `Nada en el historial coincide con «${busqueda}».`
+                       : 'El historial está vacío: todavía no hay entregas de hace más de ' + DIAS_RECIENTE + ' días.'}
+                  </div>
+                : rejilla(enHistorial)}
+            </Seccion>
+          </Fragment>
+        )}
+
+        {/* ─────────────── NOVEDADES ─────────────── */}
+        {pestana === 'novedades' && (
+          <Seccion titulo="Todo lo que ha cambiado" cuenta={eventos.length} primaria plegable={false}>
+            <div className="tarjeta pad">
+              <Novedades eventos={eventos} />
+            </div>
+          </Seccion>
+        )}
+
+        {/* ─────────────── AJUSTES ─────────────── */}
+        {pestana === 'ajustes' && (
+          <Fragment>
+            <Seccion titulo="Cómo va el monitor" primaria plegable={false}>
+              <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-4)'}}>
+                <Metricas meta={meta} envios={envios} />
+                <div className="envio-sub">
+                  Vigila de lunes a viernes: cada 15 minutos de 8:30 a 10:30 y cada hora hasta las 17:30.
+                  {token && ' El botón «Actualizar» de arriba recarga los datos y, de paso, manda comprobar'
+                          + ' el portal ahora mismo; si al abrir la app ve que lleva parado, lo hace él solo.'}
+                </div>
+                <div className="acciones">
+                  {token && (
+                    <button className="btn primario" onClick={() => onActualizar()} disabled={enMarcha}>
+                      {enMarcha ? 'Comprobando…' : 'Comprobar el portal ahora'}
+                    </button>
+                  )}
+                  {meta.repo && (
+                    <a className="btn" target="_blank" rel="noopener"
+                       href={`https://github.com/${meta.repo}/actions`}>Ver ejecuciones</a>
+                  )}
+                </div>
+              </div>
+            </Seccion>
+
+            <Seccion titulo="Avisos" primaria plegable={false}>
+              <div className="tarjeta pad">
+                <PruebaAvisos meta={meta} />
+              </div>
+            </Seccion>
+
+            <Seccion titulo="Este dispositivo" primaria plegable={false}>
+              <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-3)'}}>
+                <div className="envio-sub">
+                  Avisos activos por: {Object.entries(meta.canales || {}).filter(([,v]) => v)
+                    .map(([k]) => ({push:'push al dispositivo', telegram:'Telegram', email:'correo'}[k] || k))
+                    .join(', ') || 'ninguno — solo se ven en pantalla'}.
+                </div>
+                <div className="acciones">
+                  <button className="btn" onClick={onSalir}>Olvidar la contraseña en este dispositivo</button>
+                </div>
+              </div>
+            </Seccion>
+          </Fragment>
+        )}
+      </main>
+
+      <footer className="pie-app">
+        <span>Lunes a viernes · cada 15 min de 8:30 a 10:30, y cada hora hasta las 17:30</span>
+        {meta.repo && <a className="enlace" href={`https://github.com/${meta.repo}/actions`} target="_blank" rel="noopener">Ver ejecuciones</a>}
+        <span>Avisos: {Object.entries(meta.canales || {}).filter(([,v])=>v)
+          .map(([k]) => ({push:'push al dispositivo', telegram:'Telegram', email:'email'}[k] || k))
+          .join(', ') || 'solo en pantalla'}</span>
+      </footer>
+>>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
     </Fragment>
   );
 }
@@ -1688,9 +2378,12 @@ function Panel({datos, onRecargar, onSalir, recargando}){
 /* ─────────────────── app ─────────────────── */
 function App(){
   const [clave, setClave] = useState(() => leer(CLAVE_GUARDADA) || '');
+  const [token, setToken] = useState(null);       // permite arrancar la vigilancia
   const [datos, setDatos] = useState(null);
   const [error, setError] = useState('');
   const [recargando, setRecargando] = useState(false);
+  const [marcha, setMarcha] = useState(null);     // el transcurso de la comprobación
+  const siguiendo = useRef(false);
   const primeraCarga = useRef(true);
 
   const recargar = useCallback(async (password) => {
@@ -1698,8 +2391,10 @@ function App(){
     if (!pw && !primeraCarga.current) return;
     setRecargando(true);
     try{
-      setDatos(await cargarDatos(pw));
+      const frescos = await cargarDatos(pw);
+      setDatos(frescos);
       setError('');
+      return frescos;
     }catch(err){
       if (err.clave){ olvidar(CLAVE_GUARDADA); setClave(''); setDatos(null); }
       else setError(err.message);
@@ -1713,8 +2408,86 @@ function App(){
     return () => clearInterval(t);
   }, [clave, recargar]);
 
+  /* ─── «Actualizar» ───
+     Antes solo volvía a bajar el fichero: si el monitor estaba parado, daba
+     igual cuántas veces se pulsara, los datos eran los mismos. Ahora recarga
+     Y pone en marcha la vigilancia, y cuenta el recorrido mientras pasa.
+
+     Lo primero es recargar, que es instantáneo. Después, si hay token: si ya
+     hay una ejecución viva se sigue esa —pedir otra solo la encolaría detrás—
+     y si no la hay, se lanza. Se da por terminado en cuanto el portal se ha
+     leído de verdad, que es cuando cambia `ultima_comprobacion`; en horario
+     laboral la ejecución sigue viva horas después, vigilando. */
+  const actualizar = useCallback(async (opciones) => {
+    const automatico = !!(opciones && opciones.automatico);
+    const antes = await recargar();
+    if (!token || siguiendo.current) return;
+    if (automatico && Date.now() - Number(leer(ULTIMO_DISPARO) || 0) < 20 * 60 * 1000) return;
+
+    siguiendo.current = true;
+    const desde = Date.now();
+    const marcaPrevia = antes && antes.meta ? antes.meta.ultima_comprobacion : null;
+    const paso = (fase, extra) => setMarcha(m => ({...(m || {}), desde, fase, ...extra}));
+    const rematar = (fase, extra) => {
+      paso(fase, {fin: Date.now(), ...(extra || {})});
+      if (fase === 'listo') setTimeout(() => setMarcha(null), 8000);
+    };
+
+    try {
+      paso('pidiendo', {url: null, detalle: null});
+      let ejecucion = await ultimaEjecucion(token);
+
+      if (!ejecucionViva(ejecucion)) {
+        const idPrevio = ejecucion ? ejecucion.id : 0;
+        await arrancarVigilancia(token);
+        for (let i = 0; i < 20; i++) {                 // GitHub tarda en crearla
+          await espera(3000);
+          ejecucion = await ultimaEjecucion(token);
+          if (ejecucion && ejecucion.id !== idPrevio) break;
+        }
+        if (!ejecucion || ejecucion.id === idPrevio) {
+          rematar('error', {detalle: 'GitHub aceptó la orden pero no ha creado la ejecución'});
+          return;
+        }
+      }
+
+      const url = ejecucion.html_url;
+      for (let vuelta = 0; vuelta < 90; vuelta++) {
+        const estado = vuelta === 0 ? ejecucion
+                     : (await verEjecucion(token, ejecucion.id)) || ejecucion;
+        const acabada = estado.status === 'completed';
+        if (acabada && estado.conclusion && estado.conclusion !== 'success') {
+          rematar('error', {url, detalle: `la ejecución terminó en «${estado.conclusion}»`});
+          return;
+        }
+        paso(estado.status === 'in_progress' ? 'comprobando' : 'encolada', {url});
+
+        if (acabada || vuelta % 3 === 2) {
+          const frescos = await recargar();
+          const marca = frescos && frescos.meta ? frescos.meta.ultima_comprobacion : null;
+          if (acabada || (marca && marca !== marcaPrevia)) { rematar('listo', {url}); return; }
+        }
+        await espera(5000);
+      }
+      rematar('lenta', {url});
+    } catch (e) {
+      rematar('error', {detalle: e.message});
+    } finally {
+      siguiendo.current = false;
+    }
+  }, [token, recargar]);
+
   const entrar = (password, datosIniciales) => { setClave(password); setDatos(datosIniciales); };
-  const salir  = () => { olvidar(CLAVE_GUARDADA); setClave(''); setDatos(null); };
+  const salir  = () => { olvidar(CLAVE_GUARDADA); setClave(''); setDatos(null); setToken(null); };
+
+  // El token de arranque va cifrado con la misma contraseña; si no está, el
+  // panel funciona igual, solo que sin poder poner en marcha la vigilancia.
+  useEffect(() => {
+    if (!clave) return;
+    let vivo = true;
+    cargarDisparo(clave).then(t => { if (vivo) setToken(t); }).catch(() => {});
+    return () => { vivo = false; };
+  }, [clave]);
 
   if (!clave || !datos) {
     return (
@@ -1724,10 +2497,23 @@ function App(){
       </Fragment>
     );
   }
-  return <Panel datos={datos} onRecargar={() => recargar()} onSalir={salir} recargando={recargando} />;
+  return <Panel datos={datos} token={token} onActualizar={actualizar} onSalir={salir}
+                recargando={recargando} marcha={marcha} />;
 }
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').then(async reg => {
+    /* Recordatorio de que hay que arrancar la jornada, para las mañanas en que
+       nadie abre la app. Solo funciona con la app instalada y cuando el
+       navegador quiere despertarla; es un refuerzo, no una garantía. */
+    try {
+      if (!('periodicSync' in reg)) return;
+      const permiso = await navigator.permissions.query({name: 'periodic-background-sync'});
+      if (permiso.state !== 'granted') return;
+      await reg.periodicSync.register('vigilancia', {minInterval: 3 * 60 * 60 * 1000});
+    } catch (_) { /* el navegador no quiere: se vive igual */ }
+  }).catch(() => {});
+}
 ReactDOM.createRoot(document.getElementById('app')).render(<App />);
 // Ya hay algo que enseñar: la pantalla de arranque se va (nunca antes de 1 s).
 requestAnimationFrame(() => window.cerrarArranque && window.cerrarArranque());
