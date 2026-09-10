@@ -1,0 +1,64 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Publicar el panel en GitHub Pages
+#
+# Por qué existe este fichero aparte
+# ---------------------------------
+# Hasta ahora Pages solo se publicaba desde dentro de monitor.yml, y encima solo
+# si esa ejecución había llegado a comprobar el portal. Consecuencia: se podía
+# tocar el panel, subirlo, y no verlo en el móvil durante horas —o durante días,
+# si GitHub no servía ningún disparo del cron—. La web se quedó publicando un
+# index.html que ni siquiera arrancaba y no había forma de reemplazarlo sin
+# esperar a que el scraper tuviera a bien correr.
+#
+# Publicar el panel no tiene nada que ver con leer el portal. Así que va por su
+# cuenta: se toca docs/, se publica. Sin credenciales, sin scraping y en menos
+# de un minuto.
+# ─────────────────────────────────────────────────────────────────────────────
+name: Publicar el panel
+
+on:
+  push:
+    branches: [main]
+    paths:
+      # Cualquier cosa del panel…
+      - 'monitor-envios-github/monitor-envios-nube/docs/**'
+      # …menos los datos. El monitor los guarda decenas de veces al día y no son
+      # motivo para volver a desplegar: el panel los lee del repositorio, no de
+      # la copia de Pages (ver REPO_DATOS en index.html).
+      - '!monitor-envios-github/monitor-envios-nube/docs/datos.json'
+      # Y este mismo fichero, para que al cambiarlo se publique de una vez en
+      # lugar de esperar al siguiente cambio del panel.
+      - '.github/workflows/publicar-panel.yml'
+  workflow_dispatch:        # botón "Run workflow" por si hace falta a mano
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write           # lo exige actions/deploy-pages
+
+# El grupo es el del despliegue de Pages, no el del monitor: dos publicaciones a
+# la vez se pisan. `cancel-in-progress: false` porque una publicación a medias
+# deja el sitio en un estado raro; mejor encolar y que salgan las dos.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: monitor-envios-github/monitor-envios-nube/docs
+
+      - id: pages
+        uses: actions/deploy-pages@v4
