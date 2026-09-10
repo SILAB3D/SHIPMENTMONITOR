@@ -132,25 +132,8 @@ def _color_suelto(x: float, y: float, escala: float, desplazamiento: float,
     el «badge» además da igual el color: Android se queda solo con la silueta
     (el canal alfa) y la tiñe él.
     """
-<<<<<<< HEAD
-    dx = (x - desplazamiento) / escala
-    dy = (y - desplazamiento) / escala
-
-    cen, radio_ext, radio_int = INSIGNIA
-    d_insignia = math.hypot(dx - cen[0], dy - cen[1])
-    # La insignia se dibuja como un anillo: relleno fuera del hueco interior.
-    if radio_int <= d_insignia <= radio_ext:
-        return (*tinta, 255)
-    if d_insignia < radio_int:
-        return (0, 0, 0, 0)
-
-    if min(_dist_segmento(dx, dy, *s) for s in SEGMENTOS) <= GROSOR / 2:
-        return (*tinta, 255)
-    return (0, 0, 0, 0)
-=======
     que = _que_hay((x - desplazamiento) / escala, (y - desplazamiento) / escala)
     return (*tinta, 255) if que == TINTA else (0, 0, 0, 0)
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
 
 
 def dibujar(lado: int, margen: float = 0.0, fondo_completo: bool = True,

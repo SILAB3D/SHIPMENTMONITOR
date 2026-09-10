@@ -1,11 +1,7 @@
 {
   "name": "ShipmentMonitor",
   "short_name": "ShipmentMonitor",
-<<<<<<< HEAD
-  "description": "Vigila el portal DinaPaqWeb y avisa en el móvil de envíos nuevos y cambios de estado",
-=======
   "description": "Vigila los envíos de muestras biológicas en el portal DinaPaqWeb y avisa en el móvil de cada cambio de estado",
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

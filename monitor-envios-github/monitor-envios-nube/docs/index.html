@@ -157,10 +157,6 @@ img{max-width:100%}
 .recordar b{font-weight:650}
 
 /* ───────────────────────── esqueleto ───────────────────────── */
-<<<<<<< HEAD
-.barra{
-  position:sticky; top:0; z-index:30; background:color-mix(in srgb, var(--fondo) 88%, transparent);
-=======
 /* La cabecera pegajosa envuelve la barra y las pestañas, para que se queden
    arriba juntas y no se metan una debajo de otra al desplazar. Sin filtros ni
    transformaciones: si los tuviera, la barra de pestañas del móvil —que va
@@ -168,7 +164,6 @@ img{max-width:100%}
 .cabecera{position:sticky; top:0; z-index:30}
 .barra{
   background:color-mix(in srgb, var(--fondo) 88%, transparent);
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
   backdrop-filter:saturate(1.6) blur(12px); border-bottom:1px solid var(--borde);
 }
 .barra-int{max-width:var(--ancho); margin:0 auto; padding:var(--sp-3) var(--sp-4);
@@ -177,12 +172,8 @@ img{max-width:100%}
 .marca-app img{width:26px; height:26px; flex:none}
 .marca-app h1{font-size:1rem; font-weight:700; letter-spacing:-.025em; white-space:nowrap;
               overflow:hidden; text-overflow:ellipsis}
-<<<<<<< HEAD
-.acciones{display:flex; gap:var(--sp-2); align-items:center; flex:none}
-=======
 .acciones{display:flex; gap:var(--sp-2); align-items:center; flex-wrap:wrap; min-width:0}
 .barra-int .acciones{flex-wrap:nowrap; flex:none}
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
 .contenido{max-width:var(--ancho); margin:0 auto; padding:var(--sp-4); display:grid; gap:var(--sp-4)}
 
 /* ─────────── cabecera del día: la respuesta de un vistazo ───────────
@@ -221,51 +212,6 @@ img{max-width:100%}
 .buscador input:focus{outline:none; border-color:var(--marca); background:var(--lienzo)}
 .buscador .lupa{position:absolute; left:.8rem; color:var(--tenue); pointer-events:none; display:flex}
 
-<<<<<<< HEAD
-/* ───────────────────────── pestañas ─────────────────────────
-   Tres sitios en vez de una lista interminable: lo del día (inicio), lo que ha
-   cambiado (novedades) y lo que casi nunca se toca (ajustes).
-
-   El número de una pestaña solo aparece cuando hay algo sin ver en ella, y se
-   apaga al entrar. Un contador permanente deja de decir nada a los dos días:
-   si está encendido es porque hay novedad de verdad. */
-.pestanas{max-width:var(--ancho); margin:0 auto; padding:0 var(--sp-4);
-          display:flex; gap:var(--sp-1); overflow-x:auto; scrollbar-width:none}
-.pestanas::-webkit-scrollbar{display:none}
-.pestana{
-  display:inline-flex; align-items:center; gap:.4rem; background:none; border:0;
-  border-bottom:2px solid transparent; padding:.5rem .7rem .55rem; cursor:pointer;
-  font-size:.88rem; font-weight:650; color:var(--tenue); white-space:nowrap;
-  transition:color .15s ease, border-color .15s ease;
-}
-.pestana:hover{color:var(--texto)}
-.pestana.activa{color:var(--texto); border-bottom-color:var(--marca)}
-.senal{min-width:1.15rem; height:1.15rem; padding:0 .32rem; border-radius:999px;
-       background:var(--marca); color:#fff; font-size:.66rem; font-weight:800;
-       display:inline-grid; place-items:center; font-variant-numeric:tabular-nums}
-
-/* ───────────────────────── ajustes ─────────────────────────
-   Por temas, y en el orden en que se necesitan: lo que hay que dejar puesto
-   una vez (avisos), lo que se consulta cuando algo huele mal (el monitor y su
-   historial) y al final lo que casi nunca se cambia. */
-.ajustes{display:grid; gap:var(--sp-5)}
-.grupo{display:grid; gap:var(--sp-3)}
-.grupo > h2{font-size:.72rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
-            color:var(--tenue); margin:0}
-.grupo-pie{font-size:.8rem; color:var(--tenue); line-height:1.55}
-.grupo-pie b{color:var(--suave)}
-.opciones{display:flex; gap:var(--sp-2); flex-wrap:wrap; align-items:center}
-.opciones .btn.elegido{background:var(--marca-tenue); border-color:var(--marca); color:var(--marca)}
-
-/* Historial de ejecuciones: una línea por comprobación, la última arriba */
-.ejecuciones{display:grid; margin:0; padding:0; list-style:none}
-.ejec{display:flex; align-items:baseline; gap:var(--sp-2); min-width:0;
-      padding:.4rem 0; border-bottom:1px solid var(--borde); font-size:.82rem}
-.ejec:last-child{border-bottom:0}
-.ejec time{flex:none; color:var(--suave); font-variant-numeric:tabular-nums}
-.ejec .res{flex:1 1 auto; min-width:0; color:var(--tenue); overflow-wrap:anywhere}
-.ejec .res b{color:var(--texto); font-weight:650}
-
 /* ───────────────────────── secciones ───────────────────────── */
 .seccion{display:grid; gap:var(--sp-3)}
 .seccion-cab{display:flex; align-items:center; gap:var(--sp-2); width:100%; text-align:left;
@@ -314,56 +260,6 @@ img{max-width:100%}
 .ruta i{font-style:normal; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0}
 .ruta .hacia{color:var(--tenue); flex:none}
 
-=======
-/* ───────────────────────── secciones ───────────────────────── */
-.seccion{display:grid; gap:var(--sp-3)}
-.seccion-cab{display:flex; align-items:center; gap:var(--sp-2); width:100%; text-align:left;
-             background:none; border:0; padding:0; cursor:pointer}
-.seccion-cab h2{font-size:.72rem; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--tenue)}
-.seccion.primaria .seccion-cab h2{color:var(--texto); font-size:.9rem; letter-spacing:.01em; text-transform:none}
-.cuenta{font-size:.72rem; font-weight:700; color:var(--suave); background:var(--lienzo-2);
-        border:1px solid var(--borde); border-radius:999px; padding:.05rem .5rem; font-variant-numeric:tabular-nums}
-.raya{flex:1 1 auto; height:1px; background:var(--borde); min-width:1rem}
-.flecha{color:var(--tenue); font-size:.65rem; transition:transform .18s ease}
-.seccion-cab[aria-expanded="true"] .flecha{transform:rotate(90deg)}
-
-/* ───────────────────────── tarjeta de envío ─────────────────────────
-   El titular es el DESTINATARIO, no el número de albarán: nadie reconoce
-   «0280010370017025111854», y a todo el mundo le dice algo «Hospital Severo
-   Ochoa». El número queda abajo, que es donde se busca cuando hace falta. */
-.rejilla{display:grid; gap:var(--sp-3); align-items:start;
-         grid-template-columns:repeat(auto-fill,minmax(min(100%,20rem),1fr))}
-.envio{
-  display:grid; align-content:start; gap:var(--sp-3); padding:var(--sp-4); min-width:0; text-align:left; width:100%;
-  background:var(--lienzo); border:1px solid var(--borde); border-radius:var(--r-lg);
-  box-shadow:var(--sombra); cursor:pointer; position:relative; overflow:hidden;
-  transition:box-shadow .18s ease, border-color .18s ease, transform .18s ease;
-  animation:entrar .3s ease both;
-}
-@keyframes entrar{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
-.envio:hover{box-shadow:var(--sombra-alta); border-color:var(--borde-fuerte)}
-.envio::before{content:''; position:absolute; inset:0 auto 0 0; width:3px; background:var(--borde-fuerte)}
-.envio.curso::before{background:var(--marca)}
-.envio.ok::before{background:var(--ok)}
-.envio.alerta::before{background:var(--mal)}
-
-/* min-width:0 en cascada: sin esto, un destinatario largo estira la celda de la
-   rejilla y el contenido se sale de la tarjeta en pantallas intermedias. */
-.envio-cuerpo{display:grid; gap:var(--sp-3); min-width:0; text-align:left;
-              background:none; border:0; padding:0; cursor:pointer; color:inherit}
-.envio > *{min-width:0}
-.envio-cuerpo > *{min-width:0}
-.envio-cab{display:flex; gap:var(--sp-3); align-items:flex-start; justify-content:space-between; min-width:0}
-.envio-quien{min-width:0; display:grid; gap:.1rem}
-.envio-quien b{font-size:1rem; font-weight:650; letter-spacing:-.01em; line-height:1.3; overflow-wrap:anywhere}
-.envio-quien span{font-size:.8rem; color:var(--tenue)}
-
-/* Ruta: de dónde sale y a dónde va, en una línea que se lee de un golpe */
-.ruta{display:flex; align-items:center; gap:var(--sp-2); font-size:.78rem; color:var(--suave); min-width:0}
-.ruta i{font-style:normal; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0}
-.ruta .hacia{color:var(--tenue); flex:none}
-
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
 /* Progreso: una barra con sus hitos y la hora de cada uno */
 .pasos{display:grid; gap:.4rem}
 .via{display:flex; align-items:center; gap:0}
@@ -456,26 +352,25 @@ img{max-width:100%}
 .metrica small{font-size:.74rem; color:var(--suave)}
 .envio-sub{font-size:.82rem; color:var(--suave); overflow-wrap:anywhere}
 
-<<<<<<< HEAD
-=======
-.pie-app{max-width:var(--ancho); margin:0 auto; padding:0 var(--sp-4) var(--sp-6);
-         display:flex; gap:var(--sp-3); flex-wrap:wrap; font-size:.76rem; color:var(--tenue)}
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
+/* Historial de ejecuciones: una línea por comprobación, la última arriba */
+.ejecuciones{display:grid; margin:0; padding:0; list-style:none}
+.ejec{display:flex; align-items:baseline; gap:var(--sp-2); min-width:0;
+      padding:.4rem 0; border-bottom:1px solid var(--borde); font-size:.82rem}
+.ejec:last-child{border-bottom:0}
+.ejec time{flex:none; color:var(--suave); font-variant-numeric:tabular-nums}
+.ejec .res{flex:1 1 auto; min-width:0; color:var(--tenue); overflow-wrap:anywhere}
+.ejec .res b{color:var(--texto); font-weight:650}
+.ejec .marca-ok{color:var(--ok); font-weight:800}
+.ejec .marca-mal{color:var(--mal); font-weight:800}
+
+/* El ajuste elegido, marcado sin sacarlo de la fila de botones */
+.btn.elegido{background:var(--marca-tenue); border-color:var(--marca); color:var(--marca)}
 
 /* ───────────────────────── móvil ───────────────────────── */
 @media (max-width:640px){
   .barra-int{padding:var(--sp-2) var(--sp-3); gap:var(--sp-2)}
   /* En 390 px la barra no daba de sí y los botones se comían el nombre. */
   .acciones .btn{padding:.34rem .7rem; font-size:.82rem}
-<<<<<<< HEAD
-  .btn.icono{width:1.95rem; height:1.95rem; padding:.3rem}
-  .marca-app img{width:22px; height:22px}
-  .marca-app h1{font-size:.94rem}
-  .pestanas{padding:0 var(--sp-3)}
-  .pestana{padding:.45rem .6rem .5rem; font-size:.85rem}
-  .contenido{padding:var(--sp-3); gap:var(--sp-3)}
-  .ajustes{gap:var(--sp-4)}
-=======
   /* En el móvil la barra solo lleva lo imprescindible: comprobar y salir ya
      están en Ajustes, y con cuatro botones no cabía nada. */
   .barra-int .solo-ancho{display:none}
@@ -483,7 +378,6 @@ img{max-width:100%}
   .marca-app img{width:22px; height:22px}
   .marca-app h1{font-size:.94rem}
   .contenido{padding:var(--sp-3); gap:var(--sp-3)}
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
   .jornada{padding:var(--sp-4) var(--sp-3); gap:var(--sp-3)}
   .jornada h2{font-size:1.15rem}
   .jornada .cuando{margin-left:0; width:100%}
@@ -495,8 +389,6 @@ img{max-width:100%}
   *{animation-duration:.01ms !important; transition-duration:.01ms !important}
 }
 
-<<<<<<< HEAD
-=======
 /* ───────────────────────── pestañas ─────────────────────────
    En pantalla grande van bajo la cabecera, como pestañas de toda la vida. En
    el móvil bajan al pie: es donde llega el pulgar, y así la mano no tapa lo
@@ -522,13 +414,6 @@ img{max-width:100%}
 }
 .pestana.urgente .globo{background:var(--mal-fondo); border-color:var(--mal-borde); color:var(--mal)}
 .pestana.activa .globo{background:var(--marca-tenue); border-color:var(--marca-borde); color:var(--marca)}
-
-/* «y N más», el puente de Inicio al historial */
-.mas{
-  width:100%; padding:var(--sp-3); border:1px dashed var(--borde-fuerte); background:none;
-  border-radius:var(--r); color:var(--suave); font-size:.84rem; font-weight:600; cursor:pointer;
-}
-.mas:hover{border-color:var(--marca); color:var(--marca)}
 
 @media (max-width:640px){
   .pestanas{
@@ -571,7 +456,6 @@ img{max-width:100%}
 @media (max-width:560px){ .marcha-pasos{grid-template-columns:repeat(2,1fr)} }
 @media (prefers-reduced-motion:reduce){ .marcha-pasos .paso.ahora .raya{animation:none} }
 
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
 /* ─────────────── pantalla de arranque ───────────────
    Un segundo con el icono dibujándose solo. No es adorno: la PWA tarda un
    instante en descifrar los datos y, sin esto, se veía un fogonazo en blanco
@@ -583,19 +467,6 @@ img{max-width:100%}
 #arranque svg{width:104px; height:104px; overflow:visible}
 #arranque .nombre{font-size:.85rem; font-weight:700; letter-spacing:.16em; text-transform:uppercase;
                   color:var(--tenue); animation:arr-entra .5s .45s both}
-<<<<<<< HEAD
-#arranque .trazo{fill:none; stroke:var(--marca); stroke-width:10; stroke-linecap:round; stroke-linejoin:round;
-                 stroke-dasharray:var(--largo); stroke-dashoffset:var(--largo);
-                 animation:arr-traza .78s cubic-bezier(.65,0,.35,1) forwards}
-#arranque .trazo.interior{animation-delay:.2s}
-#arranque .punto{transform-origin:150px 50px; animation:arr-punto .42s .58s cubic-bezier(.34,1.56,.64,1) both}
-@keyframes arr-traza{to{stroke-dashoffset:0}}
-@keyframes arr-punto{from{transform:scale(0)} to{transform:scale(1)}}
-@keyframes arr-entra{from{opacity:0; transform:translateY(4px)} to{opacity:1; transform:none}}
-@media (prefers-reduced-motion:reduce){
-  #arranque .trazo{animation:none; stroke-dashoffset:0}
-  #arranque .punto,#arranque .nombre{animation:none}
-=======
 #arranque .vidrio{fill:none; stroke:var(--marca); stroke-width:9; stroke-linecap:round;
                   stroke-dasharray:var(--largo); stroke-dashoffset:var(--largo);
                   animation:arr-traza .6s cubic-bezier(.65,0,.35,1) forwards}
@@ -615,7 +486,6 @@ img{max-width:100%}
   #arranque .vidrio{animation:none; stroke-dashoffset:0}
   #arranque .tapon,#arranque .punto,#arranque .nombre{animation:none}
   #arranque .muestra{animation:none; transform:none}
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
 }
 </style>
 </head>
@@ -623,14 +493,6 @@ img{max-width:100%}
 <!-- Se pinta antes que React y se retira sola: ver #arranque en el <style>. -->
 <div id="arranque" role="status" aria-label="Abriendo ShipmentMonitor">
   <div class="marca">
-<<<<<<< HEAD
-    <svg viewBox="0 0 192 192" aria-hidden="true">
-      <path class="trazo" style="--largo:352" d="M96 42 150 68v56L96 150 42 124V68z"/>
-      <path class="trazo interior" style="--largo:176" d="M42 68l54 26 54-26M96 94v56"/>
-      <g class="punto">
-        <circle cx="150" cy="50" r="17" fill="var(--naranja)"/>
-        <circle cx="150" cy="50" r="7" fill="var(--bg)"/>
-=======
     <svg viewBox="18 0 192 192" aria-hidden="true">
       <defs>
         <clipPath id="arr-tubo"><path d="M73.5 60h29v78a14.5 14.5 0 0 1-29 0z"/></clipPath>
@@ -647,7 +509,6 @@ img{max-width:100%}
       <g class="punto">
         <circle cx="152" cy="54" r="15" fill="var(--marca)"/>
         <circle cx="152" cy="54" r="6" fill="var(--fondo)"/>
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
       </g>
     </svg>
     <div class="nombre">ShipmentMonitor</div>
@@ -680,36 +541,36 @@ const {useState, useEffect, useCallback, useRef, Fragment} = React;
    No hay servidor: el panel descarga docs/datos.json (que publica el workflow
    de GitHub Actions) y lo descifra aquí mismo con WebCrypto. */
 
-const CLAVE_GUARDADA = 'monitor-envios:clave';
-const ULTIMO_VISTO   = 'monitor-envios:ultimo-evento';
-const TEMA           = 'shipmentmonitor:tema';
-<<<<<<< HEAD
-
-/* Hasta dónde se ha visto cada pestaña. Se guarda una marca por pestaña —el
-   último evento para las dos primeras, la última comprobación para ajustes—
-   porque cada una cuenta una cosa distinta y entrar en una no debe apagar el
-   número de la otra. */
-const VISTO_INICIO    = 'shipmentmonitor:visto-inicio';
-const VISTO_NOVEDADES = 'shipmentmonitor:visto-novedades';
-const VISTO_AJUSTES   = 'shipmentmonitor:visto-ajustes';
-=======
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
-
-const guardar = (k, v) => { try { localStorage.setItem(k, v); } catch (_) {} };
-const leer    = k      => { try { return localStorage.getItem(k); } catch (_) { return null; } };
-const olvidar = k      => { try { localStorage.removeItem(k); } catch (_) {} };
-
-const deB64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+/* Hasta dónde se ha visto cada pestaña. Una marca por pestaña, porque cada una
+   cuenta una cosa distinta y entrar en una no debe apagar el número de la otra:
+   el globo no es un contador de lo que hay, es un aviso de lo que falta por
+   mirar. Entrar en la pestaña lo apaga. */
+const VISTO = {
+  inicio:    'shipmentmonitor:visto-inicio',      // último evento mirado
+  historial: 'shipmentmonitor:visto-historial',   // cuántos envíos había archivados
+  novedades: 'shipmentmonitor:visto-novedades',   // último evento mirado
+  ajustes:   'shipmentmonitor:visto-ajustes',     // última comprobación mirada
+};
 
 /* La primera visita no es «novedad»: si no hay marca guardada se sella la
    actual y se empieza limpio. Sin esto, quien abriera el panel por primera vez
-   se encontraría las pestañas con el histórico entero marcado sin ver. */
+   se encontraría las cuatro pestañas marcadas con el histórico entero. */
 const marcaVista = (clave, actual) => {
   const guardada = leer(clave);
   if (guardada !== null) return guardada;
   guardar(clave, String(actual));
   return String(actual);
 };
+
+const CLAVE_GUARDADA = 'monitor-envios:clave';
+const ULTIMO_VISTO   = 'monitor-envios:ultimo-evento';
+const TEMA           = 'shipmentmonitor:tema';
+
+const guardar = (k, v) => { try { localStorage.setItem(k, v); } catch (_) {} };
+const leer    = k      => { try { return localStorage.getItem(k); } catch (_) { return null; } };
+const olvidar = k      => { try { localStorage.removeItem(k); } catch (_) {} };
+
+const deB64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 
 /* ─────────────────── avisos push ───────────────────
    El aviso llega desde GitHub Actions al servicio de push del propio navegador
@@ -985,8 +846,6 @@ function horaCorta(marca){
   return m[2] ? `${m[1]} ${m[2]}` : m[1];
 }
 
-<<<<<<< HEAD
-=======
 /** Las marcas del portal («27/08/26 08:20:25») como fecha de verdad.
  *  Hace falta para saber si una entrega es de esta semana o de hace un mes, que
  *  es lo que decide si un envío sigue en Inicio o se va al historial. */
@@ -1011,7 +870,6 @@ function diasDesdeLaEntrega(envio){
   return f ? (Date.now() - f) / 86400000 : Infinity;
 }
 
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
 /** Para cada paso del diagrama, cuándo se alcanzó por primera vez.
  *  `pasos` viene del portal en orden cronológico, así que la primera situación
  *  que cae en un paso es la que lo estrenó. */
@@ -1049,11 +907,7 @@ function Acceso({onEntrar}){
         <div className="acceso-cabecera">
           <img src="icono.svg" alt="" />
           <h1>ShipmentMonitor</h1>
-<<<<<<< HEAD
-          <p>Introduce la contraseña del panel para ver tus envíos</p>
-=======
           <p>Introduce la contraseña del panel para ver tus envíos de muestras</p>
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
         </div>
         <form onSubmit={enviar}>
           <div className="campo">
@@ -1223,24 +1077,16 @@ function TarjetaEnvio({envio, historial}){
 }
 
 /* ─────────────────── paneles ─────────────────── */
-<<<<<<< HEAD
 /* ─────────────────── tarjeta de avisos push ───────────────────
-   Vive en la pestaña de ajustes: es algo que se deja puesto una vez por
-   dispositivo, no algo que haya que mirar cada mañana. Por eso ya no se oculta
-   ni se pospone; siempre dice en qué punto está este aparato. */
-=======
-/* ─────────────────── tarjeta de avisos push ─────────────────── */
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
+   Vive en Ajustes: es algo que se deja puesto una vez por dispositivo, no algo
+   que haya que mirar cada mañana. Por eso ya no se oculta ni se pospone;
+   estando donde está, siempre dice en qué punto anda este aparato. */
 function AvisosPush({repo, meta}){
   const [sus, setSus]       = useState(null);      // suscripción viva en este navegador
   const [pegada, setPegada] = useState(() => leer(PUSH_PEGADA) || '');
   const [error, setError]   = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [copiado, setCopiado] = useState(false);
-<<<<<<< HEAD
-=======
-  const [oculta, setOculta]   = useState(false);
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
   // ¿El repositorio ya conoce a este dispositivo? Lo dicen las huellas que
   // publica el monitor: si la nuestra está, no hay nada que pegar y la tarjeta
   // sobra, aunque este navegador no recuerde haberlo hecho.
@@ -1314,20 +1160,11 @@ function AvisosPush({repo, meta}){
       </div>
     );
   }
-<<<<<<< HEAD
-=======
-  if (alDia || oculta) return null;
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
 
   return (
     <div className="tarjeta pad push">
       {!sus ? (
         <Fragment>
-<<<<<<< HEAD
-=======
-          {/* Una sola línea: esta tarjeta no puede empujar los envíos fuera de
-              la pantalla, que es a lo que se viene. */}
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
           <div className="push-linea">
             <span className="push-txt">
               🔔 <b>Recibe los avisos en este dispositivo</b>
@@ -1336,12 +1173,6 @@ function AvisosPush({repo, meta}){
             <button className="btn primario" onClick={activar} disabled={ocupado}>
               {ocupado ? 'Activando…' : 'Activar avisos'}
             </button>
-<<<<<<< HEAD
-=======
-            <button className="enlace" onClick={() => setOculta(true)} title="Ocultar hasta la próxima visita">
-              Ahora no
-            </button>
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
           </div>
           {error && <div className="aviso mal" style={{marginTop:'.6rem'}}>{error}</div>}
         </Fragment>
@@ -1572,6 +1403,13 @@ const ICONOS = {
              </Fragment>,
 };
 
+/* Los canales, con su nombre de persona y para qué sirve cada uno. */
+const CANALES = [
+  ['push',     'Push a los dispositivos', 'El canal principal: llega al móvil con la app cerrada.'],
+  ['telegram', 'Telegram',                'Refuerzo por si el push no llega.'],
+  ['email',    'Correo electrónico',      'Refuerzo por si el push no llega.'],
+];
+
 const IconoPestana = ({nombre}) => (
   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
        strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1580,12 +1418,11 @@ const IconoPestana = ({nombre}) => (
 );
 
 function Novedades({eventos}){
-  const [tope, setTope] = useState(25);
   return (
     <section className="tarjeta pad">
       <div className="titulo-seccion">Novedades</div>
       {eventos.length === 0 && <div className="vacio">Todo tranquilo por aquí.</div>}
-      {eventos.slice(0, tope).map(ev => (
+      {eventos.slice(0, 25).map(ev => (
         <div className="novedad" key={ev.id}>
           <div className="marca">{ev.tipo === 'nuevo' ? '+' : '↻'}</div>
           <div className="txt">
@@ -1595,21 +1432,14 @@ function Novedades({eventos}){
           </div>
         </div>
       ))}
-      {tope < eventos.length && (
-        <div style={{paddingTop:'var(--sp-3)'}}>
-          <button className="btn" onClick={() => setTope(eventos.length)}>
-            Ver las {eventos.length} novedades
-          </button>
-        </div>
-      )}
     </section>
   );
 }
 
 /* ─────────────────── historial de ejecuciones ───────────────────
-   Hasta ahora, saber si el monitor seguía vivo obligaba a abrir GitHub
-   Actions. Aquí está la misma respuesta sin salir del panel: una línea por
-   comprobación, la última arriba, con lo que leyó y si falló.
+   Saber si el monitor sigue vivo obligaba a abrir GitHub Actions. Aquí está la
+   misma respuesta sin salir del panel: una línea por comprobación, la última
+   arriba, con lo que leyó y si falló.
 
    Ojo con el vocabulario: una ejecución del workflow cubre la jornada entera y
    dentro hace muchas comprobaciones, así que varias líneas seguidas comparten
@@ -1661,129 +1491,7 @@ function Ejecuciones({ejecuciones}){
   );
 }
 
-/* ─────────────────── ajustes ───────────────────
-   Todo lo que no es «qué está pasando con mis envíos», por temas y en el orden
-   en que se necesita: lo que hay que dejar puesto una vez, lo que se consulta
-   cuando algo huele mal, y lo que casi nunca se cambia. */
-const NOMBRES_CANAL = {
-  push:     ['Push a los dispositivos', 'El canal principal: llega al móvil con la app cerrada.'],
-  telegram: ['Telegram',                'Refuerzo por si el push no llega.'],
-  email:    ['Correo electrónico',      'Refuerzo por si el push no llega.'],
-};
-
-function Ajustes({meta, envios, ejecuciones, tema, setTema, onSalir}){
-  const canales = meta.canales || {};
-  const dispositivos = Array.isArray(meta.push_dispositivos) ? meta.push_dispositivos.length : null;
-  const enGitHub = ruta => meta.repo ? `https://github.com/${meta.repo}/${ruta}` : null;
-
-  return (
-    <div className="ajustes">
-
-      {/* 1 — lo que se configura una vez por aparato */}
-      <section className="grupo">
-        <h2>Avisos en este dispositivo</h2>
-        <AvisosPush repo={meta.repo} meta={meta} />
-        <div className="tarjeta pad"><PruebaAvisos meta={meta} /></div>
-      </section>
-
-      {/* 2 — por dónde salen los avisos, que se configura en el repositorio */}
-      <section className="grupo">
-        <h2>Canales de aviso</h2>
-        <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-3)'}}>
-          <ul className="prueba-lista">
-            {Object.keys(NOMBRES_CANAL).map(clave => {
-              const [nombre, nota] = NOMBRES_CANAL[clave];
-              const activo = !!canales[clave];
-              return (
-                <li key={clave}>
-                  {activo ? <span className="marca-ok">✓</span> : <span className="marca-esp">·</span>}
-                  <div>
-                    {nombre}
-                    <small>{activo ? nota : 'Sin configurar en el repositorio.'}</small>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-          <div className="grupo-pie">
-            {dispositivos === null
-              ? 'Los dispositivos suscritos se sabrán en la próxima comprobación.'
-              : <Fragment><b>{dispositivos}</b> dispositivo{dispositivos === 1 ? '' : 's'} dado
-                  {dispositivos === 1 ? '' : 's'} de alta para recibir el push.</Fragment>}
-            {' '}Los canales se activan poniendo sus Secrets en el repositorio.
-          </div>
-        </div>
-      </section>
-
-      {/* 3 — el monitor: cuándo mira el portal y qué encontró la última vez */}
-      <section className="grupo">
-        <h2>El monitor</h2>
-        <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-4)'}}>
-          <Metricas meta={meta} envios={envios} />
-          <div className="grupo-pie">
-            Comprueba el portal de <b>lunes a viernes</b>: cada 15 min de 8:30 a 10:30 y cada hora
-            hasta las 17:30 (hora peninsular). Fuera de ese horario no se consulta nada, así que a
-            primera hora de la mañana es normal que la última comprobación sea de ayer por la tarde.
-          </div>
-          {meta.repo && (
-            <div className="opciones">
-              <a className="btn" target="_blank" rel="noopener" href={enGitHub('actions')}>
-                Ver ejecuciones en GitHub
-              </a>
-              <a className="btn" target="_blank" rel="noopener"
-                 href={enGitHub('actions/workflows/monitor.yml')}>
-                Lanzar una comprobación
-              </a>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* 4 — el historial, que es la prueba de que lo anterior se cumple */}
-      <section className="grupo">
-        <h2>Historial de ejecuciones</h2>
-        <Ejecuciones ejecuciones={ejecuciones} />
-      </section>
-
-      {/* 5 — lo que casi nunca se toca */}
-      <section className="grupo">
-        <h2>Apariencia</h2>
-        <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-3)'}}>
-          <div className="opciones">
-            {[['sistema','Como el sistema'], ['claro','Claro'], ['oscuro','Oscuro']].map(([clave, etq]) => (
-              <button key={clave} className={'btn' + (tema === clave ? ' elegido' : '')}
-                      aria-pressed={tema === clave} onClick={() => setTema(clave)}>{etq}</button>
-            ))}
-          </div>
-          <div className="grupo-pie">Se recuerda solo en este navegador.</div>
-        </div>
-      </section>
-
-      <section className="grupo">
-        <h2>Acceso</h2>
-        <div className="tarjeta pad">
-          <div className="push-linea">
-            <span className="push-txt">
-              <b>Contraseña del panel</b>
-              <small>Guardada en este dispositivo para no tener que escribirla cada vez.
-                     Los datos se descifran aquí, en tu navegador.</small>
-            </span>
-            <button className="btn" onClick={onSalir}>Salir y olvidarla</button>
-          </div>
-        </div>
-      </section>
-
-    </div>
-  );
-}
-
 /* ─────────────────── panel ─────────────────── */
-<<<<<<< HEAD
-function Panel({datos, onRecargar, onSalir, recargando}){
-  const meta        = datos.meta || {};
-  const eventos     = datos.eventos || [];
-  const ejecuciones = datos.ejecuciones || [];
-=======
 /* El recorrido de una comprobación, contado según pasa. Las cuatro fases son
    las que de verdad se distinguen desde fuera: la orden sale, GitHub la encola,
    la máquina lee el portal, y los datos ya son de ahora. */
@@ -1856,47 +1564,10 @@ function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
 
   const meta = datos.meta || {};
   const eventos = datos.eventos || [];
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
+  const ejecuciones = datos.ejecuciones || [];
   const envios = Object.entries(datos.envios || {})
     .map(([id, e]) => ({id, ...e}))
     .sort((a, b) => (b.visto_primera || '').localeCompare(a.visto_primera || ''));
-
-  const ultimoEvento    = eventos.reduce((m, e) => Math.max(m, e.id), 0);
-  const ultimaEjecucion = ejecuciones.length ? ejecuciones[0].ts : '';
-
-  const [pestana, setPestana] = useState('inicio');
-  const [filtro, setFiltro] = useState('activos');
-  const [busqueda, setBusqueda] = useState('');
-  const [permiso, setPermiso] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'denied');
-  const [tema, setTema] = useState(() => leer(TEMA) || 'sistema');
-
-  /* Hasta dónde ha visto cada pestaña. Entrar en una la deja al día: el número
-     no es un contador de lo que hay, es un aviso de lo que falta por mirar. */
-  const [vistoInicio,    setVistoInicio]    = useState(() => marcaVista(VISTO_INICIO, ultimoEvento));
-  const [vistoNovedades, setVistoNovedades] = useState(() => marcaVista(VISTO_NOVEDADES, ultimoEvento));
-  const [vistoAjustes,   setVistoAjustes]   = useState(() => marcaVista(VISTO_AJUSTES, ultimaEjecucion));
-
-  useEffect(() => {
-    if (pestana === 'inicio') {
-      guardar(VISTO_INICIO, String(ultimoEvento)); setVistoInicio(String(ultimoEvento));
-    } else if (pestana === 'novedades') {
-      guardar(VISTO_NOVEDADES, String(ultimoEvento)); setVistoNovedades(String(ultimoEvento));
-    } else if (pestana === 'ajustes' && ultimaEjecucion) {
-      guardar(VISTO_AJUSTES, ultimaEjecucion); setVistoAjustes(ultimaEjecucion);
-    }
-  }, [pestana, ultimoEvento, ultimaEjecucion]);
-
-  /* Qué se está viendo AHORA, que no es lo mismo que qué se eligió: con el tema
-     del sistema en oscuro, «sistema» y «oscuro» se ven igual. Sin esto, el
-     primer clic en el botón parecía no hacer nada. */
-  const oscuroAhora = tema === 'oscuro' ||
-    (tema === 'sistema' && typeof matchMedia === 'function' &&
-     matchMedia('(prefers-color-scheme: dark)').matches);
-
-  useEffect(() => {
-    if (tema === 'sistema') { document.documentElement.removeAttribute('data-tema'); olvidar(TEMA); }
-    else { document.documentElement.setAttribute('data-tema', tema); guardar(TEMA, tema); }
-  }, [tema]);
 
   // Red de seguridad: si el panel está abierto y ve novedades que el push no
   // llegó a entregar, las enseña igualmente. El «tag» evita duplicados.
@@ -1926,8 +1597,6 @@ function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
   envios.forEach(e => cuenta[grupo(e)]++);
   cuenta.activos = cuenta.curso + cuenta.incidencias;
 
-<<<<<<< HEAD
-=======
   /* Qué va en Inicio y qué se archiva. En Inicio está lo que sigue abierto y lo
      entregado hace poco —por si hay que reclamar o ver quién lo recibió—; lo
      demás se va al historial y deja de estorbar. */
@@ -1936,16 +1605,11 @@ function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
   const archivado = envios.filter(e => !enInicio(e));
   cuenta.recientes = deInicio.filter(e => grupo(e) === 'entregados').length;
 
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
   const q = busqueda.trim().toLowerCase();
   const coincide = e => !q || (e.id + ' ' + JSON.stringify(e.campos)).toLowerCase().includes(q);
 
   /* Si no queda nada en marcha, «Activos» enseñaría una pantalla vacía teniendo
-<<<<<<< HEAD
-     envíos delante. En ese caso se muestran los recientes: es lo único que hay
-=======
      envíos delante. En ese caso se muestran los entregados: es lo único que hay
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
      que ver, y una pantalla en blanco no informa de nada. */
   const filtroReal = (filtro === 'activos' && cuenta.activos === 0) ? 'todos' : filtro;
   const enFiltro = e => {
@@ -1954,20 +1618,13 @@ function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
     if (filtroReal === 'todos') return true;
     return g === filtroReal;
   };
-<<<<<<< HEAD
-  const visibles = envios.filter(e => coincide(e) && enFiltro(e));
-=======
   const visibles = deInicio.filter(e => coincide(e) && enFiltro(e));
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
   const orden = {incidencias:0, curso:1, entregados:2};
   const principales = visibles.filter(e => grupo(e) !== 'entregados')
                               .sort((a,b) => orden[grupo(a)] - orden[grupo(b)]);
   const cerrados = visibles.filter(e => grupo(e) === 'entregados');
-<<<<<<< HEAD
-=======
   const enHistorial = archivado.filter(coincide)
                                .sort((a,b) => diasDesdeLaEntrega(a) - diasDesdeLaEntrega(b));
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
 
   const historialDe = id => eventos.filter(ev => ev.envio_id === id);
   const rejilla = lista => (
@@ -1990,8 +1647,6 @@ function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
   const margen = enHorario ? 90 : 20 * 60;
   const paradoEnHorario = enHorario && desfase !== null && desfase > margen;
 
-<<<<<<< HEAD
-=======
   /* Poner en marcha la jornada desde aquí. Es lo que sustituye al cron de
      GitHub, que lleva días sin servir un solo disparo: si al abrir el panel en
      horario laboral resulta que no se ha comprobado nada, se arranca solo. Con
@@ -2003,7 +1658,6 @@ function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
   useEffect(() => { if (token && paradoEnHorario) onActualizar({automatico: true}); },
             [token, paradoEnHorario, onActualizar]);
 
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
   // El titular de la jornada: la respuesta a «¿tengo que mirar algo ahora?»
   const tono = cuenta.incidencias ? 'alerta' : (cuenta.activos ? 'curso' : 'ok');
   const titular = cuenta.incidencias
@@ -2012,32 +1666,48 @@ function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
         ? `${cuenta.activos} envío${cuenta.activos > 1 ? 's' : ''} en camino`
         : envios.length ? 'Todo entregado' : 'Todavía sin envíos';
 
-<<<<<<< HEAD
-  const CIFRAS = [
-    ['activos',     'Activos',     cuenta.activos,     'curso'],
-    ['incidencias', 'Incidencias', cuenta.incidencias, 'alerta'],
-    ['entregados',  'Recientes',   cuenta.entregados,  'ok'],
-    ['todos',       'Vigilados',   envios.length,      ''],
-  ];
-
-  /* El número de cada pestaña: solo lo que queda por mirar ahí dentro. En
-     inicio, cuántos ENVÍOS se han movido (no cuántos apuntes: tres cambios del
-     mismo envío son una sola tarjeta que mirar); en novedades, los apuntes; en
-     ajustes, las comprobaciones que han fallado desde la última visita. */
-  const sinVerInicio = new Set(
-    eventos.filter(e => e.id > Number(vistoInicio)).map(e => e.envio_id)).size;
-  const sinVerNovedades = eventos.filter(e => e.id > Number(vistoNovedades)).length;
-  const sinVerAjustes = ejecuciones.filter(e => !e.ok && e.ts > vistoAjustes).length;
-
-  const PESTANAS = [
-    ['inicio',    'Inicio',    sinVerInicio],
-    ['novedades', 'Novedades', sinVerNovedades],
-    ['ajustes',   'Ajustes',   sinVerAjustes],
-  ];
-=======
   /* Cuatro pestañas. Podrían ser cinco, pero no hay quinta cosa que merezca
      una: separar «avisos» de «ajustes» sería inventar un sitio para dos
      botones. */
+  const ultimoEvento    = eventos.reduce((m, e) => Math.max(m, e.id), 0);
+  const ultimaEjecucion = ejecuciones.length ? ejecuciones[0].ts : '';
+
+  /* Lo que falta por mirar en cada pestaña, y nada más. Antes el globo llevaba
+     el total —todas las novedades, todo el archivo— y encendido siempre acaba
+     sin decir nada; ahora solo aparece si hay algo nuevo ahí dentro.
+
+     Cada pestaña mide su novedad con lo que tiene: los eventos por su id, y el
+     historial por cuántos envíos había archivados la última vez, que es lo
+     único que lo hace crecer. En Inicio se cuentan ENVÍOS movidos, no apuntes:
+     tres cambios del mismo envío son una sola tarjeta que mirar. */
+  const [vistos, setVistos] = useState(() => ({
+    inicio:    marcaVista(VISTO.inicio, ultimoEvento),
+    historial: marcaVista(VISTO.historial, archivado.length),
+    novedades: marcaVista(VISTO.novedades, ultimoEvento),
+    ajustes:   marcaVista(VISTO.ajustes, ultimaEjecucion),
+  }));
+
+  const sellar = (cual, valor) => {
+    if (valor === '' || valor === null) return;
+    guardar(VISTO[cual], String(valor));
+    setVistos(v => (String(v[cual]) === String(valor) ? v : {...v, [cual]: String(valor)}));
+  };
+
+  useEffect(() => {
+    if (pestana === 'inicio')         sellar('inicio', ultimoEvento);
+    else if (pestana === 'novedades') sellar('novedades', ultimoEvento);
+    else if (pestana === 'historial') sellar('historial', archivado.length);
+    else if (pestana === 'ajustes')   sellar('ajustes', ultimaEjecucion);
+  }, [pestana, ultimoEvento, ultimaEjecucion, archivado.length]);
+
+  const nuevosDesde = marca => eventos.filter(e => e.id > Number(marca));
+  const sinVer = {
+    inicio:    new Set(nuevosDesde(vistos.inicio).map(e => e.envio_id)).size,
+    historial: Math.max(0, archivado.length - Number(vistos.historial)),
+    novedades: nuevosDesde(vistos.novedades).length,
+    ajustes:   ejecuciones.filter(e => !e.ok && e.ts > vistos.ajustes).length,
+  };
+
   const PESTANAS = [
     ['inicio',    'Inicio'],
     ['historial', 'Historial'],
@@ -2045,13 +1715,15 @@ function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
     ['ajustes',   'Ajustes'],
   ];
 
+  /* «Recientes» y no «Entregados»: en Inicio no hay una categoría de cerrados,
+     hay envíos de estos días, entregados o no. Y la cifra cuenta los que están
+     de verdad en esta pantalla, no los de todo el archivo. */
   const CIFRAS = [
     ['activos',     'Activos',     cuenta.activos,     'curso'],
     ['incidencias', 'Incidencias', cuenta.incidencias, 'alerta'],
-    ['entregados',  'Entregados',  cuenta.entregados,  'ok'],
+    ['entregados',  'Recientes',   cuenta.recientes,   'ok'],
     ['todos',       'Vigilados',   envios.length,      ''],
   ];
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
 
   return (
     <Fragment>
@@ -2082,45 +1754,25 @@ function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
                 </svg>
               )}
             </button>
-<<<<<<< HEAD
-            <button className="btn primario" onClick={onRecargar} disabled={recargando}>
-              {recargando ? 'Actualizando…' : 'Actualizar'}
-=======
             <button className="btn primario" onClick={() => onActualizar()}
                     disabled={recargando || enMarcha}
                     title={token
                       ? 'Recarga los datos y pone el monitor a comprobar el portal ahora mismo'
                       : 'Vuelve a bajar los datos publicados'}>
               {enMarcha ? 'Comprobando…' : recargando ? 'Actualizando…' : 'Actualizar'}
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
             </button>
           </div>
         </div>
-
-        {/* Las tres puertas del panel. El número solo aparece si hay algo sin
-            ver ahí dentro; entrar lo apaga. */}
-        <nav className="pestanas" role="tablist" aria-label="Secciones del panel">
-          {PESTANAS.map(([clave, etq, sinVer]) => (
-            <button key={clave} role="tab" aria-selected={pestana === clave}
-                    className={'pestana' + (pestana === clave ? ' activa' : '')}
-                    onClick={() => setPestana(clave)}>
-              {etq}
-              {sinVer > 0 && <span className="senal" aria-label={sinVer + ' sin ver'}>{sinVer}</span>}
-            </button>
-          ))}
-        </nav>
       </header>
 
       <nav className="pestanas" role="tablist" aria-label="Secciones">
         <div className="pestanas-int">
         {PESTANAS.map(([clave, etq]) => {
-          const aviso = clave === 'inicio' ? cuenta.incidencias
-                      : clave === 'historial' ? archivado.length
-                      : clave === 'novedades' ? eventos.length : 0;
+          const aviso = sinVer[clave];
           return (
             <button key={clave} role="tab" aria-selected={pestana === clave}
                     className={'pestana' + (pestana === clave ? ' activa' : '')
-                               + (clave === 'inicio' && cuenta.incidencias ? ' urgente' : '')}
+                               + (clave === 'inicio' && aviso && cuenta.incidencias ? ' urgente' : '')}
                     onClick={() => setPestana(clave)}>
               <IconoPestana nombre={clave} />
               <span className="etq">{etq}</span>
@@ -2138,56 +1790,6 @@ function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
           al alcance del pulgar; en pantalla grande, bajo la cabecera. */}
 
       <main className="contenido">
-<<<<<<< HEAD
-        {pestana === 'inicio' && (
-          <Fragment>
-            {meta.error && <div className="aviso mal">⚠ La última comprobación falló: {meta.error}</div>}
-
-            {paradoEnHorario && (
-              <div className="aviso mal">
-                ⚠ <b>El monitor lleva {haceCuanto(meta.ultima_comprobacion).replace('hace ', '')} sin comprobar el portal</b>,
-                y a esta hora debería hacerlo cada hora como mucho.{' '}
-                {meta.repo && (
-                  <a className="enlace" target="_blank" rel="noopener"
-                     href={`https://github.com/${meta.repo}/actions/workflows/monitor.yml`}>
-                    Míralo en Actions y lánzalo a mano
-                  </a>
-                )}
-              </div>
-            )}
-
-            {/* La cabecera del día: qué hay, y las cifras hacen de filtro */}
-            <section className="tarjeta jornada">
-              <div className="jornada-titular">
-                <span className={'faro ' + tono} />
-                <h2>{titular}</h2>
-                <span className="cuando">Comprobado {haceCuanto(meta.ultima_comprobacion)}</span>
-              </div>
-
-              <div className="cifras">
-                {CIFRAS.map(([clave, etq, valor, color]) => (
-                  <button key={clave} className={'cifra ' + color + (filtro === clave ? ' activa' : '')}
-                          aria-pressed={filtro === clave} onClick={() => setFiltro(clave)}>
-                    <b>{valor}</b><span>{etq}</span>
-                  </button>
-                ))}
-              </div>
-
-              <div className="buscador">
-                <span className="lupa" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor"
-                       strokeWidth="2.2" strokeLinecap="round">
-                    <circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.4 15.4 21 21" />
-                  </svg>
-                </span>
-                <input type="search" value={busqueda} onChange={e => setBusqueda(e.target.value)}
-                       placeholder="Buscar destinatario, localidad o albarán…" aria-label="Buscar" />
-              </div>
-            </section>
-
-            {/* 1º — lo que se mueve, siempre a la vista */}
-            <Seccion titulo={principales.length ? 'En camino' : 'Envíos recientes'}
-=======
         <Marcha marcha={marcha} />
 
         {meta.error && <div className="aviso mal">⚠ La última comprobación falló: {meta.error}</div>}
@@ -2235,10 +1837,7 @@ function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
               <Buscador valor={busqueda} onCambio={setBusqueda} />
             </section>
 
-            <AvisosPush repo={meta.repo} meta={meta} />
-
-            <Seccion titulo={principales.length ? 'En camino' : 'Entregados'}
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
+            <Seccion titulo={principales.length ? 'En camino' : 'Envíos recientes'}
                      cuenta={principales.length || cerrados.length} primaria plegable={false}>
               {principales.length === 0 && cerrados.length === 0
                 ? <div className="tarjeta pad vacio">
@@ -2249,35 +1848,10 @@ function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
                 : rejilla(principales.length ? principales : cerrados)}
             </Seccion>
 
-<<<<<<< HEAD
-            {/* 2º — los que ya han llegado: presentes, pero sin robar sitio */}
             {principales.length > 0 && cerrados.length > 0 && (
-              <Seccion titulo="Envíos recientes" cuenta={cerrados.length} abiertaPorDefecto={false}>
+              <Seccion titulo="Envíos recientes" cuenta={cerrados.length}>
                 {rejilla(cerrados)}
               </Seccion>
-            )}
-          </Fragment>
-        )}
-
-        {pestana === 'novedades' && <Novedades eventos={eventos} />}
-
-        {pestana === 'ajustes' && (
-          <Ajustes meta={meta} envios={envios} ejecuciones={ejecuciones}
-                   tema={tema} setTema={setTema} onSalir={onSalir} />
-        )}
-      </main>
-=======
-            {principales.length > 0 && cerrados.length > 0 && (
-              <Seccion titulo="Entregados estos días" cuenta={cerrados.length}>
-                {rejilla(cerrados)}
-              </Seccion>
-            )}
-
-            {archivado.length > 0 && (
-              <button className="mas" onClick={() => setPestana('historial')}>
-                Y {archivado.length} envío{archivado.length > 1 ? 's' : ''} entregado
-                {archivado.length > 1 ? 's' : ''} hace más de {DIAS_RECIENTE} días → ver el historial
-              </button>
             )}
           </Fragment>
         )}
@@ -2316,14 +1890,49 @@ function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
           </Seccion>
         )}
 
-        {/* ─────────────── AJUSTES ─────────────── */}
+        {/* ─────────────── AJUSTES ───────────────
+            Por temas y en el orden en que se necesitan: lo que hay que dejar
+            puesto una vez (los avisos de este aparato), por dónde salen, cómo
+            va el monitor y qué ha hecho, y al final lo que casi nunca se toca.
+            Aquí está también lo que antes contaba el pie de la app. */}
         {pestana === 'ajustes' && (
           <Fragment>
+            <Seccion titulo="Avisos en este dispositivo" primaria plegable={false}>
+              <div style={{display:'grid', gap:'var(--sp-3)'}}>
+                <AvisosPush repo={meta.repo} meta={meta} />
+                <div className="tarjeta pad"><PruebaAvisos meta={meta} /></div>
+              </div>
+            </Seccion>
+
+            <Seccion titulo="Canales de aviso" primaria plegable={false}>
+              <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-3)'}}>
+                <ul className="prueba-lista">
+                  {CANALES.map(([clave, nombre, nota]) => {
+                    const activo = !!(meta.canales || {})[clave];
+                    return (
+                      <li key={clave}>
+                        {activo ? <span className="marca-ok">✓</span> : <span className="marca-esp">·</span>}
+                        <div>{nombre}<small>{activo ? nota : 'Sin configurar en el repositorio.'}</small></div>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="envio-sub">
+                  {Array.isArray(meta.push_dispositivos)
+                    ? `${meta.push_dispositivos.length} dispositivo(s) dados de alta para recibir el push.`
+                    : 'Los dispositivos suscritos se sabrán en la próxima comprobación.'}
+                  {' '}Cada canal se activa poniendo sus Secrets en el repositorio.
+                </div>
+              </div>
+            </Seccion>
+
             <Seccion titulo="Cómo va el monitor" primaria plegable={false}>
               <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-4)'}}>
                 <Metricas meta={meta} envios={envios} />
                 <div className="envio-sub">
                   Vigila de lunes a viernes: cada 15 minutos de 8:30 a 10:30 y cada hora hasta las 17:30.
+                  Fuera de ese horario no se consulta nada, así que a primera hora de la mañana es
+                  normal que la última comprobación sea de ayer por la tarde.
                   {token && ' El botón «Actualizar» de arriba recarga los datos y, de paso, manda comprobar'
                           + ' el portal ahora mismo; si al abrir la app ve que lleva parado, lo hace él solo.'}
                 </div>
@@ -2335,24 +1944,33 @@ function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
                   )}
                   {meta.repo && (
                     <a className="btn" target="_blank" rel="noopener"
-                       href={`https://github.com/${meta.repo}/actions`}>Ver ejecuciones</a>
+                       href={`https://github.com/${meta.repo}/actions`}>Ver ejecuciones en GitHub</a>
                   )}
                 </div>
               </div>
             </Seccion>
 
-            <Seccion titulo="Avisos" primaria plegable={false}>
-              <div className="tarjeta pad">
-                <PruebaAvisos meta={meta} />
+            <Seccion titulo="Historial de ejecuciones" primaria plegable={false}>
+              <Ejecuciones ejecuciones={ejecuciones} />
+            </Seccion>
+
+            <Seccion titulo="Apariencia" primaria plegable={false}>
+              <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-3)'}}>
+                <div className="acciones">
+                  {[['sistema','Como el sistema'], ['claro','Claro'], ['oscuro','Oscuro']].map(([clave, etq]) => (
+                    <button key={clave} className={'btn' + (tema === clave ? ' elegido' : '')}
+                            aria-pressed={tema === clave} onClick={() => setTema(clave)}>{etq}</button>
+                  ))}
+                </div>
+                <div className="envio-sub">Se recuerda solo en este navegador.</div>
               </div>
             </Seccion>
 
-            <Seccion titulo="Este dispositivo" primaria plegable={false}>
+            <Seccion titulo="Acceso" primaria plegable={false}>
               <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-3)'}}>
                 <div className="envio-sub">
-                  Avisos activos por: {Object.entries(meta.canales || {}).filter(([,v]) => v)
-                    .map(([k]) => ({push:'push al dispositivo', telegram:'Telegram', email:'correo'}[k] || k))
-                    .join(', ') || 'ninguno — solo se ven en pantalla'}.
+                  La contraseña queda guardada en este dispositivo para no tener que escribirla cada
+                  vez. Los datos se descifran aquí, en tu navegador.
                 </div>
                 <div className="acciones">
                   <button className="btn" onClick={onSalir}>Olvidar la contraseña en este dispositivo</button>
@@ -2362,15 +1980,6 @@ function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
           </Fragment>
         )}
       </main>
-
-      <footer className="pie-app">
-        <span>Lunes a viernes · cada 15 min de 8:30 a 10:30, y cada hora hasta las 17:30</span>
-        {meta.repo && <a className="enlace" href={`https://github.com/${meta.repo}/actions`} target="_blank" rel="noopener">Ver ejecuciones</a>}
-        <span>Avisos: {Object.entries(meta.canales || {}).filter(([,v])=>v)
-          .map(([k]) => ({push:'push al dispositivo', telegram:'Telegram', email:'email'}[k] || k))
-          .join(', ') || 'solo en pantalla'}</span>
-      </footer>
->>>>>>> ad579244a2963aaa33e3acb940fb2b8b9b484637
     </Fragment>
   );
 }
