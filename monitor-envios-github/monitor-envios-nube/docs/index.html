@@ -228,16 +228,21 @@ img{max-width:100%}
    El titular es el DESTINATARIO, no el número de albarán: nadie reconoce
    «0280010370017025111854», y a todo el mundo le dice algo «Hospital Severo
    Ochoa». El número queda abajo, que es donde se busca cuando hace falta. */
-.rejilla{display:grid; gap:var(--sp-3); align-items:start;
+.rejilla{display:grid; gap:var(--sp-3);
          grid-template-columns:repeat(auto-fill,minmax(min(100%,20rem),1fr))}
 .envio{
-  display:grid; align-content:start; gap:var(--sp-3); padding:var(--sp-4); min-width:0; text-align:left; width:100%;
+  display:flex; flex-direction:column; gap:var(--sp-3); padding:var(--sp-4); min-width:0; text-align:left; width:100%;
   background:var(--lienzo); border:1px solid var(--borde); border-radius:var(--r-lg);
   box-shadow:var(--sombra); cursor:pointer; position:relative; overflow:hidden;
   transition:box-shadow .18s ease, border-color .18s ease, transform .18s ease;
   animation:entrar .3s ease both;
 }
 @keyframes entrar{from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none}}
+/* La desplegada se queda con la fila entera. Si compartiera fila con las demás,
+   estirarlas hasta su altura las dejaba de mil y pico píxeles con el contenido
+   arriba y un desierto debajo. Así, además, el recorrido y la tabla de datos
+   respiran a lo ancho. */
+.envio.abierta{grid-column:1/-1}
 .envio:hover{box-shadow:var(--sombra-alta); border-color:var(--borde-fuerte)}
 .envio::before{content:''; position:absolute; inset:0 auto 0 0; width:3px; background:var(--borde-fuerte)}
 .envio.curso::before{background:var(--marca)}
@@ -246,7 +251,8 @@ img{max-width:100%}
 
 /* min-width:0 en cascada: sin esto, un destinatario largo estira la celda de la
    rejilla y el contenido se sale de la tarjeta en pantallas intermedias. */
-.envio-cuerpo{display:grid; gap:var(--sp-3); min-width:0; text-align:left;
+.envio-cuerpo{display:flex; flex-direction:column; gap:var(--sp-3); flex:1 1 auto;
+              min-width:0; text-align:left;
               background:none; border:0; padding:0; cursor:pointer; color:inherit}
 .envio > *{min-width:0}
 .envio-cuerpo > *{min-width:0}
@@ -284,7 +290,8 @@ img{max-width:100%}
 .etiquetas .marcado .etq{color:var(--suave)}
 
 .envio-pie{display:flex; align-items:center; gap:var(--sp-2); justify-content:space-between; min-width:0; flex-wrap:wrap;
-           border-top:1px solid var(--borde); padding-top:var(--sp-2); font-size:.75rem; color:var(--tenue)}
+           margin-top:auto; border-top:1px solid var(--borde); padding-top:var(--sp-2);
+           font-size:.75rem; color:var(--tenue)}
 .envio-ref{font-family:var(--mono); font-size:.7rem; letter-spacing:-.02em; overflow-wrap:anywhere}
 
 /* Detalle desplegado */
@@ -991,7 +998,7 @@ function TarjetaEnvio({envio, historial}){
                                             : (c.fecha_estado || '');
 
   return (
-    <article className={'envio ' + tono}>
+    <article className={'envio ' + tono + (abierto ? ' abierta' : '')}>
       <div className="envio-cuerpo" role="button" tabIndex={0} aria-expanded={abierto}
            onClick={() => setAbierto(a => !a)}
            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAbierto(a => !a); } }}>
