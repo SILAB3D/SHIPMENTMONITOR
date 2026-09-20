@@ -24,7 +24,13 @@ on:
     # encolan (lo garantiza `concurrency`) y continúan cuando la anterior agota
     # su tope de horas. Van al minuto :07 y :37 porque GitHub retrasa más los
     # disparos que caen en punto.
-    - cron: '7,37 6-16 * * 1-5'
+    #
+    # Se pide a todas horas y todos los días, y no solo en horario de oficina,
+    # porque el horario ya no está aquí: se configura desde la pestaña Ajustes
+    # del panel y puede incluir un sábado por la mañana o una guardia de noche.
+    # El cron solo llama a la puerta; quien decide si hay jornada que vigilar es
+    # monitor/horario.py, y un disparo fuera de horario se va en medio minuto.
+    - cron: '7,37 * * * *'
   workflow_dispatch:        # botón "Run workflow" para forzar una comprobación
     inputs:
       probar_avisos:

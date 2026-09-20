@@ -1,0 +1,42 @@
+{
+ "version": 1,
+ "horarios": [
+  {
+   "id": "jornada",
+   "nombre": "Jornada laboral",
+   "activo": true,
+   "dias": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "tramos": [
+    {
+     "desde": "08:30",
+     "hasta": "10:30",
+     "cada": 15
+    },
+    {
+     "desde": "10:30",
+     "hasta": "17:30",
+     "cada": 60
+    }
+   ]
+  }
+ ],
+ "avisos": {
+  "nuevo": true,
+  "actualizado": true,
+  "incidencia": true,
+  "entrega": true,
+  "error": true,
+  "panel": true
+ },
+ "canales": {
+  "push": true,
+  "telegram": true,
+  "email": true
+ }
+}

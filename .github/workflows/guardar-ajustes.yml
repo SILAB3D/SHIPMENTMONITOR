@@ -1,0 +1,82 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Guardar los ajustes que se tocan en el panel
+#
+# El panel es una página estática: no hay servidor donde dejar lo que eliges en
+# la pestaña Ajustes. Y el token que lleva publicado —cifrado con la contraseña
+# del panel— es de alcance mínimo: solo puede lanzar workflows, no escribir en
+# el repositorio. Así que el panel no guarda nada: pide que lo guarde este
+# workflow, que sí tiene permiso, mandándole los ajustes como entrada.
+#
+# Dura unos segundos: ni instala el navegador, ni consulta el portal, ni toca
+# los datos. Valida lo que llega (monitor/ajustes.py normaliza y descarta lo que
+# no se entiende) y hace un commit de docs/ajustes.json.
+# ─────────────────────────────────────────────────────────────────────────────
+name: Guardar los ajustes
+
+on:
+  workflow_dispatch:
+    inputs:
+      ajustes:
+        description: 'Ajustes del panel en JSON (horarios, avisos y canales)'
+        required: true
+        type: string
+
+permissions:
+  contents: write           # es justo lo que el panel no puede hacer por su cuenta
+
+# Dos guardados seguidos —que es lo que pasa al tocar varias casillas— no pueden
+# pisarse el commit. El segundo espera al primero.
+concurrency:
+  group: guardar-ajustes
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: monitor-envios-github/monitor-envios-nube
+
+jobs:
+  guardar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Sin dependencias: monitor/ajustes.py solo usa la biblioteca estándar, a
+      # propósito, para que guardar un ajuste no dependa de pip.
+      - name: Validar y escribir los ajustes
+        env:
+          AJUSTES_RECIBIDOS: ${{ inputs.ajustes }}
+        run: printf '%s' "$AJUSTES_RECIBIDOS" | python -m monitor.ajustes --guardar
+
+      - name: Guardar en el repositorio
+        run: |
+          git config user.name  "monitor-envios"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for intento in 1 2 3; do
+            git fetch --quiet origin \
+              "+refs/heads/${GITHUB_REF_NAME}:refs/remotes/origin/${GITHUB_REF_NAME}"
+            # --mixed: HEAD y el índice van a la punta remota sin tocar el
+            # directorio de trabajo, así que el fichero recién escrito sigue
+            # intacto y no revertimos nada de lo que hayan subido los demás.
+            git reset --quiet --mixed "origin/${GITHUB_REF_NAME}"
+            git add -f docs/ajustes.json
+            if git diff --staged --quiet; then
+              echo "Los ajustes ya estaban así: nada que guardar."
+              exit 0
+            fi
+            git commit --quiet -m "ajustes: cambiados desde el panel"
+            if git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              echo "Ajustes guardados."
+              exit 0
+            fi
+            echo "Alguien se adelantó; reintento ${intento} de 3."
+          done
+          echo "::error::No se pudieron guardar los ajustes tras 3 intentos."
+          exit 1

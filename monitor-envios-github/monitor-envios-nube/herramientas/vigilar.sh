@@ -19,61 +19,38 @@
 # se sirve.
 #
 # Así que el disparo deja de marcar el ritmo. Una ejecución se queda despierta y
-# comprueba el portal ella misma durante horas, con el ritmo que toque:
-#
-#     · de 8:30 a 10:30 → cada 15 minutos
-#     · de 10:30 a 17:30 → cada hora
-#
-# Con que GitHub sirva UN disparo por la mañana, el día queda cubierto. Si sirve
-# más, se encolan detrás (concurrency lo garantiza) y continúan donde lo dejó la
+# comprueba el portal ella misma durante horas, con el ritmo que toque. Con que
+# GitHub sirva UN disparo por la mañana, el día queda cubierto. Si sirve más, se
+# encolan detrás (concurrency lo garantiza) y continúan donde lo dejó la
 # anterior. Y «Run workflow» a mano ya no vale para una comprobación suelta:
 # arranca la vigilancia del resto del día.
+#
+# El horario ya no está escrito aquí
+# ----------------------------------
+# Los días, los tramos y la frecuencia se configuran desde la pestaña Ajustes
+# del panel y viven en docs/ajustes.json. Este guion no sabe de horas: pregunta
+# a `python -m monitor.horario`, que combina todas las configuraciones activas
+# (ver monitor/horario.py). Si el fichero falta o viene roto, ese módulo cae al
+# horario de siempre: lunes a viernes, cada 15 min hasta las 10:30 y cada hora
+# hasta las 17:30.
 #
 # Variables para las pruebas: VIGILAR_SOLO_FUNCIONES=1 carga las funciones sin
 # ejecutar nada.
 # ─────────────────────────────────────────────────────────────────────────────
 set -uo pipefail        # -e NO: que falle una comprobación no puede tumbar el día
 
-INICIO=510              # 8:30, primera comprobación
-CUARTOS_HASTA=630       # 10:30, hasta aquí cada cuarto de hora
-FIN=1050                # 17:30, última comprobación
-ESPERA_ARRANQUE=90      # si faltan menos que esto para las 8:30, se espera
-MARGEN_FINAL=30         # se admite arrancar hasta media hora después de las 17:30
 MAX_MINUTOS=${VIGILAR_MAX_MINUTOS:-320}   # 5 h 20, por debajo del tope de 6 h de GitHub
+PYTHON=${VIGILAR_PYTHON:-python}
 
 reloj_ahora() { echo $(( $(TZ=Europe/Madrid date +%-H) * 60 + $(TZ=Europe/Madrid date +%-M) )); }
 dia_ahora()   { TZ=Europe/Madrid date +%u; }
 hhmm()        { printf '%02d:%02d' $(( $1 / 60 )) $(( $1 % 60 )); }
 
-# Minuto de la siguiente comprobación. La de las 17:30 se clava siempre: es la
-# que cierra el día y no se puede quedar en las 17:00 por redondear.
-siguiente_minuto() {
-  local ahora=$1 paso
-  if [ "$ahora" -lt "$CUARTOS_HASTA" ]; then paso=15; else paso=60; fi
-  local siguiente=$(( ahora + paso ))
-  if [ "$ahora" -lt "$FIN" ] && [ "$siguiente" -gt "$FIN" ]; then siguiente=$FIN; fi
-  echo "$siguiente"
-}
-
-# ¿Qué hacer con una ejecución que arranca a esta hora de este día?
-#   vigilar | esperar <minutos> | salir <motivo>
-que_hacer() {
-  local dia=$1 ahora=$2
-  if [ "$dia" -gt 5 ]; then echo "salir Fin de semana: no se vigila."; return; fi
-  if [ "$ahora" -lt "$INICIO" ]; then
-    local faltan=$(( INICIO - ahora ))
-    if [ "$faltan" -le "$ESPERA_ARRANQUE" ]; then
-      echo "esperar $faltan"
-    else
-      echo "salir Faltan ${faltan} min para las 8:30: demasiado pronto para quedarse esperando."
-    fi
-    return
-  fi
-  if [ "$ahora" -gt $(( FIN + MARGEN_FINAL )) ]; then
-    echo "salir Pasada la jornada (última comprobación, las 17:30)."; return
-  fi
-  echo "vigilar"
-}
+# Las tres preguntas que el horario contesta. La hora la pone este guion, que es
+# quien sabe la de España; el módulo solo hace cuentas con ella.
+que_hacer()        { "$PYTHON" -m monitor.horario que-hacer "$1" "$2"; }
+siguiente_minuto() { "$PYTHON" -m monitor.horario siguiente "$1" "$2"; }
+resumen_horario()  { "$PYTHON" -m monitor.horario resumen "$1"; }
 
 [ -n "${VIGILAR_SOLO_FUNCIONES:-}" ] && return 0 2>/dev/null || true
 
@@ -99,9 +76,20 @@ guardar() {
   echo "::warning::No se pudieron guardar los datos tras 3 intentos."
 }
 
+# Los ajustes se tocan desde el móvil a cualquier hora, y esta ejecución lleva
+# despierta desde por la mañana con la copia que traía el checkout. Antes de
+# decidir la siguiente comprobación se trae la de la punta de la rama, que es la
+# que acaba de guardar el panel. Se desmonta del índice para no arrastrarla al
+# commit de los datos.
+refrescar_ajustes() {
+  git fetch --quiet origin "${GITHUB_REF_NAME:-main}" 2>/dev/null || return 0
+  git checkout --quiet "origin/${GITHUB_REF_NAME:-main}" -- docs/ajustes.json 2>/dev/null || return 0
+  git reset --quiet -- docs/ajustes.json 2>/dev/null || true
+}
+
 comprobar() {
   echo "── $(TZ=Europe/Madrid date '+%H:%M') · comprobando el portal"
-  if python -m monitor.ejecutar; then fallos=0; else
+  if "$PYTHON" -m monitor.ejecutar; then fallos=0; else
     fallos=$(( fallos + 1 ))
     echo "::warning::La comprobación falló (van ${fallos} seguidas)."
   fi
@@ -119,7 +107,16 @@ cerrar() {
   exit 0
 }
 
-read -r accion resto <<< "$(que_hacer "$(dia_ahora)" "$(reloj_ahora)")"
+dia=$(dia_ahora)
+refrescar_ajustes
+resumen_horario "$dia"
+read -r accion resto <<< "$(que_hacer "$dia" "$(reloj_ahora)")"
+# Si la consulta del horario se rompiera, mejor vigilar de más que pasarse el día
+# parado sin que nadie se entere: eso ya ocurrió una vez y costó un viernes.
+if [ -z "${accion:-}" ]; then
+  echo "::warning::El horario no contestó; se vigila igualmente."
+  accion=vigilar
+fi
 
 # Lanzada a mano se comprueba SIEMPRE, sea la hora que sea: si alguien pulsa el
 # botón es porque quiere mirar el portal ahora, no dentro de doce horas. Si
@@ -132,12 +129,12 @@ if [ "$evento" != "schedule" ]; then
 else
   case "$accion" in
     salir)   echo "$resto"; cerrar ;;
-    esperar) echo "Aún no son las 8:30; esperando ${resto} min para empezar la jornada."
+    esperar) echo "Todavía no ha abierto la jornada; esperando ${resto} min para empezar."
              sleep $(( resto * 60 )) ;;
   esac
 fi
 
-echo "Vigilancia en marcha. Hoy: cada 15 min hasta las 10:30 y cada hora hasta las 17:30."
+echo "Vigilancia en marcha."
 
 # Una comprobación por vuelta, y a dormir hasta la siguiente. Si la ejecución
 # venía lanzada a mano ya se comprobó antes de entrar aquí, así que esa primera
@@ -150,12 +147,16 @@ while true; do
   fi
   saltar=0
 
+  refrescar_ajustes
   ahora=$(reloj_ahora)
-  if [ "$ahora" -ge "$FIN" ]; then
-    echo "Hecha la comprobación de las $(hhmm "$FIN"): jornada terminada."; break
+  siguiente=$(siguiente_minuto "$(dia_ahora)" "$ahora")
+  if [ "$siguiente" = "fin" ]; then
+    echo "Hecha la última comprobación del día: jornada terminada."; break
+  fi
+  if [ -z "$siguiente" ]; then
+    echo "::warning::No se pudo consultar el horario; se cierra la jornada."; break
   fi
 
-  siguiente=$(siguiente_minuto "$ahora")
   espera=$(( (siguiente - ahora) * 60 ))
   transcurrido=$(( ( $(date +%s) - arranque ) / 60 ))
   if [ $(( transcurrido + (espera / 60) )) -ge "$MAX_MINUTOS" ]; then

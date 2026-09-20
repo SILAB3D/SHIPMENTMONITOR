@@ -224,9 +224,16 @@ correo) y en el log dice, canal por canal, cuál ha llegado y cuál no.
 No consulta el portal: manda una notificación y punto. En unos segundos tu móvil
 debería enseñar **«✅ Los avisos funcionan»**.
 
-Si llega: ya está todo. El cron corre solo de lunes a viernes —cada cuarto de hora de
-8:30 a 10:30 y cada hora hasta las 17:30—, con tu ordenador
-apagado, y solo te escribirá cuando haya algo nuevo de verdad.
+Si llega: ya está todo. El monitor corre solo, con tu ordenador apagado, y solo te
+escribirá cuando haya algo nuevo de verdad. De fábrica vigila de lunes a viernes
+—cada cuarto de hora de 8:30 a 10:30 y cada hora hasta las 17:30—, pero eso se
+cambia desde el propio panel: **Ajustes → Horarios de vigilancia**, donde puedes
+poner los días, los tramos y la frecuencia que quieras, o varias configuraciones a
+la vez. Y en **Ajustes → Qué avisos quieres recibir** se enciende y se apaga cada
+tipo de aviso (envíos nuevos, cambios de estado, incidencias, entregas…).
+
+Al guardar, el panel no escribe en el repositorio: le pide al workflow **Guardar los
+ajustes** que lo haga por él, y por eso tarda medio minuto en confirmarte el cambio.
 
 Si no llega, mira el log de esa ejecución: el paso «Enviar un aviso de prueba por cada canal»
 dice exactamente qué ha pasado.

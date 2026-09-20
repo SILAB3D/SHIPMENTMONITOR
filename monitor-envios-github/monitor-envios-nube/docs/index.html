@@ -373,6 +373,66 @@ img{max-width:100%}
 /* El ajuste elegido, marcado sin sacarlo de la fila de botones */
 .btn.elegido{background:var(--marca-tenue); border-color:var(--marca); color:var(--marca)}
 
+/* ───────────────────────── ajustes ─────────────────────────
+   Dos trastos nuevos y nada más: un interruptor y una rejilla de horas. El
+   resto de la pestaña se apaña con las tarjetas y los botones de siempre. */
+
+/* El interruptor. Es una casilla de verdad debajo —se navega con el tabulador y
+   lo lee el lector de pantalla—; lo que se ve es el carril. */
+.opcion{display:flex; align-items:center; gap:var(--sp-3); padding:.55rem 0;
+        border-bottom:1px solid var(--borde); cursor:pointer}
+.opcion:last-child{border-bottom:0}
+.opcion .txt{flex:1 1 auto; min-width:0; font-size:.88rem; font-weight:600}
+.opcion .txt small{display:block; font-weight:400; font-size:.78rem; color:var(--tenue); line-height:1.45}
+.opcion input{position:absolute; opacity:0; width:0; height:0}
+.carril{width:2.35rem; height:1.35rem; border-radius:999px; background:var(--borde-fuerte); flex:none;
+        position:relative; transition:background .16s ease}
+.carril::after{content:''; position:absolute; top:.17rem; left:.17rem; width:1rem; height:1rem;
+               border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.3);
+               transition:transform .16s ease}
+.opcion input:checked + .carril{background:var(--marca)}
+.opcion input:checked + .carril::after{transform:translateX(1rem)}
+.opcion input:focus-visible + .carril{box-shadow:0 0 0 3px var(--marca-tenue)}
+.opcion.apagada .txt{color:var(--tenue)}
+
+/* Una configuración de horario: nombre, días y tramos. */
+.horario{display:grid; gap:var(--sp-3); padding:var(--sp-3); border:1px solid var(--borde);
+         border-radius:var(--r); background:var(--lienzo-2)}
+.horario.apagado{opacity:.62}
+.horario-cab{display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap}
+.horario-cab input[type="text"]{
+  flex:1 1 8rem; min-width:0; font:inherit; font-weight:650; font-size:.92rem; color:var(--texto);
+  background:var(--lienzo); border:1px solid var(--borde); border-radius:var(--r-sm); padding:.38rem .6rem;
+}
+.horario-cab input[type="text"]:focus{outline:none; border-color:var(--marca)}
+.dias{display:flex; gap:.3rem; flex-wrap:wrap}
+.dia{width:2.1rem; height:2.1rem; border-radius:999px; border:1px solid var(--borde); background:var(--lienzo);
+     color:var(--tenue); font:inherit; font-size:.78rem; font-weight:700; cursor:pointer; flex:none}
+.dia.puesto{background:var(--marca-tenue); border-color:var(--marca); color:var(--marca)}
+.tramos{display:grid; gap:var(--sp-2)}
+.tramo-fila{display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap}
+.tramo-fila .de{font-size:.78rem; color:var(--tenue); flex:none}
+.tramo-fila input[type="time"], .tramo-fila select{
+  font:inherit; font-size:.84rem; color:var(--texto); background:var(--lienzo);
+  border:1px solid var(--borde); border-radius:var(--r-sm); padding:.3rem .45rem; min-width:0;
+}
+.tramo-fila input[type="time"]{font-variant-numeric:tabular-nums}
+.tramo-fila input:focus, .tramo-fila select:focus{outline:none; border-color:var(--marca)}
+.tramo-fila .quitar{margin-left:auto; background:none; border:0; color:var(--tenue); cursor:pointer;
+                    font:inherit; font-size:1.1rem; line-height:1; padding:.2rem .35rem; border-radius:var(--r-sm)}
+.tramo-fila .quitar:hover{color:var(--mal); background:var(--mal-fondo)}
+.horario-pie{display:flex; align-items:center; gap:var(--sp-2); flex-wrap:wrap; font-size:.78rem; color:var(--tenue)}
+
+/* La barra de guardar: aparece cuando hay algo sin guardar y se queda pegada
+   abajo, porque los horarios se tocan en el móvil y el botón quedaba fuera. */
+.guardar-barra{position:sticky; bottom:var(--sp-3); z-index:5; display:flex; align-items:center;
+               gap:var(--sp-3); flex-wrap:wrap; padding:var(--sp-3); border-radius:var(--r);
+               background:var(--lienzo); border:1px solid var(--marca-borde); box-shadow:var(--sombra-alta)}
+.guardar-barra .txt{flex:1 1 12rem; min-width:0; font-size:.82rem; color:var(--suave)}
+@media (max-width:640px){
+  .guardar-barra{bottom:calc(4rem + env(safe-area-inset-bottom))}
+}
+
 /* ───────────────────────── móvil ───────────────────────── */
 @media (max-width:640px){
   .barra-int{padding:var(--sp-2) var(--sp-3); gap:var(--sp-2)}
@@ -740,6 +800,139 @@ async function cargarDisparo(password){
   return null;
 }
 
+/* ─────────────────── los ajustes que se tocan aquí ───────────────────
+ *
+ * Horarios de vigilancia y qué avisos quieres recibir. Viven en
+ * docs/ajustes.json, en el repositorio y en claro: ni las horas ni las casillas
+ * son un secreto, y así los lee tanto esta pantalla como el monitor.
+ *
+ * Guardar es lo único que esta página no puede hacer por su cuenta: el token
+ * que lleva publicado solo sabe lanzar workflows, nunca escribir en el
+ * repositorio (si supiera escribir, cualquiera que averiguase la contraseña
+ * podría cambiar el código que se ejecuta). Así que se le pide el favor al
+ * workflow «Guardar los ajustes», que valida lo que le llega y hace el commit.
+ * Tarda unos segundos; mientras tanto la pantalla ya enseña lo elegido.
+ */
+const AJUSTES_URL = 'https://raw.githubusercontent.com/SILAB3D/SHIPMENTMONITOR/main/'
+                  + 'monitor-envios-github/monitor-envios-nube/docs/ajustes.json';
+const AJUSTES_LOCAL = 'shipmentmonitor:ajustes';   // lo último elegido en este aparato
+
+const CLASES_AVISO = [
+  ['nuevo',       'Envíos nuevos',            'Cuando el portal da de alta un envío que no habíamos visto.'],
+  ['actualizado', 'Cambios de estado',        'Tránsito, lecturas de almacén, salidas a reparto…'],
+  ['incidencia',  'Incidencias',              'Ausente, rehusado, devuelto, retenido en aduana, entrega parcial…'],
+  ['entrega',     'Entregas',                 'Cuando un envío se da por entregado.'],
+  ['error',       'Fallos del monitor',       'Si el monitor no consigue leer el portal.'],
+  ['panel',       'Avisos del panel abierto', 'Los que enseña esta pantalla si ve novedades que el push no trajo.'],
+];
+
+const NOMBRES_CANAL = {push: 'Push a los dispositivos', telegram: 'Telegram', email: 'Correo electrónico'};
+
+const DIAS_SEMANA = [[1,'L','lunes'], [2,'M','martes'], [3,'X','miércoles'], [4,'J','jueves'],
+                     [5,'V','viernes'], [6,'S','sábado'], [7,'D','domingo']];
+
+const CADA_OPCIONES = [5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240, 360, 720];
+const cadaTexto = m => m < 60 ? `cada ${m} min`
+                     : m % 60 === 0 ? `cada ${m / 60} h` : `cada ${Math.floor(m / 60)} h ${m % 60} min`;
+
+const HORARIO_DEFECTO = {
+  id: 'jornada', nombre: 'Jornada laboral', activo: true, dias: [1, 2, 3, 4, 5],
+  tramos: [{desde: '08:30', hasta: '10:30', cada: 15},
+           {desde: '10:30', hasta: '17:30', cada: 60}],
+};
+
+const AJUSTES_DEFECTO = {
+  version: 1,
+  horarios: [HORARIO_DEFECTO],
+  avisos:  Object.fromEntries(CLASES_AVISO.map(([k]) => [k, true])),
+  canales: {push: true, telegram: true, email: true},
+};
+
+const clonar = o => JSON.parse(JSON.stringify(o));
+
+/* Las mismas reglas que monitor/ajustes.py, y por el mismo motivo: lo que no se
+   entiende se descarta, y si no queda nada en pie se usa el horario de siempre.
+   Aquí, además, evita que un fichero de una versión futura deje la pantalla en
+   blanco. */
+const aMinutos = hhmm => {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm || '').trim());
+  if (!m) return null;
+  const total = Number(m[1]) * 60 + Number(m[2]);
+  return (Number(m[2]) > 59 || total > 1440) ? null : total;
+};
+const aReloj = min => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+
+function normalizarAjustes(crudo){
+  crudo = (crudo && typeof crudo === 'object') ? crudo : {};
+  const horarios = [];
+  (Array.isArray(crudo.horarios) ? crudo.horarios : []).forEach((h, i) => {
+    if (!h || typeof h !== 'object') return;
+    const dias = [...new Set((h.dias || []).map(Number).filter(d => d >= 1 && d <= 7))].sort();
+    const tramos = (h.tramos || []).map(t => {
+      const desde = aMinutos(t && t.desde), hasta = aMinutos(t && t.hasta);
+      if (desde === null || hasta === null || hasta <= desde) return null;
+      const cada = Math.max(5, Math.min(Number(t.cada) || 60, 720));
+      return {desde: aReloj(desde), hasta: aReloj(hasta), cada};
+    }).filter(Boolean).sort((a, b) => a.desde.localeCompare(b.desde));
+    if (!dias.length || !tramos.length) return;
+    horarios.push({id: String(h.id || `h${i + 1}`).slice(0, 40),
+                   nombre: String(h.nombre || 'Sin nombre').slice(0, 60),
+                   activo: h.activo !== false, dias, tramos});
+  });
+  const avisos = {...AJUSTES_DEFECTO.avisos}, canales = {...AJUSTES_DEFECTO.canales};
+  Object.entries(crudo.avisos || {}).forEach(([k, v]) => { if (k in avisos) avisos[k] = v !== false; });
+  Object.entries(crudo.canales || {}).forEach(([k, v]) => { if (k in canales) canales[k] = v !== false; });
+  return {version: 1, horarios: horarios.length ? horarios : [clonar(HORARIO_DEFECTO)],
+          avisos, canales, actualizado: crudo.actualizado || ''};
+}
+
+/** Los minutos del día en que se comprueba, igual que monitor/horario.py. */
+function momentosDelDia(ajustes, dia){
+  const marcas = new Set();
+  (ajustes.horarios || []).forEach(h => {
+    if (!h.activo || !h.dias.includes(dia)) return;
+    h.tramos.forEach(t => {
+      const desde = aMinutos(t.desde), hasta = aMinutos(t.hasta);
+      for (let m = desde; m < hasta; m += t.cada) marcas.add(m);
+      marcas.add(hasta);                    // el cierre del tramo, siempre
+    });
+  });
+  return [...marcas].sort((a, b) => a - b);
+}
+
+/** El reloj de España, que es con el que vigila el monitor. */
+function ahoraEnEspana(){
+  const d = new Date(new Date().toLocaleString('en-US', {timeZone: 'Europe/Madrid'}));
+  return {dia: d.getDay() === 0 ? 7 : d.getDay(), reloj: d.getHours() * 60 + d.getMinutes()};
+}
+
+/** ¿Debería estar vigilando ahora mismo? Decide si el panel canta un parón. */
+function vigilandoAhora(ajustes){
+  const {dia, reloj} = ahoraEnEspana();
+  const marcas = momentosDelDia(ajustes, dia);
+  return marcas.length > 0 && reloj >= marcas[0] && reloj <= marcas[marcas.length - 1];
+}
+
+/** El hueco más largo entre dos comprobaciones de hoy: el margen del «lleva parado». */
+function huecoMayor(ajustes){
+  const marcas = momentosDelDia(ajustes, ahoraEnEspana().dia);
+  let mayor = 60;
+  for (let i = 1; i < marcas.length; i++) mayor = Math.max(mayor, marcas[i] - marcas[i - 1]);
+  return mayor;
+}
+
+async function cargarAjustes(){
+  for (const url of [AJUSTES_URL, 'ajustes.json']) {
+    try {
+      const r = await fetch(url + '?t=' + Date.now(), {cache: 'no-store'});
+      if (r.ok) return normalizarAjustes(await r.json());
+    } catch (_) { /* probamos el siguiente */ }
+  }
+  // Sin red: lo último que se eligió en este aparato, y si no, el de siempre.
+  try { return normalizarAjustes(JSON.parse(leer(AJUSTES_LOCAL) || '{}')); }
+  catch (_) { return normalizarAjustes({}); }
+}
+
 const GH_REPO = 'https://api.github.com/repos/SILAB3D/SHIPMENTMONITOR';
 const cabecerasGH = token => ({'Authorization': 'Bearer ' + token,
                                'Accept': 'application/vnd.github+json',
@@ -761,6 +954,43 @@ async function arrancarVigilancia(token){
    acto de fe: la orden salía, GitHub tardaba entre veinte segundos y dos
    minutos en levantar la máquina, y el panel no decía nada. */
 const espera = ms => new Promise(r => setTimeout(r, ms));
+
+/** Pide al workflow que guarde los ajustes y espera a ver el fichero cambiado.
+ *
+ * No basta con que GitHub acepte la orden (un 204 significa «apuntado», no
+ * «hecho»): si el JSON no le gustase al validador, el workflow acabaría en rojo
+ * y aquí nadie se enteraría. Por eso se espera a ver el fichero publicado con
+ * la misma marca de tiempo que se mandó. Tarda medio minuto largo, lo que
+ * cuesta levantar la máquina.
+ */
+async function guardarAjustes(token, ajustes){
+  const marca = new Date().toISOString();
+  const aGuardar = {...ajustes, actualizado: marca};
+  const r = await fetch(GH_REPO + '/actions/workflows/guardar-ajustes.yml/dispatches', {
+    method: 'POST',
+    headers: cabecerasGH(token),
+    body: JSON.stringify({ref: 'main', inputs: {ajustes: JSON.stringify(aGuardar)}}),
+  });
+  if (r.status !== 204) {
+    let detalle = '';
+    try { detalle = (await r.json()).message || ''; } catch (_) {}
+    if (r.status === 404) {
+      throw new Error('GitHub no encuentra el workflow «Guardar los ajustes». Si acabas de '
+                    + 'actualizar el panel, espera a que el repositorio tenga el fichero '
+                    + '.github/workflows/guardar-ajustes.yml en la rama main.');
+    }
+    throw new Error(`GitHub respondió ${r.status}${detalle ? ': ' + detalle : ''}`);
+  }
+  for (let vuelta = 0; vuelta < 30; vuelta++) {
+    await espera(4000);
+    try {
+      const f = await fetch(AJUSTES_URL + '?t=' + Date.now(), {cache: 'no-store'});
+      if (f.ok && (await f.json()).actualizado === marca) return aGuardar;
+    } catch (_) { /* todavía no está: se sigue esperando */ }
+  }
+  throw new Error('GitHub aceptó la orden pero el fichero no ha cambiado todavía. '
+                + 'Mira la pestaña Actions del repositorio.');
+}
 
 async function ultimaEjecucion(token){
   const r = await fetch(GH_REPO + '/actions/workflows/monitor.yml/runs?per_page=1&t=' + Date.now(),
@@ -842,6 +1072,20 @@ function analizarEstado(texto){
   else if (incidencia) paso = 2;
   else paso = 0;
   return {paso, incidencia, texto: texto || 'sin estado'};
+}
+
+/** De qué clase es la novedad, para saber si toca avisar de ella.
+ *
+ * Es la misma regla que monitor/ajustes.py aplica antes de empujar el aviso
+ * desde GitHub; aquí hace falta para los avisos que enseña el propio panel
+ * cuando está abierto y ve algo que el push no llegó a traer.
+ */
+function claseDeEvento(ev){
+  if (ev.tipo === 'nuevo') return 'nuevo';
+  const t = sinAcentos((ev.campos && ev.campos.estado) || ev.detalle || '');
+  const {incidencia, paso} = analizarEstado(t);
+  if (incidencia) return 'incidencia';
+  return paso === 3 ? 'entrega' : 'actualizado';
 }
 
 /* El portal escribe las horas como «27/08/26 08:20:25». En el diagrama no cabe
@@ -1363,6 +1607,220 @@ function PruebaAvisos({meta}){
   );
 }
 
+/* ─────────────────── los ajustes editables ───────────────────
+   Todo lo de aquí abajo trabaja sobre una copia en memoria: se toca lo que haga
+   falta y luego se guarda de una vez. Guardar cuesta medio minuto —hay que
+   levantar una máquina en GitHub—, así que hacerlo en cada clic sería
+   insufrible. */
+
+function Interruptor({puesto, onCambio, titulo, nota, deshabilitado}){
+  return (
+    <label className={'opcion' + (puesto ? '' : ' apagada')}>
+      <span className="txt">{titulo}{nota && <small>{nota}</small>}</span>
+      <input type="checkbox" checked={!!puesto} disabled={deshabilitado}
+             onChange={e => onCambio(e.target.checked)} />
+      <span className="carril" aria-hidden="true" />
+    </label>
+  );
+}
+
+/* Cuántas comprobaciones salen de una configuración, que es la única forma
+   honesta de enseñar lo que significa lo que acabas de elegir. */
+const cuentaDeHorario = h => h.dias.length
+  ? momentosDelDia({horarios: [{...h, activo: true}]}, h.dias[0]).length : 0;
+
+function EditorHorario({horario, onCambio, onBorrar}){
+  const toca = cambios => onCambio({...horario, ...cambios});
+  const tocaTramo = (i, cambios) =>
+    toca({tramos: horario.tramos.map((t, j) => j === i ? {...t, ...cambios} : t)});
+
+  /* Un tramo nuevo empieza donde acabó el último: es lo que se quiere el 90 %
+     de las veces («y de 17:30 a 20:00 cada dos horas»). */
+  const anadirTramo = () => {
+    const ultimo = horario.tramos[horario.tramos.length - 1];
+    const desde = ultimo ? ultimo.hasta : '09:00';
+    const fin = Math.min(aMinutos(desde) + 120, 1440);
+    toca({tramos: [...horario.tramos, {desde, hasta: aReloj(fin), cada: 60}]});
+  };
+
+  const malFormado = horario.tramos.some(t => aMinutos(t.hasta) <= aMinutos(t.desde));
+
+  return (
+    <div className={'horario' + (horario.activo ? '' : ' apagado')}>
+      <div className="horario-cab">
+        <input type="text" value={horario.nombre} aria-label="Nombre de la configuración"
+               placeholder="Nombre" maxLength={60}
+               onChange={e => toca({nombre: e.target.value})} />
+        <label className="opcion" style={{padding:0, border:0, flex:'none'}}>
+          <span className="txt" style={{fontSize:'.78rem'}}>{horario.activo ? 'Activa' : 'Apagada'}</span>
+          <input type="checkbox" checked={horario.activo}
+                 onChange={e => toca({activo: e.target.checked})} />
+          <span className="carril" aria-hidden="true" />
+        </label>
+      </div>
+
+      <div className="dias" role="group" aria-label="Días de la semana">
+        {DIAS_SEMANA.map(([n, letra, nombre]) => {
+          const puesto = horario.dias.includes(n);
+          return (
+            <button key={n} className={'dia' + (puesto ? ' puesto' : '')}
+                    aria-pressed={puesto} title={nombre}
+                    onClick={() => toca({dias: puesto ? horario.dias.filter(d => d !== n)
+                                                      : [...horario.dias, n].sort()})}>
+              {letra}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="tramos">
+        {horario.tramos.map((t, i) => (
+          <div className="tramo-fila" key={i}>
+            <span className="de">De</span>
+            <input type="time" value={t.desde} aria-label="Desde"
+                   onChange={e => tocaTramo(i, {desde: e.target.value})} />
+            <span className="de">a</span>
+            <input type="time" value={t.hasta} aria-label="Hasta"
+                   onChange={e => tocaTramo(i, {hasta: e.target.value})} />
+            <select value={t.cada} aria-label="Cada cuánto"
+                    onChange={e => tocaTramo(i, {cada: Number(e.target.value)})}>
+              {CADA_OPCIONES.map(m => <option key={m} value={m}>{cadaTexto(m)}</option>)}
+            </select>
+            {horario.tramos.length > 1 && (
+              <button className="quitar" title="Quitar este tramo" aria-label="Quitar este tramo"
+                      onClick={() => toca({tramos: horario.tramos.filter((_, j) => j !== i)})}>×</button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="horario-pie">
+        <button className="enlace" onClick={anadirTramo}>+ Añadir tramo</button>
+        <span className="crece" />
+        {!horario.dias.length ? <span style={{color:'var(--mal)'}}>Sin días: no se vigilará.</span>
+         : malFormado ? <span style={{color:'var(--mal)'}}>Hay un tramo que acaba antes de empezar.</span>
+         : <span>{cuentaDeHorario(horario)} comprobaciones cada día elegido</span>}
+        <button className="enlace" style={{color:'var(--mal)'}} onClick={onBorrar}>Borrar</button>
+      </div>
+    </div>
+  );
+}
+
+function Horarios({ajustes, onCambio}){
+  const horarios = ajustes.horarios;
+  const cambiar = (i, nuevo) => onCambio({...ajustes, horarios: horarios.map((h, j) => j === i ? nuevo : h)});
+  const borrar = i => onCambio({...ajustes, horarios: horarios.filter((_, j) => j !== i)});
+  const anadir = () => onCambio({...ajustes, horarios: [...horarios, {
+    id: 'h' + Date.now().toString(36), nombre: 'Nueva configuración', activo: true, dias: [6],
+    tramos: [{desde: '09:00', hasta: '14:00', cada: 60}],
+  }]});
+
+  const {dia} = ahoraEnEspana();
+  const hoy = momentosDelDia(ajustes, dia);
+
+  return (
+    <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-3)'}}>
+      <div className="envio-sub">
+        Cuándo se consulta el portal, en hora de España. Puedes tener varias configuraciones a la
+        vez —la jornada de siempre y una guardia para el sábado, por ejemplo—: en cada día se
+        juntan todas las que estén activas. Fuera de estas horas no se consulta nada.
+      </div>
+
+      {horarios.map((h, i) => (
+        <EditorHorario key={h.id || i} horario={h}
+                       onCambio={nuevo => cambiar(i, nuevo)} onBorrar={() => borrar(i)} />
+      ))}
+
+      <div className="acciones">
+        <button className="btn" onClick={anadir}>+ Añadir configuración</button>
+      </div>
+
+      <div className="envio-sub">
+        {horarios.length === 0
+          ? 'Sin ninguna configuración se vuelve al horario de siempre: de lunes a viernes, '
+            + 'cada 15 min hasta las 10:30 y cada hora hasta las 17:30.'
+          : hoy.length
+            ? `Hoy toca comprobar ${hoy.length} vece(s): de ${aReloj(hoy[0])} a ${aReloj(hoy[hoy.length - 1])}.`
+            : 'Hoy no hay ninguna comprobación programada.'}
+        {' '}El cambio entra en vigor en la siguiente comprobación, sin esperar al día siguiente.
+      </div>
+    </div>
+  );
+}
+
+function AvisosAjustes({ajustes, onCambio, meta}){
+  const canales = meta.canales || {};
+  const toca = (rama, clave, valor) =>
+    onCambio({...ajustes, [rama]: {...ajustes[rama], [clave]: valor}});
+
+  return (
+    <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-4)'}}>
+      <div>
+        <div className="titulo-seccion">De qué se avisa</div>
+        <div className="envio-sub" style={{marginBottom:'var(--sp-2)'}}>
+          Lo que apagues aquí deja de llegarte al móvil, pero se sigue apuntando: las novedades
+          se ven igual en Inicio y en el historial.
+        </div>
+        {CLASES_AVISO.map(([clave, titulo, nota]) => (
+          <Interruptor key={clave} titulo={titulo} nota={nota} puesto={ajustes.avisos[clave]}
+                       onCambio={v => toca('avisos', clave, v)} />
+        ))}
+      </div>
+
+      <div>
+        <div className="titulo-seccion">Por dónde salen</div>
+        <div className="envio-sub" style={{marginBottom:'var(--sp-2)'}}>
+          Cada canal se configura con sus Secrets en el repositorio; aquí solo se enciende y se
+          apaga el que ya esté puesto.
+        </div>
+        {Object.entries(NOMBRES_CANAL).map(([clave, nombre]) => (
+          <Interruptor key={clave} titulo={nombre}
+                       nota={canales[clave] ? null : 'Sin configurar en el repositorio.'}
+                       deshabilitado={!canales[clave]}
+                       puesto={ajustes.canales[clave] && !!canales[clave]}
+                       onCambio={v => toca('canales', clave, v)} />
+        ))}
+        <div className="envio-sub" style={{marginTop:'var(--sp-2)'}}>
+          {Array.isArray(meta.push_dispositivos)
+            ? `${meta.push_dispositivos.length} dispositivo(s) dados de alta para recibir el push.`
+            : 'Los dispositivos suscritos se sabrán en la próxima comprobación.'}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* La barra de guardar. Sale sola cuando hay algo sin guardar y no se va hasta
+   que GitHub confirma: un ajuste que crees puesto y no lo está es peor que no
+   haberlo tocado. */
+function BarraGuardar({sucio, guardando, resultado, error, token, onGuardar, onDeshacer, json}){
+  const [copiado, setCopiado] = useState(false);
+  if (!sucio && !guardando && !resultado && !error) return null;
+  return (
+    <div className="guardar-barra">
+      <div className="txt">
+        {guardando ? 'Guardando en el repositorio… (GitHub tarda medio minuto en levantar la máquina)'
+         : error   ? <span style={{color:'var(--mal)'}}>No se pudo guardar: {error}</span>
+         : resultado ? <span style={{color:'var(--ok)'}}>✓ Ajustes guardados.</span>
+         : token   ? 'Hay cambios sin guardar.'
+                   : 'Hay cambios sin guardar, y este dispositivo no tiene la llave para mandarlos '
+                   + 'a GitHub. Copia el texto y pégalo en docs/ajustes.json del repositorio.'}
+      </div>
+      <div className="acciones">
+        {sucio && <button className="btn" onClick={onDeshacer} disabled={guardando}>Deshacer</button>}
+        {token
+          ? <button className="btn primario" onClick={onGuardar} disabled={guardando || !sucio}>
+              {guardando ? 'Guardando…' : 'Guardar ajustes'}
+            </button>
+          : sucio && <button className="btn primario" onClick={async () => {
+              setCopiado(await copiar(json));
+              setTimeout(() => setCopiado(false), 2500);
+            }}>{copiado ? '¡Copiado!' : 'Copiar los ajustes'}</button>}
+      </div>
+    </div>
+  );
+}
+
 function Metricas({meta, envios}){
   const analizados = envios.map(e => analizarEstado(e.campos.estado));
   const entregados = analizados.filter(a => a.paso === 3 && !a.incidencia).length;
@@ -1409,13 +1867,6 @@ const ICONOS = {
                <path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6" />
              </Fragment>,
 };
-
-/* Los canales, con su nombre de persona y para qué sirve cada uno. */
-const CANALES = [
-  ['push',     'Push a los dispositivos', 'El canal principal: llega al móvil con la app cerrada.'],
-  ['telegram', 'Telegram',                'Refuerzo por si el push no llega.'],
-  ['email',    'Correo electrónico',      'Refuerzo por si el push no llega.'],
-];
 
 const IconoPestana = ({nombre}) => (
   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor"
@@ -1550,8 +2001,42 @@ function Marcha({marcha}){
   );
 }
 
-function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
+function Panel({datos, token, onActualizar, onSalir, recargando, marcha, ajustes, onAjustes}){
   const [pestana, setPestana] = useState('inicio');
+  /* Lo que se está tocando en Ajustes, que no es lo que hay guardado hasta que
+     GitHub confirma. Mientras tanto la pantalla obedece a lo editado: quien
+     acaba de apagar un aviso no quiere verlo encendido medio minuto más. */
+  const [borrador, setBorrador] = useState(ajustes);
+  const [guardando, setGuardando] = useState(false);
+  const [guardado, setGuardado] = useState(false);
+  const [errorAjustes, setErrorAjustes] = useState('');
+  /* Los ajustes se vuelven a bajar cada cinco minutos. Si en ese momento hay
+     algo a medio editar, lo de fuera NO puede pisarlo: se perdería lo escrito
+     por un refresco que nadie pidió. */
+  const tocado = useRef(false);
+  useEffect(() => { if (!tocado.current) setBorrador(ajustes); }, [ajustes]);
+
+  const sucioAjustes = JSON.stringify({...borrador, actualizado: ''})
+                    !== JSON.stringify({...ajustes, actualizado: ''});
+
+  const tocarAjustes = (nuevos, limpio) => {
+    tocado.current = !limpio;
+    setBorrador(nuevos); setGuardado(false); setErrorAjustes('');
+    guardar(AJUSTES_LOCAL, JSON.stringify(nuevos));   // por si se cierra la app antes de guardar
+  };
+
+  const mandarAjustes = async () => {
+    setGuardando(true); setErrorAjustes(''); setGuardado(false);
+    try {
+      const puestos = await guardarAjustes(token, borrador);
+      tocado.current = false;
+      onAjustes(puestos);
+      setGuardado(true);
+      setTimeout(() => setGuardado(false), 6000);
+    } catch (e) { setErrorAjustes(e.message); }
+    finally { setGuardando(false); }
+  };
+
   const [filtro, setFiltro] = useState('todos');
   const [busqueda, setBusqueda] = useState('');
   const [permiso, setPermiso] = useState(typeof Notification !== 'undefined' ? Notification.permission : 'denied');
@@ -1581,9 +2066,10 @@ function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
   useEffect(() => {
     if (permiso !== 'granted' || !eventos.length) return;
     const visto = Number(leer(ULTIMO_VISTO) || 0);
-    const nuevos = eventos.filter(e => e.id > visto);
+    const nuevos = eventos.filter(e => e.id > visto)
+                          .filter(e => borrador.avisos[claseDeEvento(e)] !== false);
     guardar(ULTIMO_VISTO, String(Math.max(...eventos.map(e => e.id))));
-    if (!visto) return;                       // primera visita: no bombardeamos
+    if (!visto || !borrador.avisos.panel) return;   // primera visita: no bombardeamos
     (async () => {
       const reg = await navigator.serviceWorker?.getRegistration();
       nuevos.slice(0, 5).forEach(n => {
@@ -1592,7 +2078,7 @@ function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
         reg ? reg.showNotification(n.titulo, o) : new Notification(n.titulo, o);
       });
     })();
-  }, [eventos, permiso]);
+  }, [eventos, permiso, borrador.avisos]);
 
   /* Un envío está «activo» mientras no esté entregado y sin problemas. Las
      incidencias son activas y van delante: son las que urge mirar. */
@@ -1646,12 +2132,10 @@ function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
      notó, así que ahora el panel lo canta. */
   const desfase = meta.ultima_comprobacion
     ? Math.round((Date.now() - new Date(meta.ultima_comprobacion)) / 60000) : null;
-  const enHorario = (() => {
-    const ahora = new Date(new Date().toLocaleString('en-US', {timeZone: 'Europe/Madrid'}));
-    const dia = ahora.getDay(), reloj = ahora.getHours() * 60 + ahora.getMinutes();
-    return dia >= 1 && dia <= 5 && reloj >= 510 && reloj <= 1080;
-  })();
-  const margen = enHorario ? 90 : 20 * 60;
+  const enHorario = vigilandoAhora(borrador);
+  // El margen sale del propio horario: con un tramo de cada dos horas, dos
+  // horas sin comprobar son normales; con uno de cada quince minutos, no.
+  const margen = enHorario ? huecoMayor(borrador) + 30 : 20 * 60;
   const paradoEnHorario = enHorario && desfase !== null && desfase > margen;
 
   /* Poner en marcha la jornada desde aquí. Es lo que sustituye al cron de
@@ -1721,6 +2205,11 @@ function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
     ['novedades', 'Novedades'],
     ['ajustes',   'Ajustes'],
   ];
+
+  /* Dos cifras para las cabeceras de Ajustes: con todo plegado, el número es lo
+     único que dice qué hay ahí dentro sin tener que abrirlo. */
+  const avisosPuestos = CLASES_AVISO.filter(([k]) => borrador.avisos[k]).length;
+  const hoyToca = momentosDelDia(borrador, ahoraEnEspana().dia);
 
   /* «Recientes» y no «Entregados»: en Inicio no hay una categoría de cerrados,
      hay envíos de estos días, entregados o no. Y la cifra cuenta los que están
@@ -1904,42 +2393,34 @@ function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
             Aquí está también lo que antes contaba el pie de la app. */}
         {pestana === 'ajustes' && (
           <Fragment>
-            <Seccion titulo="Avisos en este dispositivo" primaria plegable={false}>
+            <Seccion titulo="Avisos en este dispositivo" primaria abiertaPorDefecto={false}>
               <div style={{display:'grid', gap:'var(--sp-3)'}}>
                 <AvisosPush repo={meta.repo} meta={meta} />
                 <div className="tarjeta pad"><PruebaAvisos meta={meta} /></div>
               </div>
             </Seccion>
 
-            <Seccion titulo="Canales de aviso" primaria plegable={false}>
-              <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-3)'}}>
-                <ul className="prueba-lista">
-                  {CANALES.map(([clave, nombre, nota]) => {
-                    const activo = !!(meta.canales || {})[clave];
-                    return (
-                      <li key={clave}>
-                        {activo ? <span className="marca-ok">✓</span> : <span className="marca-esp">·</span>}
-                        <div>{nombre}<small>{activo ? nota : 'Sin configurar en el repositorio.'}</small></div>
-                      </li>
-                    );
-                  })}
-                </ul>
-                <div className="envio-sub">
-                  {Array.isArray(meta.push_dispositivos)
-                    ? `${meta.push_dispositivos.length} dispositivo(s) dados de alta para recibir el push.`
-                    : 'Los dispositivos suscritos se sabrán en la próxima comprobación.'}
-                  {' '}Cada canal se activa poniendo sus Secrets en el repositorio.
-                </div>
-              </div>
+            <Seccion titulo="Qué avisos quieres recibir" primaria abiertaPorDefecto={false}
+                     cuenta={`${avisosPuestos} de ${CLASES_AVISO.length}`}>
+              <AvisosAjustes ajustes={borrador} onCambio={tocarAjustes} meta={meta} />
             </Seccion>
 
-            <Seccion titulo="Cómo va el monitor" primaria plegable={false}>
+            <Seccion titulo="Horarios de vigilancia" primaria abiertaPorDefecto={false}
+                     cuenta={borrador.horarios.filter(h => h.activo).length}>
+              <Horarios ajustes={borrador} onCambio={tocarAjustes} />
+            </Seccion>
+
+            <Seccion titulo="Cómo va el monitor" primaria abiertaPorDefecto={false}>
               <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-4)'}}>
                 <Metricas meta={meta} envios={envios} />
                 <div className="envio-sub">
-                  Vigila de lunes a viernes: cada 15 minutos de 8:30 a 10:30 y cada hora hasta las 17:30.
-                  Fuera de ese horario no se consulta nada, así que a primera hora de la mañana es
-                  normal que la última comprobación sea de ayer por la tarde.
+                  {hoyToca.length
+                    ? `Hoy se comprueba ${hoyToca.length} vece(s), de ${aReloj(hoyToca[0])} a `
+                      + `${aReloj(hoyToca[hoyToca.length - 1])} (hora de España).`
+                    : 'Hoy no hay ninguna comprobación programada.'}
+                  {' '}Fuera de esas horas no se consulta nada, así que a primera hora de la mañana
+                  es normal que la última comprobación sea de ayer por la tarde. Las horas se
+                  cambian aquí mismo, en «Horarios de vigilancia».
                   {token && ' El botón «Actualizar» de arriba recarga los datos y, de paso, manda comprobar'
                           + ' el portal ahora mismo; si al abrir la app ve que lleva parado, lo hace él solo.'}
                 </div>
@@ -1957,33 +2438,40 @@ function Panel({datos, token, onActualizar, onSalir, recargando, marcha}){
               </div>
             </Seccion>
 
-            <Seccion titulo="Historial de ejecuciones" primaria plegable={false}>
+            <Seccion titulo="Historial de ejecuciones" primaria abiertaPorDefecto={false}
+                     cuenta={sinVer.ajustes || null}>
               <Ejecuciones ejecuciones={ejecuciones} />
             </Seccion>
 
-            <Seccion titulo="Apariencia" primaria plegable={false}>
-              <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-3)'}}>
-                <div className="acciones">
-                  {[['sistema','Como el sistema'], ['claro','Claro'], ['oscuro','Oscuro']].map(([clave, etq]) => (
-                    <button key={clave} className={'btn' + (tema === clave ? ' elegido' : '')}
-                            aria-pressed={tema === clave} onClick={() => setTema(clave)}>{etq}</button>
-                  ))}
+            <Seccion titulo="Apariencia y acceso" primaria abiertaPorDefecto={false}>
+              <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-4)'}}>
+                <div style={{display:'grid', gap:'var(--sp-2)'}}>
+                  <div className="titulo-seccion">Tema</div>
+                  <div className="acciones">
+                    {[['sistema','Como el sistema'], ['claro','Claro'], ['oscuro','Oscuro']].map(([clave, etq]) => (
+                      <button key={clave} className={'btn' + (tema === clave ? ' elegido' : '')}
+                              aria-pressed={tema === clave} onClick={() => setTema(clave)}>{etq}</button>
+                    ))}
+                  </div>
+                  <div className="envio-sub">Se recuerda solo en este navegador.</div>
                 </div>
-                <div className="envio-sub">Se recuerda solo en este navegador.</div>
+                <div style={{display:'grid', gap:'var(--sp-2)'}}>
+                  <div className="titulo-seccion">Acceso</div>
+                  <div className="envio-sub">
+                    La contraseña queda guardada en este dispositivo para no tener que escribirla cada
+                    vez. Los datos se descifran aquí, en tu navegador.
+                  </div>
+                  <div className="acciones">
+                    <button className="btn" onClick={onSalir}>Olvidar la contraseña en este dispositivo</button>
+                  </div>
+                </div>
               </div>
             </Seccion>
 
-            <Seccion titulo="Acceso" primaria plegable={false}>
-              <div className="tarjeta pad" style={{display:'grid', gap:'var(--sp-3)'}}>
-                <div className="envio-sub">
-                  La contraseña queda guardada en este dispositivo para no tener que escribirla cada
-                  vez. Los datos se descifran aquí, en tu navegador.
-                </div>
-                <div className="acciones">
-                  <button className="btn" onClick={onSalir}>Olvidar la contraseña en este dispositivo</button>
-                </div>
-              </div>
-            </Seccion>
+            <BarraGuardar sucio={sucioAjustes} guardando={guardando} resultado={guardado}
+                          error={errorAjustes} token={token} onGuardar={mandarAjustes}
+                          onDeshacer={() => tocarAjustes(ajustes, true)}
+                          json={JSON.stringify(borrador, null, 1)} />
           </Fragment>
         )}
       </main>
@@ -1999,8 +2487,13 @@ function App(){
   const [error, setError] = useState('');
   const [recargando, setRecargando] = useState(false);
   const [marcha, setMarcha] = useState(null);     // el transcurso de la comprobación
+  /* Los ajustes van aparte de los datos: no están cifrados, no dependen de la
+     contraseña y se leen aunque el fichero de envíos todavía no exista. */
+  const [ajustes, setAjustes] = useState(AJUSTES_DEFECTO);
   const siguiendo = useRef(false);
   const primeraCarga = useRef(true);
+
+  useEffect(() => { cargarAjustes().then(setAjustes).catch(() => {}); }, []);
 
   const recargar = useCallback(async (password) => {
     const pw = password ?? clave;
@@ -2020,7 +2513,12 @@ function App(){
   useEffect(() => {
     if (!clave) return;
     recargar(clave);
-    const t = setInterval(() => recargar(clave), 5 * 60 * 1000);   // el workflow va cada 15 min / cada hora en horario laboral
+    // Los ajustes se recargan con los datos: se pueden haber cambiado desde
+    // otro aparato, y el horario decide qué cuenta aquí como «lleva parado».
+    const t = setInterval(() => {
+      recargar(clave);
+      cargarAjustes().then(setAjustes).catch(() => {});
+    }, 5 * 60 * 1000);
     return () => clearInterval(t);
   }, [clave, recargar]);
 
@@ -2114,7 +2612,8 @@ function App(){
     );
   }
   return <Panel datos={datos} token={token} onActualizar={actualizar} onSalir={salir}
-                recargando={recargando} marcha={marcha} />;
+                recargando={recargando} marcha={marcha}
+                ajustes={ajustes} onAjustes={setAjustes} />;
 }
 
 if ('serviceWorker' in navigator) {

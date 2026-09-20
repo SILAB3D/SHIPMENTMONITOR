@@ -12,7 +12,8 @@ el panel. No hay nada que instalar ni que dejar encendido.
 👉 **Para ponerlo en marcha: [INSTALACION.md](INSTALACION.md)** — 15 minutos, coste 0 €.
 
 ```
-   ⏱ L-V · cada 15 min de 8:30 a 10:30 y cada hora hasta las 17:30
+   ⏱ el horario que pongas en Ajustes (de serie: L-V, cada 15 min de 8:30
+        a 10:30 y cada hora hasta las 17:30)
         │
         ▼
 ┌──────────────────┐  HTTP + JSON   ┌──────────────┐
@@ -96,7 +97,7 @@ python -m http.server 8899 --directory docs      # abre http://localhost:8899
 
 | Dónde | Qué |
 |---|---|
-| `cron` en `monitor.yml` | frecuencia (L-V: cada 15 min de 8:30 a 10:30, y cada hora hasta las 17:30) |
+| Pestaña **Ajustes** del panel | días, tramos horarios y frecuencia de la vigilancia, y qué avisos quieres recibir (se guardan en `docs/ajustes.json`) |
 | Variable `DINAPAQ_URL_LISTADO` | URL directa de la pantalla de consulta |
 | Variable `DINAPAQ_DIAS_ATRAS` | cuántos días de envíos pedir |
 | `SINONIMOS` en `parser.py` | nombres de columna que sabe reconocer |

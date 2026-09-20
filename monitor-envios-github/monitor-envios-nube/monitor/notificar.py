@@ -15,6 +15,7 @@ import urllib.parse
 import urllib.request
 from email.message import EmailMessage
 
+from monitor import ajustes as aj
 from monitor import config, webpush
 
 log = logging.getLogger("avisos")
@@ -187,31 +188,49 @@ def _intentar(nombre: str, fn, resultado: dict) -> None:
 
 
 def avisar(eventos: list[dict]) -> dict[str, str]:
+    """Manda los avisos que estén encendidos en el panel, por los canales que lo estén.
+
+    Lo que se silencia aquí se sigue apuntando en el historial y se ve en el
+    panel: apagar un aviso es dejar de recibir el empujón al móvil, no dejar de
+    enterarse. Por eso el filtro está en el envío y no en `estado.sincronizar`.
+    """
     if not eventos:
         return {}
+    ajustes = aj.cargar()
+    eventos = aj.filtrar(eventos, ajustes)
+    if not eventos:
+        log.info("todas las novedades son de clases apagadas en Ajustes: no se avisa de ninguna")
+        return {}
+
     cuerpo = texto(eventos)
     asunto = eventos[0]["titulo"] if len(eventos) == 1 else f"{len(eventos)} novedades en tus envíos"
     resultado: dict[str, str] = {}
-    if config.push_ok():
+    if config.push_ok() and aj.canal_activo("push", ajustes):
         _intentar("push", lambda: _push(_mensaje_push(eventos)), resultado)
-    if config.TELEGRAM_TOKEN and config.TELEGRAM_CHAT_ID:
+    if config.TELEGRAM_TOKEN and config.TELEGRAM_CHAT_ID and aj.canal_activo("telegram", ajustes):
         _intentar("telegram", lambda: _telegram(cuerpo), resultado)
-    if config.SMTP_HOST and config.EMAIL_DESTINO:
+    if config.SMTP_HOST and config.EMAIL_DESTINO and aj.canal_activo("email", ajustes):
         _intentar("email", lambda: _email(asunto, cuerpo), resultado)
     if not resultado:
-        log.warning("no hay ningún canal de avisos configurado: la novedad solo se verá en el panel")
+        log.warning("ningún canal de avisos configurado y encendido: la novedad solo se verá en el panel")
     return resultado
 
 
 def avisar_error(mensaje: str) -> None:
     """Avisa de que el monitor no ha podido leer el portal."""
+    ajustes = aj.cargar()
+    if not aj.aviso_activo("error", ajustes):
+        log.info("los avisos de fallo están apagados en Ajustes: no se avisa")
+        return
     corto = mensaje.strip().splitlines()[0][:200] if mensaje.strip() else "motivo desconocido"
-    for fn in (
-        lambda: _push({"titulo": "⚠️ El monitor no pudo consultar el portal",
-                       "cuerpo": corto, "etiqueta": "error", "urgencia": "normal"}),
-        lambda: _telegram(f"⚠️ El monitor de envíos no pudo consultar el portal:\n{mensaje}"),
-        lambda: _email("⚠️ Monitor de envíos: fallo al consultar", mensaje),
+    for canal, fn in (
+        ("push", lambda: _push({"titulo": "⚠️ El monitor no pudo consultar el portal",
+                                "cuerpo": corto, "etiqueta": "error", "urgencia": "normal"})),
+        ("telegram", lambda: _telegram(f"⚠️ El monitor de envíos no pudo consultar el portal:\n{mensaje}")),
+        ("email", lambda: _email("⚠️ Monitor de envíos: fallo al consultar", mensaje)),
     ):
+        if not aj.canal_activo(canal, ajustes):
+            continue
         try:
             fn()
         except Exception:  # noqa: BLE001

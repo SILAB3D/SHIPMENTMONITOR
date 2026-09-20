@@ -7,7 +7,7 @@
  *      la pantalla del móvil, con la app cerrada. Es el motivo de que no haga
  *      falta ni Telegram ni email.
  */
-const CACHE = 'shipmentmonitor-v11';
+const CACHE = 'shipmentmonitor-v12';
 const BASICOS = [
   './', 'index.html', 'icono.svg', 'icono-192.png', 'icono-512.png',
   'icono-notificacion-192.png', 'icono-badge-96.png',
@@ -47,6 +47,7 @@ self.addEventListener('fetch', e => {
   if (url.origin !== self.location.origin) return;                 // nada de fuera
   if (url.pathname.endsWith('/datos.json')) return;                // siempre fresco
   if (url.pathname.endsWith('/disparo.json')) return;
+  if (url.pathname.endsWith('/ajustes.json')) return;      // los ajustes, también
   e.respondWith(
     fetch(pet).catch(() => caches.match(pet).then(
       r => r || (pet.mode === 'navigate' ? caches.match('index.html') : Response.error())
